@@ -4,9 +4,9 @@ use chrono::TimeZone;
 use pass::PassClient;
 
 #[derive(serde::Serialize)]
-struct UserInfoJsonOutput<'a> {
-    pub email: &'a str,
-    pub plan: &'a str,
+struct UserInfoJsonOutput {
+    pub email: String,
+    pub plan: String,
     pub subscription_end: Option<u64>,
     pub vault_limit: Option<u16>,
     pub alias_limit: Option<u16>,
@@ -16,8 +16,8 @@ struct UserInfoJsonOutput<'a> {
 }
 
 pub async fn run(client: PassClient, output_format: OutputFormat) -> Result<()> {
-    let addresses = client.get_addresses().await?;
-    let primary_address = addresses.first().ok_or_else(|| {
+    let mut addresses = client.get_addresses().await?;
+    let primary_address = addresses.pop().ok_or_else(|| {
         anyhow::anyhow!("No addresses found. Please add an address to your account.")
     })?;
     let user_info = client.get_user_access().await?;
@@ -50,8 +50,8 @@ pub async fn run(client: PassClient, output_format: OutputFormat) -> Result<()> 
         }
         OutputFormat::Json => {
             let out = UserInfoJsonOutput {
-                email: &primary_address.email,
-                plan: &user_info.plan.display_name,
+                email: primary_address.email,
+                plan: user_info.plan.display_name,
                 subscription_end: user_info.plan.subscription_end,
                 vault_limit: user_info.plan.vault_limit,
                 alias_limit: user_info.plan.alias_limit,
