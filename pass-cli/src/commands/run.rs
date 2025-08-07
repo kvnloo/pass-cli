@@ -304,13 +304,17 @@ async fn execute_command(
 
     // Wait for the child process to complete
     let exit_status = {
-        let mut child_lock = child_mutex.lock().await;
-        if let Some(mut child) = child_lock.take() {
-            child.wait().context("Failed to wait for child process")?
-        } else {
-            // Child was terminated by signal handler
-            std::process::exit(130);
-        }
+        let mut child = {
+            let mut child_lock = child_mutex.lock().await;
+            if let Some(child) = child_lock.take() {
+                child
+            } else {
+                // Child was terminated by signal handler
+                std::process::exit(130);
+            }
+        }; // Mutex is released here
+        
+        child.wait().context("Failed to wait for child process")?
     };
 
     // Cancel the Ctrl+C handler since the process completed normally
