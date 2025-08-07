@@ -4,11 +4,9 @@ use regex::Regex;
 use std::collections::HashMap;
 use std::env;
 use std::io::{BufRead, BufReader, Read};
-use std::process::{Child, Command, Stdio};
-use std::sync::Arc;
+use std::process::{Command, Stdio};
 use std::thread;
 use std::thread::JoinHandle;
-use tokio::sync::Mutex;
 
 use super::secret_resolver::{PassClientResolver, SecretCache, SecretReference, find_pass_uris};
 
@@ -188,7 +186,7 @@ fn mask_line(line: &str, masking_regex: &Option<Regex>) -> String {
 }
 
 #[cfg(unix)]
-async fn kill_process(pid: i32, child: &mut Child) {
+async fn kill_process_by_pid(pid: i32) {
     // On Unix systems, send SIGTERM first, then SIGKILL if needed
     unsafe {
         libc::kill(pid, libc::SIGTERM);
@@ -196,17 +194,20 @@ async fn kill_process(pid: i32, child: &mut Child) {
         // Give the process a moment to terminate gracefully
         tokio::time::sleep(tokio::time::Duration::from_millis(SIGKILL_GRACE_TIME_MS)).await;
 
-        // If still running, force kill
-        if let Ok(None) = child.try_wait() {
+        // Check if process is still running by sending signal 0
+        if libc::kill(pid, 0) == 0 {
+            // Process is still running, force kill
             libc::kill(pid, libc::SIGKILL);
         }
     }
 }
 
 #[cfg(not(unix))]
-async fn kill_process(pid: i32, mut child: Child) {
-    // On non-Unix systems (Windows), use kill()
-    let _ = child.kill();
+async fn kill_process_by_pid(pid: i32) {
+    // On non-Unix systems (Windows), we'll use taskkill command as a simple approach
+    let _ = std::process::Command::new("taskkill")
+        .args(&["/PID", &pid.to_string(), "/F"])
+        .output();
 }
 
 fn handle_stream<R: Read + Send + 'static>(
@@ -255,7 +256,7 @@ async fn execute_command(
     };
 
     // Start the subprocess
-    let child = Command::new(program)
+    let mut child = Command::new(program)
         .args(args)
         .envs(&resolved_env)
         .stdout(Stdio::piped())
@@ -265,56 +266,31 @@ async fn execute_command(
 
     // Store child process ID for signal handling
     let child_pid = child.id();
-    let child_mutex = Arc::new(Mutex::new(Some(child)));
-    let child_mutex_clone = child_mutex.clone();
-
-    // Set up Ctrl+C handler
-    let ctrl_c_task = tokio::spawn(async move {
-        if let Ok(()) = tokio::signal::ctrl_c().await {
-            eprintln!("\nReceived Ctrl+C, terminating child process...");
-
-            // Terminate the child process
-            if let Some(mut child) = child_mutex_clone.lock().await.take() {
-                kill_process(child_pid as i32, &mut child).await;
-            }
-
-            std::process::exit(130); // Standard exit code for Ctrl+C (128 + SIGINT)
-        }
-    });
 
     // Get stdout and stderr handles
-    let (stdout, stderr) = {
-        let mut child_lock = child_mutex.lock().await;
-
-        // Get the handle of the child, take the stdout and stderr, and put back child to the option
-        let mut child = child_lock.take().unwrap();
-        let stdout = child.stdout.take().unwrap();
-        let stderr = child.stderr.take().unwrap();
-        *child_lock = Some(child);
-
-        (stdout, stderr)
-    };
+    let stdout = child.stdout.take().unwrap();
+    let stderr = child.stderr.take().unwrap();
 
     let stdout_handle = handle_stream(stdout, masking_regex.clone(), false);
     let stderr_handle = handle_stream(stderr, masking_regex, true);
 
-    // Wait for the child process to complete
-    let exit_status = {
-        let mut child = {
-            let mut child_lock = child_mutex.lock().await;
-            if let Some(child) = child_lock.take() {
-                child
-            } else {
-                // Child was terminated by signal handler
-                std::process::exit(130);
-            }
-        }; // Mutex is released here
+    // Use tokio::select! to handle both child completion and Ctrl+C
+    let exit_status = tokio::select! {
+        // Wait for child process to complete
+        result = tokio::task::spawn_blocking(move || child.wait()) => {
+            result.map_err(|e| anyhow!("Task join error: {}", e))?
+                .context("Failed to wait for child process")?
+        },
+        // Handle Ctrl+C signal
+        _ = tokio::signal::ctrl_c() => {
+            eprintln!("\nReceived Ctrl+C, terminating child process...");
 
-        child.wait().context("Failed to wait for child process")?
+            // Kill the child process
+            kill_process_by_pid(child_pid as i32).await;
+
+            std::process::exit(130); // Standard exit code for Ctrl+C (128 + SIGINT)
+        }
     };
-
-    // Cancel the Ctrl+C handler since the process completed normally
-    ctrl_c_task.abort();
 
     // Wait for output handling threads to complete
     stdout_handle
