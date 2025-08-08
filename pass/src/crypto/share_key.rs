@@ -19,14 +19,14 @@ impl OpenShareKeyFlow {
 
         for user_key in self.user_keys {
             private_keys.push(PrivateKey {
-                content: user_key.private_key,
+                content: user_key.private_key.clone(),
             });
             public_keys.push(PublicKey {
-                content: user_key.public_key,
+                content: user_key.public_key.clone(),
             });
         }
         self.crypto
-            .decrypt_and_verify(vault_key.key.0, private_keys, public_keys, None)
+            .decrypt_and_verify(vault_key.key.0.clone(), private_keys, public_keys, None)
             .await
     }
 }

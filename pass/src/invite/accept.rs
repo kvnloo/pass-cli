@@ -84,7 +84,7 @@ impl PassClient {
             .keys
             .into_iter()
             .map(|k| InviteKeyToReencrypt {
-                key: k.key.0,
+                key: k.key.0.clone(),
                 key_rotation: k.key_rotation,
             })
             .collect();
@@ -98,7 +98,7 @@ impl PassClient {
             keys: reencrypted
                 .into_iter()
                 .map(|k| AcceptInviteKey {
-                    key: crate::utils::b64_encode(k.encrypted_key),
+                    key: crate::utils::b64_encode(k.encrypted_key.clone()),
                     key_rotation: k.key_rotation,
                 })
                 .collect(),

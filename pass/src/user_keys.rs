@@ -2,8 +2,9 @@ use crate::{ApiKey, PassClient, PrivateKey, PublicKey};
 use anyhow::{Context, Result, anyhow};
 use muon::GET;
 use muon::rest::core;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
-#[derive(Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, serde::Deserialize, serde::Serialize, Zeroize, ZeroizeOnDrop)]
 pub struct UserKey {
     pub public_key: Vec<u8>,
     pub private_key: Vec<u8>,
@@ -13,10 +14,10 @@ impl UserKey {
     pub fn into_keys(self) -> (PrivateKey, PublicKey) {
         (
             PrivateKey {
-                content: self.private_key,
+                content: self.private_key.clone(),
             },
             PublicKey {
-                content: self.public_key,
+                content: self.public_key.clone(),
             },
         )
     }

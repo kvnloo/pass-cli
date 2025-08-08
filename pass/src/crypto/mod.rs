@@ -1,4 +1,5 @@
 use anyhow::Result;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 mod constants;
 pub(crate) mod encrypt_invite_keys;
@@ -19,30 +20,14 @@ impl std::fmt::Display for PgpCryptoError {
 
 impl std::error::Error for PgpCryptoError {}
 
-#[derive(Clone)]
+#[derive(Clone, Zeroize, ZeroizeOnDrop)]
 pub struct PrivateKey {
     pub content: Vec<u8>,
 }
 
-impl Drop for PrivateKey {
-    fn drop(&mut self) {
-        for i in 0..self.content.len() {
-            self.content[i] = 0;
-        }
-    }
-}
-
-#[derive(Clone)]
+#[derive(Clone, Zeroize, ZeroizeOnDrop)]
 pub struct PublicKey {
     pub content: Vec<u8>,
-}
-
-impl Drop for PublicKey {
-    fn drop(&mut self) {
-        for i in 0..self.content.len() {
-            self.content[i] = 0;
-        }
-    }
 }
 
 #[async_trait::async_trait]
