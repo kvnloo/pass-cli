@@ -2,6 +2,7 @@ use crate::PrivateKey;
 use anyhow::Result;
 use pass_domain::AddressKeyId;
 use std::collections::{BTreeMap, HashMap};
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 mod address;
 mod address_key;
@@ -41,12 +42,12 @@ impl UnlockedAddressKeys {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Zeroize, ZeroizeOnDrop)]
 pub struct Passphrase(pub(crate) Vec<u8>);
 
 impl Passphrase {
-    pub fn value(self) -> Vec<u8> {
-        self.0.clone()
+    pub fn new(value: Vec<u8>) -> Self {
+        Self(value)
     }
 }
 
@@ -56,13 +57,7 @@ impl AsRef<[u8]> for Passphrase {
     }
 }
 
-impl Drop for Passphrase {
-    fn drop(&mut self) {
-        self.0.clear()
-    }
-}
-
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, ZeroizeOnDrop)]
 pub struct KeyPassphrase {
     pub id: String,
     pub passphrase: Passphrase,
@@ -81,7 +76,7 @@ impl KeyPassphrases {
     pub fn into_map(self) -> HashMap<String, Passphrase> {
         let mut res = HashMap::new();
         for passphrase in self.passphrases {
-            res.insert(passphrase.id.to_string(), passphrase.passphrase);
+            res.insert(passphrase.id.to_string(), passphrase.passphrase.clone());
         }
         res
     }

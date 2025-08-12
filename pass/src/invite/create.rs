@@ -314,7 +314,7 @@ impl PassClient {
         let keys = encrypted_keys
             .into_iter()
             .map(|k| CreateInviteKey {
-                key: crate::utils::b64_encode(k.key),
+                key: crate::utils::b64_encode(k.key.clone()),
                 key_rotation: k.key_rotation,
             })
             .collect();
@@ -346,7 +346,7 @@ impl PassClient {
                 .keys
                 .into_iter()
                 .map(|k| InviteKeyToPrepare {
-                    decrypted_key: k.key.value(),
+                    decrypted_key: k.key.clone().value(),
                     key_rotation: k.key_rotation,
                 })
                 .collect()),

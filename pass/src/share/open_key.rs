@@ -2,13 +2,14 @@ use crate::PassClient;
 use crate::crypto::share_key::OpenShareKeyFlow;
 use crate::share::ShareKey;
 use anyhow::{Context, Result};
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
-#[derive(Clone)]
+#[derive(Clone, Zeroize, ZeroizeOnDrop)]
 pub(crate) struct DecryptedShareKey(pub(crate) Vec<u8>);
 
 impl DecryptedShareKey {
     pub fn value(self) -> Vec<u8> {
-        self.0
+        self.0.clone()
     }
 }
 

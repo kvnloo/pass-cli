@@ -1,8 +1,10 @@
 use crate::crypto::constants::SIGNATURE_CONTEXT_EXISTING_USER;
-use crate::{PgpCrypto, PublicKey, UnlockedAddressKeys};
+use crate::{PgpCrypto, PlainText, PublicKey, UnlockedAddressKeys};
 use anyhow::{Context, Result};
 use std::sync::Arc;
+use zeroize::ZeroizeOnDrop;
 
+#[derive(ZeroizeOnDrop)]
 pub(crate) struct PreparedInviteKey {
     pub key: Vec<u8>,
     pub key_rotation: u8,
@@ -52,7 +54,7 @@ impl EncryptInviteKeysFlow {
             let encrypted = self
                 .crypto
                 .encrypt_and_sign(
-                    invite_key.decrypted_key,
+                    PlainText(invite_key.decrypted_key),
                     invited_key.clone(),
                     signing_key.private_key.clone(),
                     Some(SIGNATURE_CONTEXT_EXISTING_USER.to_string()),

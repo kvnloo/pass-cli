@@ -2,16 +2,18 @@ mod keys;
 mod list;
 mod open_key;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+use zeroize::{Zeroize, ZeroizeOnDrop};
+
+#[derive(Clone, Debug, Eq, PartialEq, Zeroize, ZeroizeOnDrop)]
 pub struct EncryptedShareKey(pub(crate) Vec<u8>);
 
 impl EncryptedShareKey {
     pub fn value(self) -> Vec<u8> {
-        self.0
+        self.0.clone()
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, ZeroizeOnDrop)]
 pub struct ShareKey {
     pub key_rotation: u8,
     pub key: EncryptedShareKey,

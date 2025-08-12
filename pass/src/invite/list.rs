@@ -3,6 +3,7 @@ use crate::crypto::open_invite_key::OpenInviteKeyFlow;
 use anyhow::{Context, Result, anyhow};
 use muon::GET;
 use pass_domain::{Invite, InviteId, InviteVaultData, TargetType, VaultData, crypto};
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 #[derive(Clone, Debug, serde::Deserialize)]
 struct GetPendingInvitesResponse {
@@ -59,7 +60,7 @@ pub struct InviteKey {
     pub key_rotation: u8,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Zeroize, ZeroizeOnDrop)]
 pub(crate) struct DecryptedInviteKey(pub(crate) Vec<u8>);
 
 impl AsRef<[u8]> for DecryptedInviteKey {
@@ -68,7 +69,7 @@ impl AsRef<[u8]> for DecryptedInviteKey {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, ZeroizeOnDrop)]
 pub(crate) struct OpenedInviteKey {
     pub key: DecryptedInviteKey,
     pub key_rotation: u8,

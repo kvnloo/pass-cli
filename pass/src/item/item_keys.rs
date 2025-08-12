@@ -5,6 +5,7 @@ use bytes::Bytes;
 use muon::GET;
 use pass_domain::{ItemId, ShareId, ShareType, crypto};
 use std::collections::HashMap;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 #[derive(Clone, Debug)]
 pub(crate) struct ItemKeys {
@@ -17,7 +18,7 @@ impl ItemKeys {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Zeroize, ZeroizeOnDrop)]
 pub(crate) struct EncryptedItemKey(pub(crate) Vec<u8>);
 
 impl AsRef<[u8]> for EncryptedItemKey {
@@ -26,7 +27,7 @@ impl AsRef<[u8]> for EncryptedItemKey {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, ZeroizeOnDrop)]
 pub(crate) struct ItemKey {
     pub(crate) key: EncryptedItemKey,
     pub(crate) key_rotation: u8,
@@ -41,12 +42,12 @@ impl ItemKey {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Zeroize, ZeroizeOnDrop)]
 pub(crate) struct DecryptedItemKey(pub(crate) Vec<u8>);
 
 impl DecryptedItemKey {
     pub fn value(self) -> Vec<u8> {
-        self.0
+        self.0.clone()
     }
 }
 
@@ -56,7 +57,7 @@ impl AsRef<[u8]> for DecryptedItemKey {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, ZeroizeOnDrop)]
 pub(crate) struct OpenedItemKey {
     pub(crate) key: DecryptedItemKey,
     pub(crate) key_rotation: u8,
@@ -155,7 +156,7 @@ impl PassClient {
 
                 let mut res = Vec::new();
                 for key in share_keys.keys {
-                    res.push(ItemKey::new(key.key.value(), key.key_rotation));
+                    res.push(ItemKey::new(key.key.clone().value(), key.key_rotation));
                 }
 
                 Ok(ItemKeys::new(res))
@@ -247,7 +248,7 @@ impl PassClient {
             let opened = self
                 .open_share_key(ShareKey {
                     key_rotation: key.key_rotation,
-                    key: EncryptedShareKey(key.key.0),
+                    key: EncryptedShareKey(key.key.0.clone()),
                 })
                 .await
                 .context("Error opening item key")?;
