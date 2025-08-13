@@ -8,7 +8,7 @@ pub enum ItemFlag {
 }
 
 impl ItemFlag {
-    /// Parse a u64 bitmask value into a Vec<ItemFlag>
+    /// Parse a u64 bitmask value into a `Vec<ItemFlag>`
     pub fn parse_flags(flags: u64) -> Vec<ItemFlag> {
         let mut result = Vec::new();
 
@@ -31,7 +31,7 @@ impl ItemFlag {
         result
     }
 
-    /// Convert a Vec<ItemFlag> back to a u64 bitmask
+    /// Convert a `Vec<ItemFlag>` back to a u64 bitmask
     pub fn to_bitmask(flags: &[ItemFlag]) -> u64 {
         flags.iter().fold(0u64, |acc, flag| acc | (*flag as u64))
     }
