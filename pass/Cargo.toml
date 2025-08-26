@@ -26,6 +26,8 @@ bytes = "1.10.1"
 futures = "0.3"
 
 [dev-dependencies]
-axum-core = "0.4"
 pass-fs = {path = "../pass-fs"}
 pass-pgp = {path = "../pass-pgp"}
+
+axum-core = "0.4"
+rand.workspace = true
