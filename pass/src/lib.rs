@@ -32,5 +32,3 @@ pub use client::PassClient;
 pub use item::create::login;
 pub use item::find::FindItemQuery;
 pub use vault::{CreateVaultArgs, UpdateVaultArgs};
-
-pub use utils::b64_encode;
