@@ -1,8 +1,11 @@
 use anyhow::{Context, anyhow};
-use pass_domain::{DataToDecrypt, Passphrase, PlainText, PrivateKey, PublicKey, Signature};
+use pass_domain::{
+    DataToArmor, DataToDecrypt, Passphrase, PlainText, PrivateKey, PublicKey, Signature,
+};
 use proton_crypto::crypto::{
     ArmorerSync, DataEncoding, Decryptor, DecryptorSync, DetachedSignatureVariant, Encryptor,
-    EncryptorSync, PGPProvider, PGPProviderSync, Signer, SignerSync, UnixTimestamp, VerifiedData,
+    EncryptorSync, KeyGenerator, KeyGeneratorAlgorithm, KeyGeneratorSync, PGPProvider,
+    PGPProviderSync, Signer, SignerSync, UnixTimestamp, VerifiedData,
 };
 
 pub struct NativePgpCrypto;
@@ -223,6 +226,24 @@ impl pass_domain::PgpCrypto for NativePgpCrypto {
         Ok(res)
     }
 
+    async fn armor(&self, data: DataToArmor) -> anyhow::Result<String> {
+        let provider = proton_crypto::new_pgp_provider();
+        let armorer = provider.armorer();
+
+        let armored = match data {
+            DataToArmor::Message(content) => armorer.armor_message(&content),
+            DataToArmor::Signature(content) => armorer.armor_signature(&content),
+            DataToArmor::PrivateKey(content) => armorer.armor_private_key(&content),
+            DataToArmor::PublicKey(content) => armorer.armor_public_key(&content),
+        }
+        .map_err(|e| anyhow!("Error armoring data: {e:?}"))?;
+
+        match String::from_utf8(armored) {
+            Ok(content) => Ok(content),
+            Err(e) => Err(anyhow!("Error armoring data: {e:?}")),
+        }
+    }
+
     async fn unarmor(&self, armored: String) -> anyhow::Result<Vec<u8>> {
         let provider = proton_crypto::new_pgp_provider();
         match provider.armorer().unarmor(armored) {
@@ -259,5 +280,39 @@ impl pass_domain::PgpCrypto for NativePgpCrypto {
             .context("Could not export public key")?;
 
         Ok(PublicKey::new(exported.as_ref().to_vec()))
+    }
+
+    async fn generate_key_pair(
+        &self,
+        name: String,
+        email: String,
+    ) -> anyhow::Result<(PrivateKey, PublicKey)> {
+        let provider = proton_crypto::new_pgp_provider();
+        let generator = provider.new_key_generator();
+
+        let now = chrono::Utc::now().to_utc().timestamp();
+        let key = generator
+            .with_generation_time(UnixTimestamp(now as u64))
+            .with_algorithm(KeyGeneratorAlgorithm::ECC)
+            .with_user_id(&name, &email)
+            .generate()
+            .map_err(|e| anyhow!("Error generating key pair: {}", e))?;
+
+        let private = provider
+            .private_key_export_unlocked(&key, DataEncoding::Bytes)
+            .map_err(|e| anyhow!("Error exporting private key: {}", e))?;
+
+        let public = provider
+            .private_key_to_public_key(&key)
+            .map_err(|e| anyhow!("Error obtaining public key: {}", e))?;
+
+        let public_exported = provider
+            .public_key_export(&public, DataEncoding::Bytes)
+            .map_err(|e| anyhow!("Error exporting public key: {}", e))?;
+
+        Ok((
+            PrivateKey::new(private.as_ref().to_vec()),
+            PublicKey::new(public_exported.as_ref().to_vec()),
+        ))
     }
 }

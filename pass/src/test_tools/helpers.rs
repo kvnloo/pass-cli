@@ -20,9 +20,30 @@ macro_rules! share_id {
 }
 
 #[macro_export]
+macro_rules! vault_id {
+    ($id:expr) => {
+        pass_domain::VaultId::new($id.to_string())
+    };
+}
+
+#[macro_export]
 macro_rules! item_id {
     ($id:expr) => {
         pass_domain::ItemId::new($id.to_string())
+    };
+}
+
+#[macro_export]
+macro_rules! address_id {
+    ($id:expr) => {
+        pass_domain::AddressId::new($id.to_string())
+    };
+}
+
+#[macro_export]
+macro_rules! group_id {
+    ($id:expr) => {
+        pass_domain::GroupId::new($id.to_string())
     };
 }
 

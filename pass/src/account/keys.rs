@@ -7,22 +7,22 @@ use pass_domain::PublicKey;
 const UNPROCESSABLE_ENTITY_CODE: u16 = 422;
 const ADDRESS_NOT_EXISTS_CODE: u32 = 33102;
 
-#[derive(Debug, serde::Deserialize)]
-struct ActivePublicKeysResponse {
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub(crate) struct ActivePublicKeysResponse {
     #[serde(rename = "Address")]
-    address: AddressDataResponse,
+    pub(crate) address: AddressDataResponse,
 }
 
-#[derive(Debug, serde::Deserialize)]
-struct AddressDataResponse {
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub(crate) struct AddressDataResponse {
     #[serde(rename = "Keys")]
-    keys: Vec<PublicAddressKeyResponse>,
+    pub(crate) keys: Vec<PublicAddressKeyResponse>,
 }
 
-#[derive(Debug, serde::Deserialize)]
-struct PublicAddressKeyResponse {
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub(crate) struct PublicAddressKeyResponse {
     #[serde(rename = "PublicKey")]
-    public_key: String,
+    pub(crate) public_key: String,
 }
 
 impl PassClient {
