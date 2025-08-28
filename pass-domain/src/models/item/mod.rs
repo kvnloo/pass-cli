@@ -25,8 +25,8 @@ impl ItemId {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
 pub enum ItemState {
-    Active,
-    Trashed,
+    Active = 1,
+    Trashed = 2,
 }
 
 impl TryFrom<u8> for ItemState {
