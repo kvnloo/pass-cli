@@ -4,6 +4,7 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
 const MUON_LOG_LEVEL_ENV: &str = "MUON_LOG_LEVEL";
+const PASS_LOG_LEVEL_ENV: &str = "PASS_LOG_LEVEL";
 
 pub fn setup_logs() {
     let subscriber = tracing_subscriber::fmt::layer()
@@ -22,11 +23,33 @@ pub fn setup_logs() {
         Err(_) => None,
     };
 
-    let mut filter = tracing_subscriber::filter::Targets::new()
-        .with_default(tracing::Level::ERROR)
-        .with_target("pass", tracing::Level::DEBUG)
-        .with_target("pass_domain", tracing::Level::DEBUG)
-        .with_target("pass-cli", tracing::Level::DEBUG);
+    let pass_log_level = match std::env::var(PASS_LOG_LEVEL_ENV) {
+        Ok(val) => {
+            if val == "off" {
+                None
+            } else {
+                Some(tracing::Level::from_str(&val).expect("invalid PASS_LOG_LEVEL"))
+            }
+        }
+        Err(_) => {
+            if cfg!(debug_assertions) {
+                Some(tracing::Level::DEBUG)
+            } else {
+                None
+            }
+        }
+    };
+
+    let mut filter = tracing_subscriber::filter::Targets::new().with_default(tracing::Level::ERROR);
+
+    if let Some(log_level) = pass_log_level {
+        filter = filter
+            .with_target("pass", log_level)
+            .with_target("pass_cli", log_level)
+            .with_target("pass_domain", log_level)
+            .with_target("pass_fs", log_level)
+            .with_target("pass_pgp", log_level);
+    }
 
     if let Some(muon_log_level) = muon_log_level {
         filter = filter.with_target("muon", muon_log_level);

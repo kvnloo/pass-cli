@@ -141,7 +141,7 @@ pub async fn get_client() -> anyhow::Result<Client> {
         .await?
         .unwrap_or_else(|| {
             let env = EnvId::from(get_env());
-            println!("Using env {env:?}");
+            debug!("Using env {env:?}");
             AuthenticatorStore::new_with_path(env, base_dir)
         });
 
