@@ -2,6 +2,7 @@ use anyhow::Context;
 use keyring::{Entry, Error};
 use pass_domain::LocalKeyProvider;
 use tokio::sync::RwLock;
+use tracing::info;
 
 const KEYRING_SERVICE_NAME: &str = "ProtonPassCLI";
 const KEYRING_CREDENTIAL_NAME: &str = "cli-local-key";

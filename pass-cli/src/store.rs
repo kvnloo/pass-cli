@@ -5,6 +5,7 @@ use muon::common::{Endpoint, Host, Server};
 use muon::env::{Env, EnvId};
 use muon::store::{Store, StoreError};
 use muon::tls::{TlsCert, TlsPinSet, Verifier, VerifyRes};
+use pass_domain::LocalKeyProvider;
 use pass_domain::crypto::EncryptionTag;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -104,6 +105,7 @@ pub struct AuthenticatorStore {
     pub env: EnvId,
     pub auth: Arc<RwLock<Auth>>,
     pub base_path: PathBuf,
+    pub key_provider: Arc<dyn LocalKeyProvider + Send + Sync>,
 }
 
 #[async_trait::async_trait]
@@ -136,22 +138,31 @@ impl Store for AuthenticatorStore {
 }
 
 impl AuthenticatorStore {
-    pub fn new_with_path(env: EnvId, base_path: PathBuf) -> Self {
+    pub fn new_with_path(
+        env: EnvId,
+        base_path: PathBuf,
+        key_provider: Arc<dyn LocalKeyProvider + Send + Sync>,
+    ) -> Self {
         Self {
             auth: Arc::new(RwLock::new(Auth::default())),
             env,
             base_path,
+            key_provider,
         }
     }
 
-    pub async fn get_from_local(base_path: PathBuf) -> anyhow::Result<Option<AuthenticatorStore>> {
+    pub async fn get_from_local(
+        base_path: PathBuf,
+        key_provider: Arc<dyn LocalKeyProvider + Send + Sync>,
+    ) -> anyhow::Result<Option<AuthenticatorStore>> {
         let file_path = base_path.join(FILE_NAME);
         if !file_path.exists() || !file_path.is_file() {
             return Ok(None);
         }
 
         let contents = std::fs::read(file_path).context("Error reading file")?;
-        let local_key = crate::storage::get_local_key(&base_path)
+        let local_key = key_provider
+            .get_key()
             .await
             .context("Error getting local key")?;
 
@@ -170,6 +181,7 @@ impl AuthenticatorStore {
             env: EnvId::from(deserialized.env),
             auth: Arc::new(RwLock::new(deserialized.auth)),
             base_path,
+            key_provider,
         }))
     }
 
@@ -186,7 +198,9 @@ impl AuthenticatorStore {
         debug!("[STORE] Storing session session to {}", file_path.display());
 
         let as_str = serde_json::to_string(&serialized).context("Error serializing json")?;
-        let local_key = crate::storage::get_local_key(&self.base_path)
+        let local_key = self
+            .key_provider
+            .get_key()
             .await
             .context("Error getting local key")?;
 

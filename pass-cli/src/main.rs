@@ -11,7 +11,6 @@ mod client;
 mod commands;
 mod features;
 mod logs;
-mod storage;
 mod store;
 mod utils;
 
@@ -121,7 +120,15 @@ enum Commands {
 async fn main() -> Result<()> {
     logs::setup_logs();
     let cli = Cli::parse();
-    let client = client::get_client().await.context("Error getting client")?;
+
+    let base_dir = utils::get_base_dir().context("Error getting base dir")?;
+    let client_features =
+        CliClientFeatures::new(base_dir.clone()).context("Error creating client features")?;
+    let client_features = Arc::new(client_features);
+
+    let client = client::get_client(base_dir.clone(), client_features.clone())
+        .await
+        .context("Error getting client")?;
     match &cli.command {
         Commands::Login { username } => return commands::login::run(username, client).await,
         Commands::Password { command } => {
@@ -134,8 +141,7 @@ async fn main() -> Result<()> {
         return Err(anyhow!("This operation requires an authenticated client"));
     }
 
-    let base_dir = utils::get_base_dir().context("Error getting base dir")?;
-    let client = PassClient::new(client, Arc::new(CliClientFeatures::new(base_dir)));
+    let client = PassClient::new(client, client_features);
 
     match cli.command {
         Commands::Logout => commands::logout::run(client).await,

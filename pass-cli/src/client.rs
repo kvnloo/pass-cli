@@ -1,3 +1,4 @@
+use crate::features::CliClientFeatures;
 use crate::store::{AllowAllPinVerifier, AuthenticatorStore, CustomEnv, SerializedEnv};
 use crate::utils::ask_for_input;
 use anyhow::{Context, bail};
@@ -7,6 +8,8 @@ use muon::common::{BoxFut, Sender, SenderLayer};
 use muon::env::{Env, EnvId};
 use muon::{App, Client, ProtonRequest, ProtonResponse};
 use std::io::Read;
+use std::path::PathBuf;
+use std::sync::Arc;
 
 const ENVIRONMENT_ENV_VAR: &str = "ENVIRONMENT";
 const XDEBUG_SESSION_ENV_VAR: &str = "XDEBUG_SESSION";
@@ -133,16 +136,19 @@ fn get_app_header() -> String {
     std::env::var(APP_HEADER_ENV_VAR).unwrap_or_else(|_| default_app_header())
 }
 
-pub async fn get_client() -> anyhow::Result<Client> {
+pub async fn get_client(
+    base_dir: PathBuf,
+    client_features: Arc<CliClientFeatures>,
+) -> anyhow::Result<Client> {
     let app = App::new(get_app_header()).context("failed to create app")?;
+    let key_provider = client_features.key_provider.clone();
 
-    let base_dir = crate::utils::get_base_dir().context("failed to get base dir")?;
-    let store = AuthenticatorStore::get_from_local(base_dir.clone())
+    let store = AuthenticatorStore::get_from_local(base_dir.clone(), key_provider.clone())
         .await?
         .unwrap_or_else(|| {
             let env = EnvId::from(get_env());
             debug!("Using env {env:?}");
-            AuthenticatorStore::new_with_path(env, base_dir)
+            AuthenticatorStore::new_with_path(env, base_dir, key_provider)
         });
 
     let mut use_allow_all = false;
