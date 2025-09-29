@@ -19,7 +19,7 @@ pub fn ask_for_input(prompt: &str, secure: bool) -> anyhow::Result<String> {
             if !username.trim().is_empty() {
                 return Ok(username.replace("\n", "").trim().to_string());
             } else {
-                warn!("Username is empty");
+                eprintln!("Username is empty");
             }
         }
     }

@@ -17,7 +17,8 @@ pub async fn run(username: &str, client: Client) -> Result<()> {
 
     info!("Logged in user: {}", username);
     let base_dir = get_base_dir().context("Couldn't get base directory")?;
-    let key_provider = Arc::new(CliClientFeatures::new(base_dir));
+    let key_provider =
+        Arc::new(CliClientFeatures::new(base_dir).context("Error creating client features")?);
     let client = PassClient::new(authenticated_client.client, key_provider);
 
     client
