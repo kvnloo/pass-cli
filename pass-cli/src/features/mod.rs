@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tracing::info;
 
-fn get_key_provider(base_dir: PathBuf) -> Result<Arc<dyn LocalKeyProvider + Send + Sync>> {
+fn get_key_provider(base_dir: PathBuf) -> Result<Arc<dyn LocalKeyProvider>> {
     let provider_type = env::var("PASS_CLI_KEY_PROVIDER").unwrap_or_default();
 
     match provider_type.as_str() {
@@ -32,7 +32,7 @@ fn get_key_provider(base_dir: PathBuf) -> Result<Arc<dyn LocalKeyProvider + Send
 #[derive(Clone)]
 pub struct CliClientFeatures {
     pub storage: Arc<RealFsStorage>,
-    pub key_provider: Arc<dyn LocalKeyProvider + Send + Sync>,
+    pub key_provider: Arc<dyn LocalKeyProvider>,
 }
 
 impl CliClientFeatures {

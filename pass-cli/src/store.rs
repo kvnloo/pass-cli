@@ -105,7 +105,7 @@ pub struct AuthenticatorStore {
     pub env: EnvId,
     pub auth: Arc<RwLock<Auth>>,
     pub base_path: PathBuf,
-    pub key_provider: Arc<dyn LocalKeyProvider + Send + Sync>,
+    pub key_provider: Arc<dyn LocalKeyProvider>,
 }
 
 #[async_trait::async_trait]
@@ -146,7 +146,7 @@ impl AuthenticatorStore {
     pub fn new_with_path(
         env: EnvId,
         base_path: PathBuf,
-        key_provider: Arc<dyn LocalKeyProvider + Send + Sync>,
+        key_provider: Arc<dyn LocalKeyProvider>,
     ) -> Self {
         Self {
             auth: Arc::new(RwLock::new(Auth::default())),
@@ -158,7 +158,7 @@ impl AuthenticatorStore {
 
     pub async fn get_from_local(
         base_path: PathBuf,
-        key_provider: Arc<dyn LocalKeyProvider + Send + Sync>,
+        key_provider: Arc<dyn LocalKeyProvider>,
     ) -> Result<Option<AuthenticatorStore>, GetStoreError> {
         let file_path = base_path.join(FILE_NAME);
         if !file_path.exists() || !file_path.is_file() {
