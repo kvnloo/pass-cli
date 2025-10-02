@@ -112,10 +112,36 @@ pub async fn authenticate_client(
         LoginFlow::Ok(client, _) => client,
 
         LoginFlow::TwoFactor(client, _) => {
-            if client.has_totp() {
+            let has_totp = client.has_totp();
+            let has_fido = client.fido_details().is_some();
+
+            if has_totp && has_fido {
+                // Both methods available, let user choose
+                loop {
+                    println!("Multiple 2FA methods available:");
+                    println!("1) TOTP");
+                    println!("2) FIDO");
+                    let choice = ask_for_input("Select authentication method (1 or 2): ", false)?;
+                    let choice = choice.trim();
+
+                    match choice {
+                        "1" => {
+                            let totp = get_totp()?;
+                            break client.totp(&totp).await?;
+                        }
+                        "2" => {
+                            break handle_fido(client).await?;
+                        }
+                        _ => {
+                            println!("Invalid option. Please enter 1 or 2.");
+                            continue;
+                        }
+                    }
+                }
+            } else if has_totp {
                 let totp = get_totp()?;
                 client.totp(&totp).await?
-            } else if client.fido_details().is_some() {
+            } else if has_fido {
                 handle_fido(client).await?
             } else {
                 bail!("no 2FA available");
