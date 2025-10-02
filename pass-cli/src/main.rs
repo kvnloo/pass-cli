@@ -9,6 +9,7 @@ use std::sync::Arc;
 
 mod client;
 mod commands;
+mod extra_password;
 mod features;
 mod fido;
 mod logs;
@@ -144,11 +145,11 @@ async fn main() -> Result<()> {
         CliClientFeatures::new(base_dir.clone()).context("Error creating client features")?;
     let client_features = Arc::new(client_features);
 
-    let client = client::get_client(base_dir.clone(), client_features.clone())
+    let (client, store) = client::get_client(base_dir.clone(), client_features.clone())
         .await
         .context("Error getting client")?;
     match &cli.command {
-        Commands::Login { username } => return commands::login::run(username, client).await,
+        Commands::Login { username } => return commands::login::run(username, client, store).await,
         Commands::Password { command } => {
             return commands::password::run(command).await;
         }

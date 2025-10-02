@@ -137,6 +137,46 @@ impl Store for PassSessionStore {
     }
 }
 
+/// Wrapper around Arc<RwLock<PassSessionStore>> that implements Store
+#[derive(Clone)]
+pub struct SharedPassSessionStore {
+    pub inner: Arc<RwLock<PassSessionStore>>,
+}
+
+impl SharedPassSessionStore {
+    pub fn new(store: PassSessionStore) -> Self {
+        Self {
+            inner: Arc::new(RwLock::new(store)),
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl Store for SharedPassSessionStore {
+    fn env(&self) -> EnvId {
+        // We need to block here since env() is not async
+        // This is safe because env is read-only and cloned
+        tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(async {
+                let store = self.inner.read().await;
+                store.env.clone()
+            })
+        })
+    }
+
+    async fn get_auth(&self) -> Auth {
+        trace!("[STORE] SharedPassSessionStore::get_auth()");
+        let store = self.inner.read().await;
+        store.get_auth().await
+    }
+
+    async fn set_auth(&mut self, auth: Auth) -> anyhow::Result<Auth, StoreError> {
+        trace!("[STORE] SharedPassSessionStore::set_auth()");
+        let mut store = self.inner.write().await;
+        store.set_auth(auth).await
+    }
+}
+
 pub(crate) enum GetStoreError {
     CannotDecrypt(anyhow::Error),
     Other(anyhow::Error),
@@ -242,5 +282,10 @@ impl PassSessionStore {
         debug!("[STORE] Stored session");
 
         Ok(())
+    }
+
+    pub async fn needs_extra_password(&self) -> bool {
+        let auth = self.auth.read().await;
+        !auth.has_scope("pass")
     }
 }
