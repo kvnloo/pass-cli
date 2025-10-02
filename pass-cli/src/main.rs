@@ -10,6 +10,7 @@ use std::sync::Arc;
 mod client;
 mod commands;
 mod features;
+mod fido;
 mod logs;
 mod store;
 mod utils;

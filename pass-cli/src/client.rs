@@ -4,23 +4,14 @@ use crate::store::{
 };
 use crate::utils::ask_for_input;
 use anyhow::{Context, anyhow, bail};
-use base64urlsafedata::Base64UrlSafeData;
 use muon::app::AppVersion;
 use muon::client::flow::{LoginFlow, LoginTwoFactorFlow};
 use muon::common::{BoxFut, Sender, SenderLayer};
 use muon::env::{Env, EnvId};
-use muon::rest::auth::v4::fido2;
-use muon::util::ByteSliceExt;
 use muon::{App, Client, ProtonRequest, ProtonResponse};
 use std::io::Read;
 use std::path::PathBuf;
-use std::str::FromStr;
 use std::sync::Arc;
-use webauthn_authenticator_rs::prelude::{RequestChallengeResponse, Url};
-use webauthn_rs_proto::{
-    AllowCredentials, AuthenticatorTransport, RequestAuthenticationExtensions,
-    UserVerificationPolicy,
-};
 
 const ENVIRONMENT_ENV_VAR: &str = "ENVIRONMENT";
 const XDEBUG_SESSION_ENV_VAR: &str = "XDEBUG_SESSION";
@@ -78,7 +69,7 @@ pub struct AuthenticatedClient {
     pub password: String,
 }
 
-fn get_value(
+pub fn get_value(
     env_var: &str,
     file_env_var: &str,
     prompt: &str,
@@ -157,77 +148,19 @@ async fn handle_fido(client: LoginTwoFactorFlow) -> anyhow::Result<Client> {
         return Err(anyhow!("No Fido2 authentication options not available"));
     }
 
-    let authenticator = webauthn_authenticator_rs::mozilla::MozillaAuthenticator::new();
-    let mut authenticator = webauthn_authenticator_rs::WebauthnAuthenticator::new(authenticator);
+    let authenticator = crate::fido::YubiKeyAuthenticator::new()
+        .context("Failed to create YubiKeyAuthenticator")?;
+    let request = authenticator
+        .authenticate_interactive(details.clone())
+        .expect("Error authenticating interactive session");
 
-    let options_cloned = options.clone();
-    let pk = options_cloned.public_key;
-    let url = if let Some(ref rp_id) = pk.rp_id {
-        format!("https://{}", rp_id)
-    } else {
-        return Err(anyhow!("Missing rp_id in FIDO2"));
+    let authenticated_client = match client.fido(request).await {
+        Ok(client) => client,
+        Err(e) => {
+            error!("Error in FIDO2: {e:?}");
+            return Err(anyhow!("Error sending FIDO2 response for login"));
+        }
     };
-    let url = Url::parse(&url).context("Invalid rp_id URL in FIDO2 request")?;
-
-    eprintln!("Starting FIDO2 authentication");
-    let res = authenticator
-        .do_authentication(
-            url,
-            RequestChallengeResponse {
-                public_key: webauthn_rs_proto::PublicKeyCredentialRequestOptions {
-                    challenge: Base64UrlSafeData::from(pk.challenge),
-                    timeout: None,
-                    rp_id: pk
-                        .rp_id
-                        .ok_or_else(|| anyhow!("Missing or empty rp_id in FIDO2"))?,
-                    allow_credentials: pk
-                        .allow_credentials
-                        .unwrap_or_default()
-                        .into_iter()
-                        .map(|k| AllowCredentials {
-                            type_: k.credential_type,
-                            id: Base64UrlSafeData::from(k.id),
-                            transports: k.transports.map(|transports| {
-                                transports
-                                    .into_iter()
-                                    .filter_map(|t| AuthenticatorTransport::from_str(&t).ok())
-                                    .collect()
-                            }),
-                        })
-                        .collect(),
-                    user_verification: match pk.user_verification {
-                        Some(uv) => match uv.as_str() {
-                            "required" => UserVerificationPolicy::Required,
-                            "discouraged" => UserVerificationPolicy::Discouraged_DO_NOT_USE,
-                            "preferred" => UserVerificationPolicy::Preferred,
-                            _ => UserVerificationPolicy::Preferred,
-                        },
-                        None => UserVerificationPolicy::Preferred,
-                    },
-                    hints: None,
-                    extensions: pk.extensions.map(|e| RequestAuthenticationExtensions {
-                        appid: e.app_id,
-                        uvm: e.uvm,
-                        hmac_get_secret: None,
-                    }),
-                },
-                mediation: None,
-            },
-        )
-        .context("Failure in FIDO2 authentication")?;
-
-    let request = fido2::Request {
-        authentication_options: options,
-        client_data: res.response.client_data_json.as_b64(),
-        authenticator_data: res.response.authenticator_data.as_b64(),
-        signature: res.response.signature.as_b64(),
-        credential_id: res.get_credential_id().to_vec(),
-    };
-
-    let authenticated_client = client
-        .fido(request)
-        .await
-        .context("Error sending FIDO2 response for login")?;
     Ok(authenticated_client)
 }
 

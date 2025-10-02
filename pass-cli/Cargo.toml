@@ -9,16 +9,16 @@ pass-domain = { path = "../pass-domain" }
 pass-fs = { path = "../pass-fs" }
 pass-pgp = { path = "../pass-pgp" }
 
-base64urlsafedata = "0.5.2"
+base64 = "0.22.1"
 clap = { version = "4.5", features = ["derive"] }
+ctap-hid-fido2 = { version = "3.5.5" }
 handlebars = "6.3.2"
 keyring = { version = "3.6.3", features = ["apple-native", "sync-secret-service", "windows-native"] }
 libc = "0.2"
 regex = "1.10"
 rpassword = "7.3.1"
+thiserror = "2"
 tracing-subscriber = { version = "0.3", features = ["default"] }
-webauthn-rs-proto = "0.5.2"
-webauthn-authenticator-rs = { version = "0.5.2", features = ["mozilla"] }
 
 anyhow.workspace = true
 async-trait.workspace = true
