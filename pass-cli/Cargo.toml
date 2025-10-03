@@ -25,6 +25,7 @@ async-trait.workspace = true
 chrono.workspace = true
 muon.workspace = true
 proton-crypto.workspace = true
+proton-crypto-account.workspace = true
 rand.workspace = true
 serde.workspace = true
 serde_json.workspace = true
