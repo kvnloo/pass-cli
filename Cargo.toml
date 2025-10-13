@@ -9,7 +9,7 @@ members = [
 resolver = "2"
 
 [workspace.dependencies]
-muon = { version = "1.7.1", registry = "proton", features = ["unsealed", "util", "testing-runner", "testing-server", "other-platform"] }
+muon = { version = "1.7.1", registry = "proton", features = ["tls-tokio-rustls", "unsealed", "util", "testing-runner", "testing-server", "other-platform"] }
 proton-crypto = { git = "ssh://git@gitlab.protontech.ch/rust/proton-crypto-rs.git", rev = "95305a122068d6db8aa2d2835c10687b9c507c07" }
 proton-crypto-account = { git = "ssh://git@gitlab.protontech.ch/rust/proton-crypto-rs.git", rev = "95305a122068d6db8aa2d2835c10687b9c507c07" }
 proton-pass-common = {  git = "ssh://git@gitlab.protontech.ch/proton/clients/pass/proton-pass-common.git", tag = "0.25.9" }
@@ -25,4 +25,5 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tracing = "0.1"
 tokio = { version = "1.47.0", features = ["full"] }
+uuid = { version = "1.18", features = ["v4", "js"] }
 zeroize = { version = "1.8", features = ["derive"] }
