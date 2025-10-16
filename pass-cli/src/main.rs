@@ -17,7 +17,7 @@ mod store;
 mod utils;
 
 #[derive(Parser)]
-#[command(name = "pass")]
+#[command(name = "pass-cli")]
 #[command(about = "A CLI tool for Proton Pass", long_about = None)]
 #[command(version)]
 struct Cli {
