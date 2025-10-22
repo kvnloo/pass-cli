@@ -1,3 +1,4 @@
+use std::io::IsTerminal;
 use anyhow::Result;
 use std::path::Path;
 
@@ -9,7 +10,7 @@ pub async fn check_for_updates_background(base_dir: &Path) -> Result<()> {
         return Ok(());
     }
 
-    if !atty::is(atty::Stream::Stderr) {
+    if !std::io::stderr().is_terminal() {
         return Ok(());
     }
 
