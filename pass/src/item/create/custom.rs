@@ -118,7 +118,7 @@ impl PassClient {
         share_id: &ShareId,
         payload: CustomItemCreatePayload,
     ) -> Result<ItemId> {
-        self.action_guard(PermissionAction::CreateCreditCard {
+        self.action_guard(PermissionAction::CreateCustomItem {
             share_id: share_id.clone(),
         })
         .await?;
