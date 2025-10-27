@@ -20,13 +20,13 @@ pub enum CreateCommands {
         #[command(flatten)]
         args: note::NoteArgs,
     },
-    /// Create a new credit card item (requires paid plan)
+    /// Create a new credit card item
     #[command(name = "credit-card")]
     CreditCard {
         #[command(flatten)]
         args: credit_card::CreditCardArgs,
     },
-    /// Create a new WiFi item (requires paid plan)
+    /// Create a new WiFi item
     Wifi {
         #[command(flatten)]
         args: wifi::WifiArgs,

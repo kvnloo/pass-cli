@@ -185,6 +185,6 @@ async fn create_custom_from_payload(
         .await
         .context("Error creating custom item")?;
 
-    println!("Custom item created successfully: {}", item_id.value());
+    println!("{}", item_id.value());
     Ok(())
 }
