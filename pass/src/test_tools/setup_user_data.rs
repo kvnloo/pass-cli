@@ -225,3 +225,45 @@ pub fn setup(server: &Arc<Server>) {
         })
     });
 }
+
+// Helper function to setup a paid user (Plus plan)
+pub fn setup_paid_user(server: &Arc<Server>) {
+    server.handler("/pass/v1/user/access", move |_| {
+        success(GetUserInfoResponse {
+            access: UserInfo {
+                plan: PassPlan {
+                    type_: PlanType::Plus,
+                    internal_name: "plus2022".to_string(),
+                    display_name: "Plus".to_string(),
+                    manage_subscription: false,
+                    subscription_end: None,
+                    subscription_renewal: false,
+                    subscription_coupon: None,
+                    subscription_offer: None,
+                    hide_upgrade: false,
+                    trial_end: None,
+                    vault_limit: None,
+                    alias_limit: None,
+                    totp_limit: None,
+                    manage_alias: false,
+                    storage_allowed: false,
+                    storage_max_file_size: 0,
+                    storage_used: 0,
+                    storage_quota: 0,
+                    cli_allowed: Some(true),
+                },
+                monitor: MonitorStatus {
+                    proton_address: false,
+                    aliases: false,
+                },
+                pending_invites: 0,
+                waiting_new_user_invites: 0,
+                user_data: UserDataSettings {
+                    default_share_id: None,
+                    alias_sync_enabled: false,
+                    pending_alias_to_sync: 0,
+                },
+            },
+        })
+    });
+}

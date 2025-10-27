@@ -15,6 +15,7 @@ pub enum PermissionAction {
     CreateAlias { share_id: ShareId },
     CreateIdentity,
     CreateCreditCard,
+    CreateWifi,
 }
 
 display_for_enum!(PermissionAction);
@@ -44,6 +45,7 @@ impl PassClient {
             PermissionAction::CreateCreditCard => {
                 self.create_paid_item_guard(user_access.plan).await
             }
+            PermissionAction::CreateWifi => self.create_paid_item_guard(user_access.plan).await,
         }
     }
 
