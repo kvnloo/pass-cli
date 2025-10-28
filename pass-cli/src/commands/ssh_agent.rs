@@ -18,14 +18,6 @@ use ssh_key::{
     public::PublicKey as SshPublicKey,
 };
 
-#[cfg(windows)]
-use ssh_agent_lib::agent::NamedPipeListener;
-#[cfg(unix)]
-use tokio::net::UnixListener;
-
-#[cfg(unix)]
-use std::os::unix::fs::PermissionsExt;
-
 use rsa::pkcs1v15::SigningKey;
 use rsa::sha2::{Sha256, Sha512};
 use rsa::signature::{RandomizedSigner, SignatureEncoding};
@@ -164,13 +156,14 @@ fn find_passphrase_in_extra_fields(item: &Item) -> Option<String> {
     // If no extra field with that name is found, try to find the first one of type hidden
     for extra_field in &item.content.extra_fields {
         if let pass_domain::ItemExtraFieldContent::Hidden(ref val) = extra_field.content
-            && !val.is_empty() {
-                debug!(
-                    "Best effort guess for passphrase in field '{}' for item '{}'",
-                    extra_field.name, item.content.title
-                );
-                return Some(val.to_string());
-            }
+            && !val.is_empty()
+        {
+            debug!(
+                "Best effort guess for passphrase in field '{}' for item '{}'",
+                extra_field.name, item.content.title
+            );
+            return Some(val.to_string());
+        }
     }
 
     None
@@ -216,8 +209,40 @@ fn load_and_decrypt_key(item: &Item, private_key_str: &str) -> Result<SshPrivate
 #[derive(Clone, PartialEq, Debug)]
 struct Identity {
     public_key: SshPublicKey,
-    private_key: SshPrivateKey,
+    encrypted_private_key_bytes: Vec<u8>,
+    xor_key: u8,
     comment: String,
+}
+
+impl Identity {
+    fn new(private_key: SshPrivateKey, comment: String) -> Result<Self> {
+        let public_key = SshPublicKey::from(&private_key);
+        let xor_key = pass_domain::crypto::generate_random_byte();
+
+        let private_key_bytes = private_key
+            .to_bytes()
+            .map_err(|e| anyhow!("Failed to serialize private key: {}", e))?;
+
+        let encrypted_private_key_bytes = Self::xor_bytes(&private_key_bytes, xor_key);
+
+        Ok(Self {
+            public_key,
+            encrypted_private_key_bytes,
+            xor_key,
+            comment,
+        })
+    }
+
+    fn decrypt_private_key(&self) -> Result<SshPrivateKey> {
+        let decrypted_bytes = Self::xor_bytes(&self.encrypted_private_key_bytes, self.xor_key);
+
+        SshPrivateKey::from_bytes(&decrypted_bytes)
+            .map_err(|e| anyhow!("Failed to deserialize private key: {}", e))
+    }
+
+    fn xor_bytes(data: &[u8], xor_key: u8) -> Vec<u8> {
+        data.iter().map(|b| b ^ xor_key).collect()
+    }
 }
 
 #[derive(Default, Clone)]
@@ -305,7 +330,14 @@ impl Session for KeyStorage {
 
         if let Some(identity) = self.identity_from_pubkey(&pubkey).await {
             debug!("Found matching identity: {}", identity.comment);
-            match identity.private_key.key_data() {
+
+            // Decrypt the private key on-demand
+            let private_key = identity.decrypt_private_key().map_err(|e| {
+                error!("Failed to decrypt private key: {}", e);
+                std::io::Error::other(format!("Failed to decrypt private key: {}", e))
+            })?;
+
+            match private_key.key_data() {
                 KeypairData::Rsa(key) => {
                     let algorithm;
 
@@ -400,12 +432,9 @@ impl Session for KeyStorage {
     async fn add_identity(&mut self, identity: AddIdentity) -> Result<(), AgentError> {
         if let Credential::Key { privkey, comment } = identity.credential {
             let privkey = SshPrivateKey::try_from(privkey).map_err(AgentError::other)?;
-            self.identity_add(Identity {
-                public_key: SshPublicKey::from(&privkey),
-                private_key: privkey,
-                comment,
-            })
-            .await;
+            let identity = Identity::new(privkey, comment)
+                .map_err(|e| std::io::Error::other(format!("Failed to create identity: {}", e)))?;
+            self.identity_add(identity).await;
             Ok(())
         } else {
             info!("Unsupported key type: {:#?}", identity.credential);
@@ -504,14 +533,14 @@ async fn load_keys_into_storage(
 
     for (item, private_key_str, _public_key_str) in ssh_key_items {
         match load_and_decrypt_key(&item, &private_key_str) {
-            Ok(private_key) => {
-                let public_key = SshPublicKey::from(&private_key);
-                identities.push(Identity {
-                    comment: item.content.title.clone(),
-                    private_key,
-                    public_key,
-                });
-            }
+            Ok(private_key) => match Identity::new(private_key, item.content.title.clone()) {
+                Ok(identity) => {
+                    identities.push(identity);
+                }
+                Err(e) => {
+                    warn!("Failed to encrypt key '{}': {}", item.content.title, e);
+                }
+            },
             Err(e) => {
                 warn!("Failed to load key '{}': {}", item.content.title, e);
             }
@@ -643,9 +672,11 @@ pub async fn run(
     } else {
         info!("Automatic key refresh disabled");
     }
-
     #[cfg(unix)]
     {
+        use std::os::unix::fs::PermissionsExt;
+        use tokio::net::UnixListener;
+
         // Remove existing socket if it exists
         if socket_path.exists() {
             std::fs::remove_file(&socket_path).context("Failed to remove existing socket file")?;
@@ -691,6 +722,8 @@ pub async fn run(
 
     #[cfg(windows)]
     {
+        use ssh_agent_lib::agent::NamedPipeListener;
+
         // On Windows, use a named pipe
         let username = std::env::var("USERNAME").unwrap_or_else(|_| "user".to_string());
         let pipe_name = format!(r"\\.\pipe\proton-pass-agent-{}", username);
