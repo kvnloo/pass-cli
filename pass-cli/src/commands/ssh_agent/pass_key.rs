@@ -1,6 +1,7 @@
 use super::VaultQuery;
 use super::key_storage::{Identity, KeyStorage};
 use anyhow::{Context, Result, anyhow};
+use futures::future::join_all;
 use pass::PassClient;
 use pass_domain::{Item, ItemContent};
 use ssh_key::private::PrivateKey as SshPrivateKey;
@@ -33,13 +34,23 @@ pub async fn load_ssh_keys_from_vaults(
         }
         VaultQuery::All => {
             let shares = client.list_shares().await.context("Error listing shares")?;
-            for share in shares {
-                let items = client
-                    .list_items(&share.id)
-                    .await
-                    .context(format!("Error listing items for share {}", share.id))?;
-                all_keys.extend(extract_ssh_keys(items));
+
+            // Fetch all items from all shares in parallel
+            let fetch_futures: Vec<_> = shares
+                .iter()
+                .map(|share| client.list_items(&share.id))
+                .collect();
+
+            let results = join_all(fetch_futures).await;
+
+            // Aggregate all items, handling errors
+            let mut all_items = Vec::new();
+            for (share, result) in shares.iter().zip(results) {
+                all_items
+                    .extend(result.context(format!("Error listing items for share {}", share.id))?);
             }
+
+            all_keys.extend(extract_ssh_keys(all_items));
         }
     }
 
