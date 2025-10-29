@@ -7,6 +7,7 @@ use std::path::PathBuf;
 use super::VaultQuery;
 use super::key_load;
 
+#[cfg(unix)]
 fn get_system_agent_socket() -> Result<PathBuf> {
     let sock_path = std::env::var("SSH_AUTH_SOCK").context(
         "SSH_AUTH_SOCK environment variable is not set. Make sure the SSH agent is running.",
@@ -21,6 +22,14 @@ fn get_system_agent_socket() -> Result<PathBuf> {
     }
 
     Ok(path)
+}
+
+#[cfg(windows)]
+fn get_system_agent_socket() -> Result<PathBuf> {
+    match std::env::var("SSH_AUTH_SOCK") {
+        Ok(v) => Ok(PathBuf::from(v)),
+        Err(_) => Ok(PathBuf::from(r"\\.\pipe\openssh-ssh-agent")),
+    }
 }
 
 /// Add an identity to the SSH agent
