@@ -133,8 +133,8 @@ impl PassClient {
             .has_feature_flag(pass_domain::FeatureFlag::PassCanUseCli)
             .await
             .context("Error checking PassCanUseCli feature flag")?;
-        if ff {
-            return Ok(true);
+        if !ff {
+            return Ok(false);
         }
 
         let info = self
