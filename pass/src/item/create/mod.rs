@@ -4,4 +4,5 @@ pub mod custom;
 pub mod identity;
 pub mod login;
 pub mod note;
+pub mod ssh_key;
 pub mod wifi;

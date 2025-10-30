@@ -1,8 +1,6 @@
 use crate::PassClient;
-use crate::item::list::ItemRevision;
 use crate::permission::PermissionAction;
 use anyhow::{Context, Result};
-use muon::POST;
 use pass_domain::{IdentityItem, ItemContent, ItemId, ShareId};
 
 #[derive(Clone, Debug)]
@@ -29,12 +27,6 @@ pub struct IdentityItemCreatePayload {
     pub website: Option<String>,
     pub company: Option<String>,
     pub job_title: Option<String>,
-}
-
-#[derive(serde::Deserialize, serde::Serialize)]
-struct CreateItemResponse {
-    #[serde(rename = "Item")]
-    pub item: ItemRevision,
 }
 
 /// Trims a string value.
@@ -86,16 +78,7 @@ impl PassClient {
             .await
             .context("Error creating identity item request")?;
 
-        let res = POST!("/pass/v1/share/{share_id}/item")
-            .body_json(req)
-            .context("Error serializing create_identity request")?;
-        let response = self
-            .send(res)
-            .await
-            .context("Error sending create identity request")?;
-        let response: CreateItemResponse = assert_response!(response);
-
-        Ok(ItemId::new(response.item.item_id))
+        self.send_create_item_request(share_id, req).await
     }
 }
 
@@ -105,7 +88,8 @@ mod tests {
     use crate::test_tools::*;
     use std::sync::Arc;
 
-    use crate::item::create::common::CreateItemRequest;
+    use crate::item::create::common::{CreateItemRequest, CreateItemResponse};
+    use crate::item::list::ItemRevision;
     use muon::test::server::{HTTP, Server};
     use pass_domain::ItemData;
     use pass_domain::crypto::EncryptionTag;

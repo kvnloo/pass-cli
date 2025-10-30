@@ -36,6 +36,7 @@ pub use item::create::custom;
 pub use item::create::identity;
 pub use item::create::login;
 pub use item::create::note;
+pub use item::create::ssh_key;
 pub use item::create::wifi;
 pub use item::find::FindItemQuery;
 pub use user::access::{PassPlan, PlanType, UserDataSettings, UserInfo};

@@ -1,19 +1,11 @@
 use crate::PassClient;
-use crate::item::list::ItemRevision;
 use anyhow::{Context, Result};
-use muon::POST;
 use pass_domain::{ItemContent, ItemId, NoteItem, ShareId};
 
 #[derive(Clone, Debug)]
 pub struct NoteItemCreatePayload {
     pub title: String,
     pub note: Option<String>,
-}
-
-#[derive(serde::Deserialize, serde::Serialize)]
-struct CreateItemResponse {
-    #[serde(rename = "Item")]
-    pub item: ItemRevision,
 }
 
 impl PassClient {
@@ -32,16 +24,7 @@ impl PassClient {
             .await
             .context("Error creating note item request")?;
 
-        let res = POST!("/pass/v1/share/{share_id}/item")
-            .body_json(req)
-            .context("Error serializing create_note request")?;
-        let response = self
-            .send(res)
-            .await
-            .context("Error sending create note request")?;
-        let response: CreateItemResponse = assert_response!(response);
-
-        Ok(ItemId::new(response.item.item_id))
+        self.send_create_item_request(share_id, req).await
     }
 }
 
@@ -51,7 +34,8 @@ mod tests {
     use crate::test_tools::*;
     use std::sync::Arc;
 
-    use crate::item::create::common::CreateItemRequest;
+    use crate::item::create::common::{CreateItemRequest, CreateItemResponse};
+    use crate::item::list::ItemRevision;
     use muon::test::server::{HTTP, Server};
     use pass_domain::ItemData;
     use pass_domain::crypto::EncryptionTag;

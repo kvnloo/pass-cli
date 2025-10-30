@@ -1,7 +1,9 @@
 use crate::PassClient;
 use crate::constants::ITEM_CONTENT_CONTENT_FORMAT_VERSION;
+use crate::item::list::ItemRevision;
 use anyhow::{Context, Result, anyhow};
-use pass_domain::{ItemContent, ItemData, ShareId, crypto};
+use muon::POST;
+use pass_domain::{ItemContent, ItemData, ItemId, ShareId, crypto};
 
 #[derive(serde::Deserialize, serde::Serialize)]
 pub(crate) struct CreateItemRequest {
@@ -15,6 +17,12 @@ pub(crate) struct CreateItemRequest {
     pub item_key: String,
 }
 
+#[derive(serde::Deserialize, serde::Serialize)]
+pub(crate) struct CreateItemResponse {
+    #[serde(rename = "Item")]
+    pub item: ItemRevision,
+}
+
 impl PassClient {
     pub(crate) async fn create_item_request(
         &self,
@@ -22,6 +30,21 @@ impl PassClient {
         title: &str,
         note_content: &str,
         item_content: ItemContent,
+    ) -> Result<CreateItemRequest> {
+        let content = ItemData {
+            title: title.to_string(),
+            note: note_content.to_string(),
+            item_uuid: ItemData::generate_uuid(),
+            content: item_content,
+            extra_fields: vec![],
+        };
+        self.create_item_request_from_data(share_id, content).await
+    }
+
+    pub(crate) async fn create_item_request_from_data(
+        &self,
+        share_id: &ShareId,
+        content: ItemData,
     ) -> Result<CreateItemRequest> {
         let share_keys = self
             .get_share_keys(share_id)
@@ -32,13 +55,6 @@ impl PassClient {
 
         let item_key = crypto::generate_encryption_key();
 
-        let content = ItemData {
-            title: title.to_string(),
-            note: note_content.to_string(),
-            item_uuid: ItemData::generate_uuid(),
-            content: item_content,
-            extra_fields: vec![],
-        };
         let serialized_content = content
             .serialize()
             .context("Error serializing item content")?;
@@ -73,5 +89,22 @@ impl PassClient {
             content: crate::utils::b64_encode(encrypted_item_content),
             item_key: crate::utils::b64_encode(encrypted_item_key),
         })
+    }
+
+    pub(crate) async fn send_create_item_request(
+        &self,
+        share_id: &ShareId,
+        request: CreateItemRequest,
+    ) -> Result<ItemId> {
+        let res = POST!("/pass/v1/share/{share_id}/item")
+            .body_json(request)
+            .context("Error serializing create item request")?;
+        let response = self
+            .send(res)
+            .await
+            .context("Error sending create item request")?;
+        let response: CreateItemResponse = assert_response!(response);
+
+        Ok(ItemId::new(response.item.item_id))
     }
 }
