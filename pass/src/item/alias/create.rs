@@ -1,6 +1,5 @@
 use crate::PassClient;
-use crate::item::create::common::CreateItemRequest;
-use crate::item::list::ItemRevision;
+use crate::item::create::common::{CreateItemRequest, CreateItemResponse};
 use crate::permission::PermissionAction;
 use anyhow::{Context, Result, anyhow};
 use muon::POST;
@@ -24,12 +23,6 @@ struct CreateAliasRequest {
     pub alias_name: Option<String>,
     #[serde(rename = "Item")]
     pub item: CreateItemRequest,
-}
-
-#[derive(serde::Deserialize)]
-struct CreateItemResponse {
-    #[serde(rename = "Item")]
-    pub item: ItemRevision,
 }
 
 impl PassClient {

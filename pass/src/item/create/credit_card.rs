@@ -1,8 +1,6 @@
 use crate::PassClient;
-use crate::item::list::ItemRevision;
 use crate::permission::PermissionAction;
 use anyhow::{Context, Result, bail};
-use muon::POST;
 use pass_domain::{CardType, CreditCardItem, ItemContent, ItemId, ShareId};
 
 #[derive(Clone, Debug)]
@@ -14,12 +12,6 @@ pub struct CreditCardItemCreatePayload {
     pub expiration_date: Option<String>,
     pub pin: Option<String>,
     pub note: Option<String>,
-}
-
-#[derive(serde::Deserialize, serde::Serialize)]
-struct CreateItemResponse {
-    #[serde(rename = "Item")]
-    pub item: ItemRevision,
 }
 
 /// Sanitizes a card number by removing all non-digit characters.
@@ -140,16 +132,7 @@ impl PassClient {
             .await
             .context("Error creating credit card item request")?;
 
-        let res = POST!("/pass/v1/share/{share_id}/item")
-            .body_json(req)
-            .context("Error serializing create_credit_card request")?;
-        let response = self
-            .send(res)
-            .await
-            .context("Error sending create credit card request")?;
-        let response: CreateItemResponse = assert_response!(response);
-
-        Ok(ItemId::new(response.item.item_id))
+        self.send_create_item_request(share_id, req).await
     }
 }
 
@@ -159,7 +142,8 @@ mod tests {
     use crate::test_tools::*;
     use std::sync::Arc;
 
-    use crate::item::create::common::CreateItemRequest;
+    use crate::item::create::common::{CreateItemRequest, CreateItemResponse};
+    use crate::item::list::ItemRevision;
     use muon::test::server::{HTTP, Server};
     use pass_domain::ItemData;
     use pass_domain::crypto::EncryptionTag;
