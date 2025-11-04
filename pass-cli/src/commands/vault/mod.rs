@@ -55,7 +55,9 @@ pub enum VaultCommands {
     #[command(about = "Update a vault")]
     Update {
         #[arg(long, help = "Share ID of the vault")]
-        share_id: String,
+        share_id: Option<String>,
+        #[arg(long, help = "Name of the vault")]
+        vault_name: Option<String>,
         #[arg(long, help = "New name of the vault")]
         name: String,
     },
@@ -84,8 +86,13 @@ pub enum VaultCommands {
 pub async fn run(subcommand: VaultCommands, client: PassClient) -> Result<()> {
     match subcommand {
         VaultCommands::List { output } => list::run(client, output).await,
-        VaultCommands::Update { share_id, name } => {
-            update::run(client, ShareId::new(share_id), name).await
+        VaultCommands::Update {
+            share_id,
+            vault_name,
+            name,
+        } => {
+            let query = VaultQuery::new(share_id, vault_name)?;
+            update::run(client, query, name).await
         }
         VaultCommands::Create { name } => create::run(client, name).await,
         VaultCommands::Member(member_cmd) => member::run(client, member_cmd).await,
