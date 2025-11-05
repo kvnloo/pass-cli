@@ -6,7 +6,7 @@ impl PassClient {
         self.client
             .get_session(())
             .await
-            .context("Error getting clienet session")?
+            .context("Error getting client session")?
             .logout()
             .await;
         Ok(())
