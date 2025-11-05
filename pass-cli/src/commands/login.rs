@@ -47,7 +47,7 @@ pub async fn run(
     if !login_allowed {
         eprintln!("Your account is not yet allowed to use our CLI");
         client.logout().await?;
-        crate::commands::logout::run(client).await?;
+        crate::commands::logout::force_logout().await?;
         std::process::exit(1);
     }
 
