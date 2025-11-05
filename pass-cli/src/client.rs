@@ -268,6 +268,18 @@ fn get_app_header() -> String {
     std::env::var(APP_HEADER_ENV_VAR).unwrap_or_else(|_| default_app_header())
 }
 
+fn store_using_current_env(env_id: &EnvId) -> bool {
+    let env = EnvId::from(get_env());
+    match env {
+        EnvId::Prod => matches!(env_id, EnvId::Prod),
+        EnvId::Custom(_) => matches!(env_id, EnvId::Custom(_)),
+        EnvId::Atlas(ref current_atlas_env) => match env_id {
+            EnvId::Atlas(store_atlas_env) => store_atlas_env == current_atlas_env,
+            _ => false,
+        },
+    }
+}
+
 pub async fn get_client(
     base_dir: PathBuf,
     client_features: Arc<CliClientFeatures>,
@@ -311,6 +323,12 @@ pub async fn get_client(
         if host_name == "localhost" {
             use_allow_all = true;
         }
+    }
+
+    if !store_using_current_env(&store.env) {
+        eprintln!("ENVIRONMENT has switched! Logging you out. Please log back in again");
+        crate::commands::logout::force_logout().await?;
+        std::process::exit(1);
     }
 
     let shared_store = SharedPassSessionStore::new(store);
