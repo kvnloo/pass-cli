@@ -1,4 +1,4 @@
-use crate::commands::item::list::ListItemsQuery;
+use crate::commands::item::list::{FilterType, ListItemsQuery};
 use crate::commands::{OutputFormat, Role};
 use anyhow::Result;
 use clap::Subcommand;
@@ -22,6 +22,11 @@ pub enum ItemCommands {
         share_id: Option<String>,
         #[arg(help = "Name of the vault to list items from")]
         vault_name: Option<String>,
+        #[arg(
+            long,
+            help = "Filter items by type (note, login, alias, credit-card, identity, ssh-key, wifi, custom)"
+        )]
+        filter_type: Option<FilterType>,
         #[arg(long, default_value = "human")]
         output: OutputFormat,
     },
@@ -84,10 +89,11 @@ pub async fn run(subcommand: ItemCommands, client: PassClient) -> Result<()> {
         ItemCommands::List {
             share_id,
             vault_name,
+            filter_type,
             output,
         } => {
             let query = ListItemsQuery::new(share_id, vault_name)?;
-            list::run(client, query, output).await
+            list::run(client, query, filter_type, output).await
         }
         ItemCommands::Create { create_command } => create::run(create_command, client).await,
         ItemCommands::Delete { share_id, item_id } => {
