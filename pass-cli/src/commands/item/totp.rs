@@ -125,8 +125,6 @@ pub async fn run(client: PassClient, query: ViewTotpQuery, output: OutputFormat)
                         .await
                         .context("Error listing items")?;
 
-                    
-
                     items
                         .into_iter()
                         .find(|item| item.content.title == title)
@@ -167,19 +165,20 @@ pub async fn run(client: PassClient, query: ViewTotpQuery, output: OutputFormat)
         // No specific field, collect all TOTP fields
         for (field_name, field) in item.fields() {
             if let Field::Totp(totp_uri) = field
-                && !totp_uri.is_empty() {
-                    match generate_totp_token(&totp_uri) {
-                        Ok(token) => {
-                            totp_fields.insert(field_name, token);
-                        }
-                        Err(e) => {
-                            eprintln!(
-                                "Warning: Failed to generate TOTP for field '{}': {}",
-                                field_name, e
-                            );
-                        }
+                && !totp_uri.is_empty()
+            {
+                match generate_totp_token(&totp_uri) {
+                    Ok(token) => {
+                        totp_fields.insert(field_name, token);
+                    }
+                    Err(e) => {
+                        eprintln!(
+                            "Warning: Failed to generate TOTP for field '{}': {}",
+                            field_name, e
+                        );
                     }
                 }
+            }
         }
 
         if totp_fields.is_empty() {
