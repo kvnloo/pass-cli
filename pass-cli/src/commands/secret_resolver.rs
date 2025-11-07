@@ -129,7 +129,7 @@ impl SecretResolver for PassClientResolver {
             )
         })?;
 
-        let field_value = item.get_field(&secret_ref.field_name).ok_or_else(|| {
+        let field = item.get_field(&secret_ref.field_name).ok_or_else(|| {
             anyhow!(
                 "Field '{}' not found in item '{}'",
                 secret_ref.field_name,
@@ -137,7 +137,7 @@ impl SecretResolver for PassClientResolver {
             )
         })?;
 
-        Ok(field_value)
+        Ok(field.value())
     }
 }
 

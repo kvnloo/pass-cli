@@ -140,7 +140,7 @@ pub async fn run(client: PassClient, query: ViewItemQuery, output: OutputFormat)
 
     if let Some(field) = effective_field {
         match item.item.get_field(&field) {
-            Some(field) => println!("{field}"),
+            Some(field_value) => println!("{}", field_value.value()),
             None => bail!("Field does not exist: {}", &field),
         }
     } else {

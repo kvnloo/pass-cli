@@ -1,6 +1,23 @@
 use crate::{CreditCardItem, CustomItem, IdentityItem, LoginItem, SshKeyItem, WifiItem};
 use crate::{Item, ItemContent, ItemExtraField, ItemExtraFieldContent};
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Field {
+    Text(String),
+    Hidden(String),
+    Totp(String),
+}
+
+impl Field {
+    pub fn value(&self) -> String {
+        match self {
+            Field::Text(s) => s.clone(),
+            Field::Hidden(s) => s.clone(),
+            Field::Totp(s) => s.clone(),
+        }
+    }
+}
+
 impl ItemExtraField {
     pub fn value(&self) -> String {
         match &self.content {
@@ -10,21 +27,30 @@ impl ItemExtraField {
             ItemExtraFieldContent::Timestamp(timestamp) => format!("{timestamp}"),
         }
     }
+
+    pub fn as_field(&self) -> Field {
+        match &self.content {
+            ItemExtraFieldContent::Text(text) => Field::Text(text.to_string()),
+            ItemExtraFieldContent::Totp(totp) => Field::Totp(totp.to_string()),
+            ItemExtraFieldContent::Hidden(value) => Field::Hidden(value.to_string()),
+            ItemExtraFieldContent::Timestamp(timestamp) => Field::Text(format!("{timestamp}")),
+        }
+    }
 }
 
 impl Item {
-    pub fn get_field(&self, field: &str) -> Option<String> {
+    pub fn get_field(&self, field: &str) -> Option<Field> {
         match field {
-            "title" => Some(self.content.title.clone()),
-            "note" => Some(self.content.note.clone()),
+            "title" => Some(Field::Text(self.content.title.clone())),
+            "note" => Some(Field::Text(self.content.note.clone())),
             _ => self.try_find_field(field),
         }
     }
 
-    fn try_find_field(&self, field: &str) -> Option<String> {
+    fn try_find_field(&self, field: &str) -> Option<Field> {
         for extra_field in self.content.extra_fields.iter() {
             if extra_field.name.to_lowercase() == field.to_lowercase() {
-                return Some(extra_field.value());
+                return Some(extra_field.as_field());
             }
         }
 
@@ -41,90 +67,90 @@ impl Item {
         }
     }
 
-    fn find_login_field(&self, login: &LoginItem, field: &str) -> Option<String> {
+    fn find_login_field(&self, login: &LoginItem, field: &str) -> Option<Field> {
         let field_lower = field.to_lowercase();
         match field_lower.as_str() {
-            "email" => Some(login.email.clone()),
-            "username" => Some(login.username.clone()),
-            "password" => Some(login.password.clone()),
-            "totp_uri" | "totp" => Some(login.totp_uri.clone()),
+            "email" => Some(Field::Text(login.email.clone())),
+            "username" => Some(Field::Text(login.username.clone())),
+            "password" => Some(Field::Text(login.password.clone())),
+            "totp_uri" | "totp" => Some(Field::Totp(login.totp_uri.clone())),
             "urls" | "url" => {
                 if login.urls.is_empty() {
-                    Some(String::new())
+                    Some(Field::Text(String::new()))
                 } else {
-                    Some(login.urls.join(", "))
+                    Some(Field::Text(login.urls.join(", ")))
                 }
             }
             _ => None,
         }
     }
 
-    fn find_cc_field(&self, cc: &CreditCardItem, field: &str) -> Option<String> {
+    fn find_cc_field(&self, cc: &CreditCardItem, field: &str) -> Option<Field> {
         let field_lower = field.to_lowercase();
         match field_lower.as_str() {
-            "cardholder_name" | "cardholder" | "name" => Some(cc.cardholder_name.clone()),
-            "card_type" | "type" => Some(format!("{:?}", cc.card_type)),
-            "number" | "card_number" => Some(cc.number.clone()),
-            "verification_number" | "cvv" | "cvc" => Some(cc.verification_number.clone()),
-            "expiration_date" | "expiry" | "exp_date" => Some(cc.expiration_date.clone()),
-            "pin" => Some(cc.pin.clone()),
+            "cardholder_name" | "cardholder" | "name" => Some(Field::Text(cc.cardholder_name.clone())),
+            "card_type" | "type" => Some(Field::Text(format!("{:?}", cc.card_type))),
+            "number" | "card_number" => Some(Field::Text(cc.number.clone())),
+            "verification_number" | "cvv" | "cvc" => Some(Field::Text(cc.verification_number.clone())),
+            "expiration_date" | "expiry" | "exp_date" => Some(Field::Text(cc.expiration_date.clone())),
+            "pin" => Some(Field::Text(cc.pin.clone())),
             _ => None,
         }
     }
 
-    fn find_identity_field(&self, identity: &IdentityItem, field: &str) -> Option<String> {
+    fn find_identity_field(&self, identity: &IdentityItem, field: &str) -> Option<Field> {
         let field_lower = field.to_lowercase();
         match field_lower.as_str() {
-            "full_name" | "fullname" => Some(identity.full_name.clone()),
-            "email" => Some(identity.email.clone()),
-            "phone_number" | "phone" => Some(identity.phone_number.clone()),
-            "first_name" | "firstname" => Some(identity.first_name.clone()),
-            "middle_name" | "middlename" => Some(identity.middle_name.clone()),
-            "last_name" | "lastname" => Some(identity.last_name.clone()),
-            "birthdate" | "birth_date" | "dob" => Some(identity.birthdate.clone()),
-            "gender" => Some(identity.gender.clone()),
-            "organization" | "org" => Some(identity.organization.clone()),
-            "street_address" | "address" => Some(identity.street_address.clone()),
+            "full_name" | "fullname" => Some(Field::Text(identity.full_name.clone())),
+            "email" => Some(Field::Text(identity.email.clone())),
+            "phone_number" | "phone" => Some(Field::Text(identity.phone_number.clone())),
+            "first_name" | "firstname" => Some(Field::Text(identity.first_name.clone())),
+            "middle_name" | "middlename" => Some(Field::Text(identity.middle_name.clone())),
+            "last_name" | "lastname" => Some(Field::Text(identity.last_name.clone())),
+            "birthdate" | "birth_date" | "dob" => Some(Field::Text(identity.birthdate.clone())),
+            "gender" => Some(Field::Text(identity.gender.clone())),
+            "organization" | "org" => Some(Field::Text(identity.organization.clone())),
+            "street_address" | "address" => Some(Field::Text(identity.street_address.clone())),
             "zip_or_postal_code" | "zip" | "postal_code" => {
-                Some(identity.zip_or_postal_code.clone())
+                Some(Field::Text(identity.zip_or_postal_code.clone()))
             }
-            "city" => Some(identity.city.clone()),
-            "state_or_province" | "state" | "province" => Some(identity.state_or_province.clone()),
-            "country_or_region" | "country" | "region" => Some(identity.country_or_region.clone()),
-            "social_security_number" | "ssn" => Some(identity.social_security_number.clone()),
-            "passport_number" | "passport" => Some(identity.passport_number.clone()),
-            "license_number" | "license" => Some(identity.license_number.clone()),
-            "website" | "url" => Some(identity.website.clone()),
-            "company" => Some(identity.company.clone()),
-            "job_title" | "title" => Some(identity.job_title.clone()),
+            "city" => Some(Field::Text(identity.city.clone())),
+            "state_or_province" | "state" | "province" => Some(Field::Text(identity.state_or_province.clone())),
+            "country_or_region" | "country" | "region" => Some(Field::Text(identity.country_or_region.clone())),
+            "social_security_number" | "ssn" => Some(Field::Text(identity.social_security_number.clone())),
+            "passport_number" | "passport" => Some(Field::Text(identity.passport_number.clone())),
+            "license_number" | "license" => Some(Field::Text(identity.license_number.clone())),
+            "website" | "url" => Some(Field::Text(identity.website.clone())),
+            "company" => Some(Field::Text(identity.company.clone())),
+            "job_title" | "title" => Some(Field::Text(identity.job_title.clone())),
             _ => None,
         }
     }
 
-    fn find_ssh_field(&self, ssh: &SshKeyItem, field: &str) -> Option<String> {
+    fn find_ssh_field(&self, ssh: &SshKeyItem, field: &str) -> Option<Field> {
         let field_lower = field.to_lowercase();
         match field_lower.as_str() {
-            "private_key" | "private" => Some(ssh.private_key.clone()),
-            "public_key" | "public" => Some(ssh.public_key.clone()),
+            "private_key" | "private" => Some(Field::Text(ssh.private_key.clone())),
+            "public_key" | "public" => Some(Field::Text(ssh.public_key.clone())),
             _ => None,
         }
     }
 
-    fn find_wifi_field(&self, wifi: &WifiItem, field: &str) -> Option<String> {
+    fn find_wifi_field(&self, wifi: &WifiItem, field: &str) -> Option<Field> {
         let field_lower = field.to_lowercase();
         match field_lower.as_str() {
-            "ssid" => Some(wifi.ssid.clone()),
-            "password" => Some(wifi.password.clone()),
-            "security" => Some(format!("{:?}", wifi.security)),
+            "ssid" => Some(Field::Text(wifi.ssid.clone())),
+            "password" => Some(Field::Text(wifi.password.clone())),
+            "security" => Some(Field::Text(format!("{:?}", wifi.security))),
             _ => None,
         }
     }
 
-    fn find_custom_field(&self, custom: &CustomItem, field: &str) -> Option<String> {
+    fn find_custom_field(&self, custom: &CustomItem, field: &str) -> Option<Field> {
         for section in &custom.sections {
             for section_field in &section.section_fields {
                 if section_field.name.to_lowercase() == field.to_lowercase() {
-                    return Some(section_field.value());
+                    return Some(section_field.as_field());
                 }
             }
         }
@@ -250,8 +276,8 @@ mod tests {
     fn test_get_field_basic_fields() {
         let item = create_item_with_content(ItemContent::Note(NoteItem));
 
-        assert_eq!(item.get_field("title"), Some("Test Item".to_string()));
-        assert_eq!(item.get_field("note"), Some("Test note".to_string()));
+        assert_eq!(item.get_field("title"), Some(Field::Text("Test Item".to_string())));
+        assert_eq!(item.get_field("note"), Some(Field::Text("Test note".to_string())));
     }
 
     #[test]
@@ -260,11 +286,11 @@ mod tests {
 
         assert_eq!(
             item.get_field("extra_field"),
-            Some("extra_value".to_string())
+            Some(Field::Text("extra_value".to_string()))
         );
         assert_eq!(
             item.get_field("EXTRA_FIELD"),
-            Some("extra_value".to_string())
+            Some(Field::Text("extra_value".to_string()))
         );
         assert_eq!(item.get_field("nonexistent"), None);
     }
@@ -275,29 +301,29 @@ mod tests {
 
         assert_eq!(
             item.get_field("email"),
-            Some("test@example.com".to_string())
+            Some(Field::Text("test@example.com".to_string()))
         );
         assert_eq!(
             item.get_field("EMAIL"),
-            Some("test@example.com".to_string())
+            Some(Field::Text("test@example.com".to_string()))
         );
-        assert_eq!(item.get_field("username"), Some("testuser".to_string()));
-        assert_eq!(item.get_field("password"), Some("secretpass".to_string()));
+        assert_eq!(item.get_field("username"), Some(Field::Text("testuser".to_string())));
+        assert_eq!(item.get_field("password"), Some(Field::Text("secretpass".to_string())));
         assert_eq!(
             item.get_field("totp_uri"),
-            Some("otpauth://totp/test".to_string())
+            Some(Field::Totp("otpauth://totp/test".to_string()))
         );
         assert_eq!(
             item.get_field("totp"),
-            Some("otpauth://totp/test".to_string())
+            Some(Field::Totp("otpauth://totp/test".to_string()))
         );
         assert_eq!(
             item.get_field("urls"),
-            Some("https://example.com, https://test.com".to_string())
+            Some(Field::Text("https://example.com, https://test.com".to_string()))
         );
         assert_eq!(
             item.get_field("url"),
-            Some("https://example.com, https://test.com".to_string())
+            Some(Field::Text("https://example.com, https://test.com".to_string()))
         );
     }
 
@@ -307,113 +333,113 @@ mod tests {
 
         assert_eq!(
             item.get_field("cardholder_name"),
-            Some("John Doe".to_string())
+            Some(Field::Text("John Doe".to_string()))
         );
-        assert_eq!(item.get_field("cardholder"), Some("John Doe".to_string()));
-        assert_eq!(item.get_field("name"), Some("John Doe".to_string()));
-        assert_eq!(item.get_field("card_type"), Some("Visa".to_string()));
-        assert_eq!(item.get_field("type"), Some("Visa".to_string()));
+        assert_eq!(item.get_field("cardholder"), Some(Field::Text("John Doe".to_string())));
+        assert_eq!(item.get_field("name"), Some(Field::Text("John Doe".to_string())));
+        assert_eq!(item.get_field("card_type"), Some(Field::Text("Visa".to_string())));
+        assert_eq!(item.get_field("type"), Some(Field::Text("Visa".to_string())));
         assert_eq!(
             item.get_field("number"),
-            Some("4111111111111111".to_string())
+            Some(Field::Text("4111111111111111".to_string()))
         );
         assert_eq!(
             item.get_field("card_number"),
-            Some("4111111111111111".to_string())
+            Some(Field::Text("4111111111111111".to_string()))
         );
         assert_eq!(
             item.get_field("verification_number"),
-            Some("123".to_string())
+            Some(Field::Text("123".to_string()))
         );
-        assert_eq!(item.get_field("cvv"), Some("123".to_string()));
-        assert_eq!(item.get_field("cvc"), Some("123".to_string()));
-        assert_eq!(item.get_field("expiration_date"), Some("12/25".to_string()));
-        assert_eq!(item.get_field("expiry"), Some("12/25".to_string()));
-        assert_eq!(item.get_field("exp_date"), Some("12/25".to_string()));
-        assert_eq!(item.get_field("pin"), Some("1234".to_string()));
+        assert_eq!(item.get_field("cvv"), Some(Field::Text("123".to_string())));
+        assert_eq!(item.get_field("cvc"), Some(Field::Text("123".to_string())));
+        assert_eq!(item.get_field("expiration_date"), Some(Field::Text("12/25".to_string())));
+        assert_eq!(item.get_field("expiry"), Some(Field::Text("12/25".to_string())));
+        assert_eq!(item.get_field("exp_date"), Some(Field::Text("12/25".to_string())));
+        assert_eq!(item.get_field("pin"), Some(Field::Text("1234".to_string())));
     }
 
     #[test]
     fn test_identity_item_fields() {
         let item = create_item_with_content(ItemContent::Identity(create_identity_item()));
 
-        assert_eq!(item.get_field("full_name"), Some("John Doe".to_string()));
-        assert_eq!(item.get_field("fullname"), Some("John Doe".to_string()));
+        assert_eq!(item.get_field("full_name"), Some(Field::Text("John Doe".to_string())));
+        assert_eq!(item.get_field("fullname"), Some(Field::Text("John Doe".to_string())));
         assert_eq!(
             item.get_field("email"),
-            Some("john@example.com".to_string())
+            Some(Field::Text("john@example.com".to_string()))
         );
         assert_eq!(
             item.get_field("phone_number"),
-            Some("+1234567890".to_string())
+            Some(Field::Text("+1234567890".to_string()))
         );
-        assert_eq!(item.get_field("phone"), Some("+1234567890".to_string()));
-        assert_eq!(item.get_field("first_name"), Some("John".to_string()));
-        assert_eq!(item.get_field("firstname"), Some("John".to_string()));
-        assert_eq!(item.get_field("middle_name"), Some("Michael".to_string()));
-        assert_eq!(item.get_field("middlename"), Some("Michael".to_string()));
-        assert_eq!(item.get_field("last_name"), Some("Doe".to_string()));
-        assert_eq!(item.get_field("lastname"), Some("Doe".to_string()));
-        assert_eq!(item.get_field("birthdate"), Some("1990-01-01".to_string()));
-        assert_eq!(item.get_field("birth_date"), Some("1990-01-01".to_string()));
-        assert_eq!(item.get_field("dob"), Some("1990-01-01".to_string()));
-        assert_eq!(item.get_field("gender"), Some("Male".to_string()));
+        assert_eq!(item.get_field("phone"), Some(Field::Text("+1234567890".to_string())));
+        assert_eq!(item.get_field("first_name"), Some(Field::Text("John".to_string())));
+        assert_eq!(item.get_field("firstname"), Some(Field::Text("John".to_string())));
+        assert_eq!(item.get_field("middle_name"), Some(Field::Text("Michael".to_string())));
+        assert_eq!(item.get_field("middlename"), Some(Field::Text("Michael".to_string())));
+        assert_eq!(item.get_field("last_name"), Some(Field::Text("Doe".to_string())));
+        assert_eq!(item.get_field("lastname"), Some(Field::Text("Doe".to_string())));
+        assert_eq!(item.get_field("birthdate"), Some(Field::Text("1990-01-01".to_string())));
+        assert_eq!(item.get_field("birth_date"), Some(Field::Text("1990-01-01".to_string())));
+        assert_eq!(item.get_field("dob"), Some(Field::Text("1990-01-01".to_string())));
+        assert_eq!(item.get_field("gender"), Some(Field::Text("Male".to_string())));
         assert_eq!(
             item.get_field("organization"),
-            Some("Test Corp".to_string())
+            Some(Field::Text("Test Corp".to_string()))
         );
-        assert_eq!(item.get_field("org"), Some("Test Corp".to_string()));
+        assert_eq!(item.get_field("org"), Some(Field::Text("Test Corp".to_string())));
         assert_eq!(
             item.get_field("street_address"),
-            Some("123 Main St".to_string())
+            Some(Field::Text("123 Main St".to_string()))
         );
-        assert_eq!(item.get_field("address"), Some("123 Main St".to_string()));
+        assert_eq!(item.get_field("address"), Some(Field::Text("123 Main St".to_string())));
         assert_eq!(
             item.get_field("zip_or_postal_code"),
-            Some("12345".to_string())
+            Some(Field::Text("12345".to_string()))
         );
-        assert_eq!(item.get_field("zip"), Some("12345".to_string()));
-        assert_eq!(item.get_field("postal_code"), Some("12345".to_string()));
-        assert_eq!(item.get_field("city"), Some("Test City".to_string()));
+        assert_eq!(item.get_field("zip"), Some(Field::Text("12345".to_string())));
+        assert_eq!(item.get_field("postal_code"), Some(Field::Text("12345".to_string())));
+        assert_eq!(item.get_field("city"), Some(Field::Text("Test City".to_string())));
         assert_eq!(
             item.get_field("state_or_province"),
-            Some("Test State".to_string())
+            Some(Field::Text("Test State".to_string()))
         );
-        assert_eq!(item.get_field("state"), Some("Test State".to_string()));
-        assert_eq!(item.get_field("province"), Some("Test State".to_string()));
+        assert_eq!(item.get_field("state"), Some(Field::Text("Test State".to_string())));
+        assert_eq!(item.get_field("province"), Some(Field::Text("Test State".to_string())));
         assert_eq!(
             item.get_field("country_or_region"),
-            Some("Test Country".to_string())
+            Some(Field::Text("Test Country".to_string()))
         );
-        assert_eq!(item.get_field("country"), Some("Test Country".to_string()));
-        assert_eq!(item.get_field("region"), Some("Test Country".to_string()));
+        assert_eq!(item.get_field("country"), Some(Field::Text("Test Country".to_string())));
+        assert_eq!(item.get_field("region"), Some(Field::Text("Test Country".to_string())));
         assert_eq!(
             item.get_field("social_security_number"),
-            Some("123-45-6789".to_string())
+            Some(Field::Text("123-45-6789".to_string()))
         );
-        assert_eq!(item.get_field("ssn"), Some("123-45-6789".to_string()));
+        assert_eq!(item.get_field("ssn"), Some(Field::Text("123-45-6789".to_string())));
         assert_eq!(
             item.get_field("passport_number"),
-            Some("A1234567".to_string())
+            Some(Field::Text("A1234567".to_string()))
         );
-        assert_eq!(item.get_field("passport"), Some("A1234567".to_string()));
+        assert_eq!(item.get_field("passport"), Some(Field::Text("A1234567".to_string())));
         assert_eq!(
             item.get_field("license_number"),
-            Some("D123456789".to_string())
+            Some(Field::Text("D123456789".to_string()))
         );
-        assert_eq!(item.get_field("license"), Some("D123456789".to_string()));
+        assert_eq!(item.get_field("license"), Some(Field::Text("D123456789".to_string())));
         assert_eq!(
             item.get_field("website"),
-            Some("https://johndoe.com".to_string())
+            Some(Field::Text("https://johndoe.com".to_string()))
         );
         assert_eq!(
             item.get_field("url"),
-            Some("https://johndoe.com".to_string())
+            Some(Field::Text("https://johndoe.com".to_string()))
         );
-        assert_eq!(item.get_field("company"), Some("Acme Inc".to_string()));
+        assert_eq!(item.get_field("company"), Some(Field::Text("Acme Inc".to_string())));
         assert_eq!(
             item.get_field("job_title"),
-            Some("Software Engineer".to_string())
+            Some(Field::Text("Software Engineer".to_string()))
         );
     }
 
@@ -423,19 +449,19 @@ mod tests {
 
         assert_eq!(
             item.get_field("private_key"),
-            Some("-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBg...".to_string())
+            Some(Field::Text("-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBg...".to_string()))
         );
         assert_eq!(
             item.get_field("private"),
-            Some("-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBg...".to_string())
+            Some(Field::Text("-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBg...".to_string()))
         );
         assert_eq!(
             item.get_field("public_key"),
-            Some("ssh-rsa AAAAB3NzaC1yc2E...".to_string())
+            Some(Field::Text("ssh-rsa AAAAB3NzaC1yc2E...".to_string()))
         );
         assert_eq!(
             item.get_field("public"),
-            Some("ssh-rsa AAAAB3NzaC1yc2E...".to_string())
+            Some(Field::Text("ssh-rsa AAAAB3NzaC1yc2E...".to_string()))
         );
     }
 
@@ -443,20 +469,20 @@ mod tests {
     fn test_wifi_item_fields() {
         let item = create_item_with_content(ItemContent::Wifi(create_wifi_item()));
 
-        assert_eq!(item.get_field("ssid"), Some("TestNetwork".to_string()));
-        assert_eq!(item.get_field("password"), Some("wifipass123".to_string()));
-        assert_eq!(item.get_field("security"), Some("WPA2".to_string()));
+        assert_eq!(item.get_field("ssid"), Some(Field::Text("TestNetwork".to_string())));
+        assert_eq!(item.get_field("password"), Some(Field::Text("wifipass123".to_string())));
+        assert_eq!(item.get_field("security"), Some(Field::Text("WPA2".to_string())));
     }
 
     #[test]
     fn test_custom_item_fields() {
         let item = create_item_with_content(ItemContent::Custom(create_custom_item()));
 
-        assert_eq!(item.get_field("custom_field1"), Some("value1".to_string()));
-        assert_eq!(item.get_field("CUSTOM_FIELD1"), Some("value1".to_string()));
+        assert_eq!(item.get_field("custom_field1"), Some(Field::Text("value1".to_string())));
+        assert_eq!(item.get_field("CUSTOM_FIELD1"), Some(Field::Text("value1".to_string())));
         assert_eq!(
             item.get_field("custom_field2"),
-            Some("secret_value".to_string())
+            Some(Field::Hidden("secret_value".to_string()))
         );
         assert_eq!(item.get_field("nonexistent_field"), None);
     }
@@ -467,19 +493,19 @@ mod tests {
         let alias_item = create_item_with_content(ItemContent::Alias(AliasItem));
 
         // Should only find basic fields and extra fields
-        assert_eq!(note_item.get_field("title"), Some("Test Item".to_string()));
-        assert_eq!(note_item.get_field("note"), Some("Test note".to_string()));
+        assert_eq!(note_item.get_field("title"), Some(Field::Text("Test Item".to_string())));
+        assert_eq!(note_item.get_field("note"), Some(Field::Text("Test note".to_string())));
         assert_eq!(
             note_item.get_field("extra_field"),
-            Some("extra_value".to_string())
+            Some(Field::Text("extra_value".to_string()))
         );
         assert_eq!(note_item.get_field("nonexistent"), None);
 
-        assert_eq!(alias_item.get_field("title"), Some("Test Item".to_string()));
-        assert_eq!(alias_item.get_field("note"), Some("Test note".to_string()));
+        assert_eq!(alias_item.get_field("title"), Some(Field::Text("Test Item".to_string())));
+        assert_eq!(alias_item.get_field("note"), Some(Field::Text("Test note".to_string())));
         assert_eq!(
             alias_item.get_field("extra_field"),
-            Some("extra_value".to_string())
+            Some(Field::Text("extra_value".to_string()))
         );
         assert_eq!(alias_item.get_field("nonexistent"), None);
     }
@@ -491,21 +517,21 @@ mod tests {
         // Test various case combinations
         assert_eq!(
             item.get_field("EMAIL"),
-            Some("test@example.com".to_string())
+            Some(Field::Text("test@example.com".to_string()))
         );
         assert_eq!(
             item.get_field("Email"),
-            Some("test@example.com".to_string())
+            Some(Field::Text("test@example.com".to_string()))
         );
         assert_eq!(
             item.get_field("eMaIl"),
-            Some("test@example.com".to_string())
+            Some(Field::Text("test@example.com".to_string()))
         );
-        assert_eq!(item.get_field("USERNAME"), Some("testuser".to_string()));
-        assert_eq!(item.get_field("Password"), Some("secretpass".to_string()));
+        assert_eq!(item.get_field("USERNAME"), Some(Field::Text("testuser".to_string())));
+        assert_eq!(item.get_field("Password"), Some(Field::Text("secretpass".to_string())));
         assert_eq!(
             item.get_field("TOTP_URI"),
-            Some("otpauth://totp/test".to_string())
+            Some(Field::Totp("otpauth://totp/test".to_string()))
         );
     }
 
@@ -515,8 +541,8 @@ mod tests {
         login.urls = vec![];
         let item = create_item_with_content(ItemContent::Login(login));
 
-        assert_eq!(item.get_field("urls"), Some("".to_string()));
-        assert_eq!(item.get_field("url"), Some("".to_string()));
+        assert_eq!(item.get_field("urls"), Some(Field::Text("".to_string())));
+        assert_eq!(item.get_field("url"), Some(Field::Text("".to_string())));
     }
 
     #[test]
@@ -527,11 +553,11 @@ mod tests {
 
         assert_eq!(
             item.get_field("urls"),
-            Some("https://single.com".to_string())
+            Some(Field::Text("https://single.com".to_string()))
         );
         assert_eq!(
             item.get_field("url"),
-            Some("https://single.com".to_string())
+            Some(Field::Text("https://single.com".to_string()))
         );
     }
 
@@ -543,9 +569,9 @@ mod tests {
 
         assert_eq!(
             item.get_field("card_type"),
-            Some("AmericanExpress".to_string())
+            Some(Field::Text("AmericanExpress".to_string()))
         );
-        assert_eq!(item.get_field("type"), Some("AmericanExpress".to_string()));
+        assert_eq!(item.get_field("type"), Some(Field::Text("AmericanExpress".to_string())));
     }
 
     #[test]
@@ -554,6 +580,6 @@ mod tests {
         wifi.security = WifiSecurity::WPA3;
         let item = create_item_with_content(ItemContent::Wifi(wifi));
 
-        assert_eq!(item.get_field("security"), Some("WPA3".to_string()));
+        assert_eq!(item.get_field("security"), Some(Field::Text("WPA3".to_string())));
     }
 }

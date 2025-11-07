@@ -6,6 +6,7 @@ use crate::protos::item::item_v1;
 use crate::{ShareId, VaultId};
 use anyhow::{Context, Result, anyhow};
 pub use attachment::*;
+pub use field::Field;
 pub use flags::*;
 use protobuf::Message;
 
