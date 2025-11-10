@@ -13,6 +13,7 @@ pub mod list;
 pub mod member;
 pub mod r#move;
 pub mod share;
+pub mod totp;
 pub mod view;
 
 #[derive(Subcommand)]
@@ -105,6 +106,23 @@ pub enum ItemCommands {
     },
     #[command(about = "Manage item members", subcommand)]
     Member(member::MemberCommands),
+    #[command(about = "Generate TOTP code(s) for an item")]
+    Totp {
+        #[arg(long, help = "Share ID of the vault containing the item")]
+        share_id: Option<String>,
+        #[arg(long, help = "Name of the vault containing the item")]
+        vault_name: Option<String>,
+        #[arg(long, help = "ID of the item")]
+        item_id: Option<String>,
+        #[arg(long, help = "Title of the item")]
+        item_title: Option<String>,
+        #[arg(help = "Pass URI in format pass://SHARE_ID/ITEM_ID[/FIELD]")]
+        uri: Option<String>,
+        #[arg(long, help = "Specific TOTP field to generate code for")]
+        field: Option<String>,
+        #[arg(long, default_value = "human")]
+        output: OutputFormat,
+    },
 }
 
 pub async fn run(subcommand: ItemCommands, client: PassClient) -> Result<()> {
@@ -175,5 +193,18 @@ pub async fn run(subcommand: ItemCommands, client: PassClient) -> Result<()> {
         }
         ItemCommands::Alias { alias_command } => alias::run(alias_command, client).await,
         ItemCommands::Member(member_cmd) => member::run(client, member_cmd).await,
+        ItemCommands::Totp {
+            share_id,
+            vault_name,
+            item_id,
+            item_title,
+            uri,
+            field,
+            output,
+        } => {
+            let query =
+                totp::ViewTotpQuery::new(share_id, vault_name, item_id, item_title, field, uri)?;
+            totp::run(client, query, output).await
+        }
     }
 }
