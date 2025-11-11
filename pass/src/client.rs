@@ -24,14 +24,6 @@ impl PassClient {
         }
     }
 
-    pub async fn perform_first_time_setup(&self, pass: &str) -> Result<()> {
-        self.setup_key_passphrases(pass)
-            .await
-            .context("Error setting up key passphrases")?;
-
-        Ok(())
-    }
-
     pub async fn get_key_provider(&self) -> Result<Arc<dyn pass_domain::LocalKeyProvider>> {
         self.client_features.get_local_key_provider().await
     }

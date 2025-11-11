@@ -32,7 +32,10 @@ enum Commands {
     #[command(about = "Log in with a given username")]
     Login {
         #[arg(help = "The username to log in with")]
-        username: String,
+        username: Option<String>,
+
+        #[arg(long, help = "Use web-based login flow")]
+        web: bool,
     },
 
     #[command(about = "Log out of the current session")]
@@ -182,8 +185,9 @@ async fn main() -> Result<()> {
         .await
         .context("Error getting client")?;
     match &cli.command {
-        Commands::Login { username } => {
-            return commands::login::run(username, client, client_features, store).await;
+        Commands::Login { username, web } => {
+            return commands::login::run(username.as_deref(), *web, client, client_features, store)
+                .await;
         }
         Commands::Password { command } => {
             return commands::password::run(command).await;

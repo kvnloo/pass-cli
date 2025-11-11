@@ -15,6 +15,7 @@ mod common;
 mod constants;
 mod crypto;
 mod feature_flags;
+mod first_time_setup;
 mod info;
 mod invite;
 mod item;
@@ -31,6 +32,7 @@ mod utils;
 mod vault;
 
 pub use client::{Client, PassClient, PassSessionKeyType};
+pub use first_time_setup::FirstTimeSetupKey;
 pub use item::create::credit_card;
 pub use item::create::custom;
 pub use item::create::identity;

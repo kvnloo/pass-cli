@@ -57,7 +57,7 @@ impl PassClient {
         }
     }
 
-    async fn load_user_keys(&self) -> Result<Vec<LockedUserKey>> {
+    pub(crate) async fn load_user_keys(&self) -> Result<Vec<LockedUserKey>> {
         match self.load_user_keys_from_fs().await {
             Ok(keys) => {
                 if let Some(keys) = keys {

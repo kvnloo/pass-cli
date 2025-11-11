@@ -3209,6 +3209,7 @@ dependencies = [
 name = "pass-cli"
 version = "0.7.0"
 dependencies = [
+ "aes",
  "anyhow",
  "async-trait",
  "base64",
@@ -3250,6 +3251,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "urlencoding",
  "uuid",
 ]
 

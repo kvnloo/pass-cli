@@ -35,6 +35,7 @@ macro_rules! implement_custom_methods {
     };
 }
 
+pub use aes_gcm;
 pub use feature_flag::*;
 pub use features::*;
 pub use models::address::*;
