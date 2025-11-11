@@ -8,6 +8,7 @@ pub mod internal;
 pub mod invite;
 pub mod item;
 pub mod login;
+pub mod login_web;
 pub mod logout;
 pub mod password;
 pub mod run;

@@ -2,7 +2,7 @@ use crate::client::authenticate_client;
 use crate::features::CliClientFeatures;
 use crate::store::PassSessionStore;
 use anyhow::{Context, Result};
-use pass::{Client, CreateVaultArgs, PassClient};
+use pass::{Client, CreateVaultArgs, FirstTimeSetupKey, PassClient};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -21,26 +21,7 @@ async fn is_login_allowed(client: &PassClient) -> Result<bool> {
     Ok(can_use)
 }
 
-pub async fn run(
-    username: &str,
-    client: Client,
-    client_features: Arc<CliClientFeatures>,
-    store: Arc<RwLock<PassSessionStore>>,
-) -> Result<()> {
-    let session = client.get_session(()).await;
-    if let Some(session) = session
-        && session.is_authenticated().await
-    {
-        info!("Client is already authenticated. Log out if you want to log in again");
-        return Ok(());
-    }
-    info!("Logging in user: {}", username);
-
-    let authenticated_client = authenticate_client(client, username, store).await?;
-
-    info!("Logged in user: {}", username);
-
-    let client = PassClient::new(authenticated_client.client, client_features);
+pub(crate) async fn after_login(client: PassClient, key: FirstTimeSetupKey) -> Result<()> {
     let login_allowed = is_login_allowed(&client)
         .await
         .context("Error checking login permissions")?;
@@ -52,11 +33,11 @@ pub async fn run(
     }
 
     client
-        .perform_first_time_setup(&authenticated_client.password)
+        .perform_first_time_setup_with_key(key)
         .await
         .context("Error performing first time setup")?;
 
-    info!("Successfully finished setup for user: {}", username);
+    info!("Successfully finished setup for user");
 
     let vaults = client.list_vaults().await.context("Couldn't list vaults")?;
     if vaults.is_empty() {
@@ -70,7 +51,42 @@ pub async fn run(
         info!("Created vault with id: {}", share_id);
     }
 
-    println!("Successfully logged in as {username}");
+    Ok(())
+}
 
+pub async fn run(
+    username: Option<&str>,
+    web: bool,
+    client: Client,
+    client_features: Arc<CliClientFeatures>,
+    store: Arc<RwLock<PassSessionStore>>,
+) -> Result<()> {
+    // Route to web login if --web flag is provided
+    if web {
+        return crate::commands::login_web::run(client, client_features, store).await;
+    }
+
+    // Traditional login requires a username
+    let username =
+        username.ok_or_else(|| anyhow::anyhow!("Username is required for interactive login"))?;
+
+    let session = client.get_session(()).await;
+    if let Some(session) = session
+        && session.is_authenticated().await
+    {
+        info!("Client is already authenticated. Log out if you want to log in again");
+        return Ok(());
+    }
+    info!("Logging in user: {}", username);
+
+    let authenticated_client = authenticate_client(client, username, store).await?;
+
+    info!("Logged in user: {}", username);
+    let client = PassClient::new(authenticated_client.client, client_features);
+
+    let setup_key = FirstTimeSetupKey::UserPassword(authenticated_client.password);
+    after_login(client, setup_key).await?;
+
+    println!("Successfully logged in as {username}");
     Ok(())
 }

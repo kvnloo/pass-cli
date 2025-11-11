@@ -2,6 +2,7 @@ use crate::PassClient;
 use anyhow::{Context, Result, anyhow};
 use muon::GET;
 use pass_domain::{KeyPassphrase, KeyPassphrases, KeySalt, Passphrase};
+use std::collections::HashMap;
 use std::path::Path;
 
 const PASSPHRASES_FILE_NAME: &str = "passphrases.enc";
@@ -45,7 +46,34 @@ impl PassClient {
             .generate_passphrases(salts, password)
             .await
             .context("failed to generate passphrases")?;
+        self.store_passphrases(passphrases)
+            .await
+            .context("failed to store passphrases")
+    }
 
+    pub(crate) async fn setup_key_passphrases_with_passphrase(
+        &self,
+        passphrase: &[u8],
+    ) -> Result<KeyPassphrases> {
+        // Load user keys in order to prepare the HashMap for KeyID->Passphrase
+        let user_keys = self
+            .load_user_keys()
+            .await
+            .context("failed to load user keys")?;
+
+        let mut passphrases = HashMap::new();
+        for user_key in user_keys {
+            passphrases.insert(user_key.id, Passphrase::new(passphrase.to_vec()));
+        }
+        self.store_passphrases(passphrases)
+            .await
+            .context("failed to store passphrases")
+    }
+
+    async fn store_passphrases(
+        &self,
+        passphrases: HashMap<String, Passphrase>,
+    ) -> Result<KeyPassphrases> {
         let mut res = Vec::with_capacity(passphrases.len());
         let mut to_serialize = Vec::with_capacity(passphrases.len());
         for (key_id, passphrase) in passphrases {
