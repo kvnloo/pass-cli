@@ -39,8 +39,10 @@ fn get_key_provider(base_dir: PathBuf) -> Result<Arc<dyn LocalKeyProvider>> {
 pub struct CliClientFeatures {
     pub storage: Arc<RealFsStorage>,
     pub key_provider: Arc<dyn LocalKeyProvider>,
-    pub database_manager: DatabaseManager,
     pub telemetry_handler: Arc<SqliteTelemetryHandler>,
+
+    #[allow(dead_code)]
+    pub database_manager: DatabaseManager,
 }
 
 impl CliClientFeatures {
