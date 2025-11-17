@@ -2,7 +2,7 @@
 extern crate tracing;
 
 use crate::features::CliClientFeatures;
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use clap::{Parser, Subcommand};
 use pass::PassClient;
 use std::sync::Arc;
@@ -199,7 +199,7 @@ async fn main() -> Result<()> {
                 client_features,
                 store,
             )
-                .await;
+            .await;
         }
         Commands::Password { command } => {
             return commands::password::run(command).await;
