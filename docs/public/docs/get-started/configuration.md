@@ -1,4 +1,4 @@
-# Pass CLI configuration
+# Configuration
 
 This section defines which parts of the CLI are configurable and how to do so.
 
@@ -109,3 +109,4 @@ This stores the encryption key in a file on disk:
 - Running in Docker containers
 - Development/testing environments
 - When system keyring is unavailable
+
