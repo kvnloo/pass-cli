@@ -1,7 +1,10 @@
 #[cfg(unix)]
 use anyhow::anyhow;
 use anyhow::{Context, Result};
-use std::path::{Path, PathBuf};
+use std::path::Path;
+
+#[cfg(unix)]
+use std::path::PathBuf;
 
 pub async fn replace_binary(new_binary: &Path) -> Result<()> {
     let current_exe = std::env::current_exe().context("Failed to get current executable path")?;
