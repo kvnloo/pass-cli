@@ -65,6 +65,8 @@ To work around this limitation, the Linux keyring library is configured to store
 
 This is a known limitation when running in headless Linux environments.
 
+Take into account that when running in docker containers, the container cannot access the kernel secret service, so the only option available to be used when running in a container is the Filesystem storage.
+
 ### 2. Filesystem storage
 
 !!! warning "Using the key filesystem storage"

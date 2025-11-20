@@ -42,7 +42,7 @@ if pass-cli test; then
     pass-cli vault list
 else
     echo "Connection failed, please login first"
-    pass-cli login user@proton.me
+    pass-cli login --interactive user@proton.me
 fi
 ```
 
@@ -74,7 +74,7 @@ pass-cli test
 This indicates you need to login first:
 
 ```bash
-pass-cli login user@proton.me
+pass-cli login --interactive user@proton.me
 pass-cli test
 ```
 
