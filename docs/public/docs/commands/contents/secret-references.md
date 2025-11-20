@@ -67,7 +67,7 @@ pass://AbCdEf123456/GitHub/password  # Vault by ID, item by name
 
 !!! note "Duplicates"
 
-    If there are several objects that match the name, one of them will be used. If you want to make sure that you are referencing a unique object, please use the specific `Vault ID` and `Item ID` you want to target
+    If there are several objects that match the name, one of them will be used. If you want to make sure that you are referencing a unique object, please use the specific `Share ID` and `Item ID` you want to target
 
 ## Field names
 
