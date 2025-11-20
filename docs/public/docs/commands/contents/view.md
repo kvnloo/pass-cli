@@ -27,6 +27,9 @@ pass-cli item view [OPTIONS] [URI]
 # View item by IDs
 pass-cli item view --share-id "abc123def" --item-id "item456"
 
+# View item by vault name and item title
+pass-cli item view --vault-name "MyVault" --item-title "MyItem"
+
 # View item using Pass URI
 pass-cli item view "pass://abc123def/item456"
 
