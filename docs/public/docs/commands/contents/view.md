@@ -19,7 +19,7 @@ pass-cli item view [OPTIONS] [URI]
 
 - `--share-id` and `--vault-name` are mutually exclusive. You must provide exactly one.
 - `--item-id` and `--item-title` are mutually exclusive. You must provide exactly one.
-- `id` parameters and `URI` are mutually exclusive. You must provide either both parameters or a single secret reference.
+- `--share-id/--vault-name` and `--item-id/--item-title` parameters and `URI` are mutually exclusive. You must provide either both parameters or a single secret reference.
 
 **Examples:**
 
