@@ -10,7 +10,7 @@ pass-cli password <SUBCOMMAND>
 
 ## Description
 
-The `password` command provides utilities for generating secure passwords and passphrases, as well as analyzing password strength. These operations don't require vault access and can be used independently.
+The `password` command provides utilities for generating secure passwords and passphrases, as well as analyzing password strength. These operations don't require vault access or a logged-in account, and can be used independently.
 
 ## Subcommands
 
@@ -109,7 +109,15 @@ pass-cli password score PASSWORD [--output FORMAT]
 pass-cli password score "mypassword123"
 
 # Get detailed analysis in JSON format
-pass-cli password score "MySecureP@ssw0rd!" --output json
+pass-cli password score "MySecureP@ssw0rd*" --output json
+{
+  "numeric_score": 51.666666666666664,
+  "password_score": "Vulnerable",
+  "penalties": [
+    "ContainsCommonPassword",
+    "Consecutive"
+  ]
+}
 
 # Analyze a generated password
 GENERATED=$(pass-cli password generate random --length 16)
@@ -235,7 +243,6 @@ pass-cli item create login \
 
 - **Generate in secure environment**: Use trusted systems for password generation
 - **Immediate storage**: Store generated passwords in Proton Pass immediately
-- **Regular updates**: Generate new passwords periodically
 - **Unique passwords**: Never reuse passwords across services
 
 ## Output formats
@@ -244,7 +251,6 @@ pass-cli item create login \
 
 - Clear strength indicators
 - Readable recommendations
-- Color coding (if terminal supports it)
 - Explanation of strength factors
 
 ### JSON output
@@ -253,39 +259,6 @@ pass-cli item create login \
 - Numeric strength scores
 - Detailed analysis results
 - Machine-parseable format
-
-## Common use cases
-
-### Account setup
-
-Generate strong passwords when creating new accounts:
-
-```bash
-pass-cli password generate random --length 16 --uppercase true --symbols true
-```
-
-### Password policy compliance
-
-Generate passwords that meet specific requirements:
-
-```bash
-# For services requiring symbols
-pass-cli password generate random --length 12 --symbols true
-
-# For services that don't allow symbols
-pass-cli password generate random --length 16 --symbols false
-```
-
-### Security audits
-
-Analyze existing passwords for weakness:
-
-```bash
-# Audit multiple passwords
-for pwd in $(cat password_list.txt); do
-    pass-cli password score "$pwd" --output json
-done
-```
 
 ## Related commands
 
