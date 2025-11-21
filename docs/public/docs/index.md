@@ -13,7 +13,7 @@ Welcome to the Proton Pass CLI documentation. The Proton Pass CLI is a command-l
   .md-sidebar--primary {
     display: none !important;
   }
-  
+
   .md-content__inner {
     max-width: 100% !important;
   }
@@ -23,8 +23,6 @@ Welcome to the Proton Pass CLI documentation. The Proton Pass CLI is a command-l
     border: 1px solid #e1e4e8;
     border-radius: 6px;
     padding: 24px;
-    margin: 24px auto;
-    max-width: 800px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   }
 
@@ -190,7 +188,6 @@ Welcome to the Proton Pass CLI documentation. The Proton Pass CLI is a command-l
   }
 </script>
 
-
 ## Quick Start
 
 - **[Installation](get-started/installation.md)** - Installation instructions for all platforms
@@ -200,32 +197,19 @@ Welcome to the Proton Pass CLI documentation. The Proton Pass CLI is a command-l
 
 ## What is Proton Pass CLI?
 
-The Proton Pass CLI allows you to:
+The Proton Pass CLI allows you to manage your Proton Pass vaults and items directly from the command line, bringing the power of secure secret management to your terminal workflow. With the CLI, you can create, list, view, and delete vaults and items seamlessly, making it an great tool for developers and system administrators who prefer working in the command line.
 
-- **Manage vaults and items** - Create, list, view, and delete vaults and items from the command line
-- **Inject secrets** - Use secrets in your applications via environment variables or template files
-- **SSH integration** - Use Proton Pass-stored SSH keys with your existing SSH workflows
-- **Automate workflows** - Integrate Proton Pass into your scripts and CI/CD pipelines
+Beyond basic vault management, the CLI allows you to inject secrets into your applications through environment variables or template files, enabling easy integration with your deployment workflows. The tool also provides comprehensive SSH integration, allowing you to use your SSH keys stored in Proton Pass with your existing SSH workflows.
 
 ## Key features
 
 ### Flexible secret management
 
-- Reference secrets using a simple URI syntax: `pass://vault/item/field`
-- Inject secrets into environment variables for your applications
-- Process template files with secret references
+The CLI offers a flexible and intuitive approach to secret management through a simple URI syntax. You can reference any secret using the format `pass://vault/item/field`, making it easy to access specific credentials programmatically. This design allows you to inject secrets into environment variables for your applications or process template files that contain secret references.
 
 ### SSH agent integration
 
-- Load SSH keys from Proton Pass into your existing SSH agent
-- Run Proton Pass CLI as a standalone SSH agent
-- Automatic key refresh and management
-
-### Secure key storage
-
-- Default keyring integration (macOS Keychain, Linux kernel keyring, Windows Credential Manager)
-- Filesystem storage option for headless environments
-- Encrypted session storage
+For developers working with SSH keys, the CLI provides robust SSH agent integration capabilities. You can load SSH keys stored in Proton Pass directly into your existing SSH agent, or run the Proton Pass CLI as a standalone SSH agent.
 
 ## Need help?
 
