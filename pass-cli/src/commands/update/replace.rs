@@ -21,7 +21,7 @@ pub async fn replace_binary(new_binary: &Path) -> Result<()> {
 
     #[cfg(windows)]
     {
-        Err(anyhow!(
+        Err(anyhow::anyhow!(
             "Single binary replacement on Windows is not supported"
         ))
     }
