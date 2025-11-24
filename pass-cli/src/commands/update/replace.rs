@@ -6,6 +6,7 @@ use std::path::Path;
 #[cfg(unix)]
 use std::path::PathBuf;
 
+#[cfg(unix)]
 pub async fn replace_binary(new_binary: &Path) -> Result<()> {
     let current_exe = std::env::current_exe().context("Failed to get current executable path")?;
 
@@ -14,17 +15,7 @@ pub async fn replace_binary(new_binary: &Path) -> Result<()> {
         .await
         .context("Failed to resolve current executable path")?;
 
-    #[cfg(unix)]
-    {
-        replace_binary_unix(&current_exe, new_binary).await
-    }
-
-    #[cfg(windows)]
-    {
-        Err(anyhow::anyhow!(
-            "Single binary replacement on Windows is not supported"
-        ))
-    }
+    replace_binary_unix(&current_exe, new_binary).await
 }
 
 #[cfg(unix)]

@@ -68,6 +68,7 @@ async fn download_and_verify(url: &str, expected_hash: &str, extension: &str) ->
     }
 }
 
+#[cfg(unix)]
 pub async fn download_binary(url: &str, expected_hash: &str) -> Result<PathBuf> {
     let temp_file = download_and_verify(url, expected_hash, ".download").await?;
 

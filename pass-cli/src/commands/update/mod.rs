@@ -142,7 +142,7 @@ pub async fn run(yes: bool, set_track: Option<String>, base_dir: PathBuf) -> Res
             .context("Failed to replace binary")?;
     }
 
-    #[cfg(not(windows))]
+    #[cfg(unix)]
     {
         let temp_file = download::download_binary(&binary_info.url, &binary_info.hash)
             .await
