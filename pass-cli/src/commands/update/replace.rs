@@ -21,7 +21,9 @@ pub async fn replace_binary(new_binary: &Path) -> Result<()> {
 
     #[cfg(windows)]
     {
-        replace_binary_windows(&current_exe, new_binary).await
+        Err(anyhow!(
+            "Single binary replacement on Windows is not supported"
+        ))
     }
 }
 
@@ -59,12 +61,24 @@ async fn replace_binary_unix(current_exe: &Path, new_binary: &Path) -> Result<()
 }
 
 #[cfg(windows)]
-async fn replace_binary_windows(current_exe: &Path, new_binary: &Path) -> Result<()> {
+pub async fn replace_binary_from_dir(source_dir: &Path) -> Result<()> {
     use tokio::process::Command;
 
     // On Windows, the running executable is locked. We need to use a helper script.
     // We'll use self-replace technique: spawn a detached process that waits for us to exit,
     // then replaces the binary.
+
+    let current_exe = std::env::current_exe().context("Failed to get current executable path")?;
+
+    // Resolve symlinks to get the actual binary
+    let current_exe = tokio::fs::canonicalize(&current_exe)
+        .await
+        .context("Failed to resolve current executable path")?;
+
+    // Get the installation directory
+    let install_dir = current_exe
+        .parent()
+        .context("Failed to get installation directory")?;
 
     // Create a batch script that will perform the replacement
     let temp_dir = std::env::temp_dir();
@@ -76,13 +90,15 @@ async fn replace_binary_windows(current_exe: &Path, new_binary: &Path) -> Result
 timeout /t 1 /nobreak >nul
 tasklist /FI "PID eq {}" 2>nul | find "{}" >nul
 if not errorlevel 1 goto wait
-move /Y "{}" "{}"
+xcopy /Y /I "{}\*" "{}"
+rmdir /S /Q "{}"
 del "%~f0"
 "#,
         std::process::id(),
         std::process::id(),
-        new_binary.display(),
-        current_exe.display()
+        source_dir.display(),
+        install_dir.display(),
+        source_dir.display()
     );
 
     tokio::fs::write(&script_path, script_content)
