@@ -214,7 +214,7 @@ Welcome to the Proton Pass CLI documentation. The Proton Pass CLI is a command-l
   });
 </script>
 
-## Quick Start
+## Quick start
 
 - **[Installation](get-started/installation.md)** - Installation instructions for all platforms
 - **[Getting started](get-started/login.md)** - Login and configuration guides
