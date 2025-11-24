@@ -8,7 +8,8 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 
-const TELEMETRY_SEND_INTERVAL: Duration = Duration::from_secs(3 * 24 * 60 * 60);
+// 1 day
+const TELEMETRY_SEND_INTERVAL: Duration = Duration::from_secs(24 * 60 * 60);
 const TELEMETRY_SENT_ACTIVITY: &str = "telemetry_sent";
 const TELEMETRY_DISABLED_ENV_VAR: &str = "PROTON_PASS_DISABLE_TELEMETRY";
 
