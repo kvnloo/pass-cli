@@ -75,21 +75,30 @@ pub async fn replace_binary_from_dir(source_dir: &Path) -> Result<()> {
     let temp_dir = std::env::temp_dir();
     let script_path = temp_dir.join(format!("pass-cli-update-{}.bat", std::process::id()));
 
+    // Convert paths to strings for batch script
+    let source_dir_str = source_dir.to_string_lossy();
+    let install_dir_str = install_dir.to_string_lossy();
+    
     let script_content = format!(
-        r#"@echo off
-:wait
-timeout /t 1 /nobreak >nul
-tasklist /FI "PID eq {}" 2>nul | find "{}" >nul
-if not errorlevel 1 goto wait
-xcopy /Y /I "{}\*" "{}"
-rmdir /S /Q "{}"
-del "%~f0"
-"#,
-        std::process::id(),
-        std::process::id(),
-        source_dir.display(),
-        install_dir.display(),
-        source_dir.display()
+        "@echo off\r\n\
+        echo Waiting for process to exit...\r\n\
+        :wait\r\n\
+        timeout /t 1 /nobreak >nul 2>&1\r\n\
+        tasklist /FI \"PID eq {pid}\" 2>nul | find \"{pid}\" >nul\r\n\
+        if not errorlevel 1 goto wait\r\n\
+        echo Copying files from {source} to {dest}\r\n\
+        xcopy /Y /E /I \"{source}\\*\" \"{dest}\\\"\r\n\
+        if errorlevel 1 (\r\n\
+          echo xcopy failed with error level %errorlevel%\r\n\
+          pause\r\n\
+          exit /b 1\r\n\
+        )\r\n\
+        echo Cleaning up temporary directory...\r\n\
+        rmdir /S /Q \"{source}\"\r\n\
+        del \"%~f0\"\r\n",
+        pid = std::process::id(),
+        source = source_dir_str,
+        dest = install_dir_str
     );
 
     tokio::fs::write(&script_path, script_content)
