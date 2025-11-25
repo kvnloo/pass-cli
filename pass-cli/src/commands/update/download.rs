@@ -104,7 +104,7 @@ fn extract_zip(zip_path: &PathBuf) -> Result<PathBuf> {
         let outpath = extract_dir.join(file.name());
 
         if file.is_dir() {
-            std::fs::create_dir_all(&outpath).context("Failed to create directory in zip")?;
+            std::fs::create_dir_all(&outpath).context("Failed to create directory from zip")?;
         } else {
             if let Some(p) = outpath.parent() {
                 std::fs::create_dir_all(p).context("Failed to create parent directory")?;
