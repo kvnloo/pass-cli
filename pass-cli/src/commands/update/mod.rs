@@ -62,19 +62,19 @@ fn is_force_update_strategy() -> bool {
 }
 
 pub async fn run(yes: bool, set_track: Option<String>, base_dir: PathBuf) -> Result<()> {
+    // Check install source and provide appropriate instructions
+    let install_source = get_install_source()?;
+    if install_source != InstallSource::Standard {
+        install_source.print_instructions();
+        return Ok(());
+    }
+
     // Handle --set-track flag
     if let Some(track_name) = set_track {
         track::set_persistent_track(&base_dir, &track_name)
             .await
             .context("Failed to set release track")?;
         eprintln!("Update track set to {}", track_name);
-        return Ok(());
-    }
-
-    // Check install source and provide appropriate instructions
-    let install_source = get_install_source()?;
-    if install_source != InstallSource::Standard {
-        install_source.print_instructions();
         return Ok(());
     }
 
