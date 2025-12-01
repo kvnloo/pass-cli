@@ -6,6 +6,7 @@ use anyhow::{Context, Result, anyhow};
 use clap::{Parser, Subcommand};
 use pass::PassClient;
 use std::sync::Arc;
+use zeroizing_alloc::ZeroAlloc;
 
 mod client;
 mod commands;
@@ -17,6 +18,9 @@ mod storage;
 mod store;
 mod telemetry;
 mod utils;
+
+#[global_allocator]
+static ALLOC: ZeroAlloc<std::alloc::System> = ZeroAlloc(std::alloc::System);
 
 const VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), " (", env!("GIT_HASH"), ")");
 
