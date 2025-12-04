@@ -72,6 +72,7 @@ fn topological_sort_folders(revisions: &[FolderResponse]) -> Vec<String> {
             && !revision_map.contains_key(parent)
         {
             // Dangling folder - parent doesn't exist, skip it
+            warn!("Found dangling folder [folder_id={folder_id}] [missing_parent_id={parent}]");
             continue;
         }
 
