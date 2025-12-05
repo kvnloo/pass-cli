@@ -132,7 +132,7 @@ export PROTON_PASS_ENCRYPTION_KEY=your-secret-key
 
 This derives the encryption key from the `PROTON_PASS_ENCRYPTION_KEY` environment variable, which **must be set and non-empty**.
 
-If you don't want to think about an encryption key yourself, you can generate one by doing something like:
+If you are running linux or macOS, you can easily generate a safe encryption key by executing:
 
 ```bash
 dd if=/dev/urandom bs=1 count=2048 2>/dev/null | sha256sum | awk '{print $1}'
