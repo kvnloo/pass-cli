@@ -3,16 +3,21 @@ use super::key_storage::{Identity, KeyStorage};
 use anyhow::{Context, Result, anyhow};
 use futures::stream::{self, StreamExt};
 use pass::PassClient;
-use pass_domain::{Item, ItemContent};
+use pass_domain::{Item, ItemContent, ItemState};
 use ssh_key::private::PrivateKey as SshPrivateKey;
 use std::collections::HashSet;
 
 const MAX_PARALLEL_SHARE_FETCHES: usize = 20;
 
+pub struct SshKeyItem {
+    pub item: Item,
+    pub private_key: String,
+}
+
 pub async fn load_ssh_keys_from_vaults(
     client: &PassClient,
     query: VaultQuery,
-) -> Result<Vec<(Item, String, String)>> {
+) -> Result<Vec<SshKeyItem>> {
     let mut all_keys = Vec::new();
 
     match query {
@@ -62,24 +67,23 @@ pub async fn load_ssh_keys_from_vaults(
     Ok(all_keys)
 }
 
-pub fn extract_ssh_keys(items: Vec<Item>) -> Vec<(Item, String, String)> {
+fn extract_ssh_keys(items: Vec<Item>) -> Vec<SshKeyItem> {
     items
         .into_iter()
-        .filter_map(|item| {
-            if let ItemContent::SshKey(ref ssh_key) = item.content.content {
-                Some((
-                    item.clone(),
-                    ssh_key.private_key.clone(),
-                    ssh_key.public_key.clone(),
-                ))
-            } else {
-                None
-            }
+        .filter_map(|item| match item.state {
+            ItemState::Active => match item.content.content {
+                ItemContent::SshKey(ref ssh_key) => Some(SshKeyItem {
+                    item: item.clone(),
+                    private_key: ssh_key.private_key.clone(),
+                }),
+                _ => None,
+            },
+            ItemState::Trashed => None,
         })
         .collect()
 }
 
-pub fn find_passphrases_in_extra_fields(item: &Item) -> Vec<String> {
+fn find_passphrases_in_extra_fields(item: &Item) -> Vec<String> {
     // Search terms to look for in field names (case-insensitive, partial match)
     let search_terms = [
         "passphrase",
@@ -136,7 +140,7 @@ pub fn find_passphrases_in_extra_fields(item: &Item) -> Vec<String> {
     res.into_iter().collect()
 }
 
-pub fn load_and_decrypt_key(item: &Item, private_key_str: &str) -> Result<SshPrivateKey> {
+fn load_and_decrypt_key(item: &Item, private_key_str: &str) -> Result<SshPrivateKey> {
     let private_key = SshPrivateKey::from_openssh(private_key_str).context(format!(
         "Failed to parse SSH private key for item '{}'",
         item.content.title
@@ -190,8 +194,9 @@ pub async fn load_keys_into_storage(
 
     let mut identities = Vec::new();
 
-    for (item, private_key_str, _public_key_str) in ssh_key_items {
-        match load_and_decrypt_key(&item, &private_key_str) {
+    for ssh_item in ssh_key_items {
+        let item = &ssh_item.item;
+        match load_and_decrypt_key(item, &ssh_item.private_key) {
             Ok(private_key) => match Identity::new(private_key, item.content.title.clone()) {
                 Ok(identity) => {
                     identities.push(identity);
@@ -213,7 +218,6 @@ pub async fn refresh_keys_periodically(
     client: &PassClient,
     vault_query: &VaultQuery,
     key_storage: &KeyStorage,
-    _interval_secs: u64,
 ) {
     info!("Refreshing SSH keys from Proton Pass...");
 
