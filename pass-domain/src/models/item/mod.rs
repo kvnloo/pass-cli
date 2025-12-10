@@ -135,6 +135,23 @@ impl ItemData {
         out
     }
 
+    pub fn perform_update(original: &[u8], new: &Self) -> Result<Vec<u8>> {
+        let mut original_as_proto =
+            item_v1::Item::parse_from_bytes(original).context("Error decoding Item from proto")?;
+        let new_as_proto = item_v1::Item::from(new.clone());
+        let new_as_proto_serialized = new_as_proto
+            .to_vec()
+            .context("Error serializing item to proto")?;
+        original_as_proto
+            .merge_from_bytes(&new_as_proto_serialized)
+            .context("Error performing item updates")?;
+
+        let updated_serialized = original_as_proto
+            .to_vec()
+            .context("Error serializing updated item to proto")?;
+        Ok(updated_serialized)
+    }
+
     pub fn deserialize(data: &[u8]) -> Result<Self> {
         let as_proto =
             item_v1::Item::parse_from_bytes(data).context("Error decoding Item from proto")?;
