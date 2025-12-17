@@ -355,7 +355,7 @@ impl Session for KeyStorage {
                     );
                 } else {
                     warn!(
-                        "Certificate added but no matching key found (key might be added after certificate)"
+                        "Certificate added but no matching key found (key needs to be added after certificate)"
                     );
                 }
 
