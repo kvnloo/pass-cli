@@ -1,13 +1,13 @@
 use crate::PassClient;
 use anyhow::{Context, Result, anyhow};
 use muon::GET;
-use muon::rest::core;
+use muon::rest::core::v4::keys::Key;
 use pass_domain::{LockedUserKey, UserKey};
 use std::path::Path;
 
 const USER_KEYS_FILE_NAME: &str = "user_keys.enc";
 
-fn api_user_key_to_locked_user_key(value: core::v4::keys::Key) -> LockedUserKey {
+fn api_user_key_to_locked_user_key(value: Key) -> LockedUserKey {
     LockedUserKey {
         id: value.id,
         private_key: value.private_key,
@@ -20,6 +20,18 @@ fn api_user_key_to_locked_user_key(value: core::v4::keys::Key) -> LockedUserKey 
 
 #[derive(Clone)]
 struct UserKeysCacheType;
+
+#[derive(Debug, serde::Deserialize)]
+struct GetUserKeysResponse {
+    #[serde(rename = "User")]
+    pub user: UserKeysResponse,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct UserKeysResponse {
+    #[serde(rename = "Keys")]
+    pub keys: Vec<Key>,
+}
 
 impl PassClient {
     pub async fn get_user_keys(&self) -> Result<Vec<UserKey>> {
@@ -112,12 +124,9 @@ impl PassClient {
     async fn fetch_user_keys(&self) -> Result<Vec<LockedUserKey>> {
         debug!("Fetching user keys");
         let res = self.send(GET!("/core/v4/users")).await?;
-        if !res.status().is_success() {
-            return Err(anyhow!("HTTP Status: {:?}", res.status()));
-        }
-        let res: core::v4::users::GetRes = res.ok()?.into_body_json()?;
+        let response: GetUserKeysResponse = assert_response!(res);
 
-        let mapped = res
+        let mapped = response
             .user
             .keys
             .into_iter()
