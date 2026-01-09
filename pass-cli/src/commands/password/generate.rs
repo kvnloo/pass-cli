@@ -75,6 +75,7 @@ pub enum GeneratePasswordCommand {
         separator: WordSeparator,
         #[arg(
             long = "capitalise",
+            visible_alias = "capitalize",
             help = "Whether to capitalise words",
             default_value = "true"
         )]
