@@ -1,3 +1,9 @@
+## 1.3.4 (2026-01-12)
+
+## Other
+
+- Improve windows SSH agent messages and documentation
+
 ## 1.3.3 (2026-01-09)
 
 ## Other
