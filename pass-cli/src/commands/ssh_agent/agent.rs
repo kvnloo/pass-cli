@@ -191,6 +191,7 @@ where
 #[ssh_agent_lib::async_trait]
 impl Session for KeyStorage {
     async fn request_identities(&mut self) -> Result<Vec<message::Identity>, AgentError> {
+        debug!("List identities request");
         let mut identities = vec![];
         for identity in self.identities.lock().await.iter() {
             // For now, always return the regular public key
