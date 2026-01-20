@@ -1,3 +1,9 @@
+## 1.4.0 (2026-01-20)
+
+## Features :tada:
+
+- Added `pass-cli settings` to set default values for vault and output format
+
 ## 1.3.5 (2026-01-12)
 
 ## Other
