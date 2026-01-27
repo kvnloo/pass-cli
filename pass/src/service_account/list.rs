@@ -7,7 +7,7 @@ use pass_domain::crypto::EncryptionTag;
 const PAGE_SIZE: usize = 100;
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
-struct ServiceAccountData {
+pub(crate) struct ServiceAccountData {
     #[serde(rename = "ServiceAccountID")]
     pub service_account_id: String,
     #[serde(rename = "Name")]
@@ -23,20 +23,22 @@ struct ServiceAccountData {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-struct ServiceAccountsWrapper {
+#[cfg_attr(test, derive(Clone))]
+pub(crate) struct ServiceAccountsWrapper {
     #[serde(rename = "ServiceAccounts")]
-    service_accounts: Vec<ServiceAccountData>,
+    pub(crate) service_accounts: Vec<ServiceAccountData>,
     #[serde(rename = "Total")]
     #[allow(dead_code)]
-    total: i64,
+    pub(crate) total: i64,
     #[serde(rename = "LastToken")]
-    last_token: Option<String>,
+    pub(crate) last_token: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-struct ListServiceAccountsResponse {
+#[cfg_attr(test, derive(Clone))]
+pub(crate) struct ListServiceAccountsResponse {
     #[serde(rename = "ServiceAccounts")]
-    service_accounts: ServiceAccountsWrapper,
+    pub(crate) service_accounts: ServiceAccountsWrapper,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -44,6 +46,8 @@ pub struct ServiceAccount {
     pub service_account_id: String,
     pub name: String,
     pub expire_time: Option<i64>,
+    #[serde(skip)]
+    pub(crate) service_account_key: Option<Vec<u8>>,
 }
 
 impl PassClient {
@@ -139,6 +143,7 @@ impl PassClient {
             service_account_id: sa_data.service_account_id.clone(),
             name,
             expire_time: sa_data.expire_time,
+            service_account_key: Some(decrypted_service_account_key),
         })
     }
 }
