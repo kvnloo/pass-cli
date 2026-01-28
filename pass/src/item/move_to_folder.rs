@@ -9,8 +9,8 @@ use pass_domain::{FolderId, ItemId, ShareId, crypto};
 struct MoveItemKeyItem {
     #[serde(rename = "KeyRotation")]
     key_rotation: u8,
-    #[serde(rename = "ItemKey")]
-    item_key: String,
+    #[serde(rename = "Key")]
+    key: String,
 }
 
 #[derive(serde::Serialize)]
@@ -129,7 +129,7 @@ impl PassClient {
 
             migrated_keys.push(MoveItemKeyItem {
                 key_rotation: item_key.key_rotation,
-                item_key: crate::utils::b64_encode(&reencrypted),
+                key: crate::utils::b64_encode(&reencrypted),
             });
         }
 
