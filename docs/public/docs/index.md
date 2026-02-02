@@ -4,9 +4,6 @@ hide:
   - toc
 ---
 
-!!! warning "Proton Pass CLI is in Beta"
-    Currently, the Proton Pass CLI is in beta status, and is only available for some users during this beta period. We plan to make it available to more users soon, so stay tuned for more news!
-
 # Overview
 
 Welcome to the Proton Pass CLI documentation. The Proton Pass CLI is a command-line interface for managing your Proton Pass vaults, items, and secrets.
