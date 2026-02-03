@@ -281,6 +281,20 @@ impl PassSessionStore {
             return Ok(None);
         }
 
+        match std::fs::symlink_metadata(&file_path) {
+            Ok(metadata) if metadata.is_symlink() => {
+                return Err(GetStoreError::Other(anyhow!(
+                    "Session file is a symlink, which is not allowed for security reasons"
+                )));
+            }
+            Err(e) => {
+                return Err(GetStoreError::Other(anyhow!(
+                    "Error reading file metadata: {e}"
+                )));
+            }
+            _ => {}
+        }
+
         let contents = match std::fs::read(file_path) {
             Ok(contents) => contents,
             Err(e) => return Err(GetStoreError::Other(anyhow!("Error reading file: {e}"))),
@@ -335,6 +349,20 @@ impl PassSessionStore {
 
         let file_path = self.base_path.join(FILE_NAME);
         debug!("[STORE] Storing session to {}", file_path.display());
+
+        if file_path.exists() {
+            match std::fs::symlink_metadata(&file_path) {
+                Ok(metadata) if metadata.is_symlink() => {
+                    return Err(anyhow!(
+                        "Session file is a symlink, which is not allowed for security reasons"
+                    ));
+                }
+                Err(e) => {
+                    return Err(anyhow!("Error reading file metadata: {e}"));
+                }
+                _ => {}
+            }
+        }
 
         let as_str = serde_json::to_string(&serialized).context("Error serializing json")?;
 
