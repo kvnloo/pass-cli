@@ -1,6 +1,7 @@
 use crate::callbacks::{AuthEventHandler, CredentialProvider};
 use crate::client_builder;
 use crate::config::ClientConfig;
+use crate::storage::SessionStorage;
 use crate::store::PassSessionStore;
 use crate::{extra_password, interactive_login, post_login, service_account, web_login};
 use anyhow::{Context, Result, bail};
@@ -11,6 +12,7 @@ use tokio::sync::RwLock;
 
 pub struct Authenticator {
     key_provider: Arc<dyn LocalKeyProvider>,
+    storage: Arc<dyn SessionStorage>,
     event_handler: Arc<dyn AuthEventHandler>,
     credential_provider: Arc<dyn CredentialProvider>,
     config: ClientConfig,
@@ -19,12 +21,14 @@ pub struct Authenticator {
 impl Authenticator {
     pub fn new(
         key_provider: Arc<dyn LocalKeyProvider>,
+        storage: Arc<dyn SessionStorage>,
         event_handler: Arc<dyn AuthEventHandler>,
         credential_provider: Arc<dyn CredentialProvider>,
         config: ClientConfig,
     ) -> Self {
         Self {
             key_provider,
+            storage,
             event_handler,
             credential_provider,
             config,
@@ -32,7 +36,12 @@ impl Authenticator {
     }
 
     pub async fn create_client(&self) -> Result<(Client, Arc<RwLock<PassSessionStore>>)> {
-        client_builder::create_client(self.key_provider.clone(), &self.config).await
+        client_builder::create_client(
+            self.key_provider.clone(),
+            self.storage.clone(),
+            &self.config,
+        )
+        .await
     }
 
     pub async fn login_web(

@@ -1,4 +1,5 @@
 use crate::config::ClientConfig;
+use crate::storage::SessionStorage;
 use crate::store::{
     AllowAllPinVerifier, CustomEnv, GetStoreError, PassSessionStore, SerializedEnv,
     SharedPassSessionStore,
@@ -71,6 +72,7 @@ fn store_using_current_env(store_env: &EnvId, current_env: &EnvId) -> bool {
 
 pub async fn create_client(
     key_provider: Arc<dyn LocalKeyProvider>,
+    storage: Arc<dyn SessionStorage>,
     config: &ClientConfig,
 ) -> anyhow::Result<(Client, Arc<RwLock<PassSessionStore>>)> {
     // Check key_provider can be used
@@ -87,11 +89,7 @@ pub async fn create_client(
     let app = App::new(app_header).context("failed to create app")?;
 
     // Load or create session store
-    let store = match PassSessionStore::get_from_local(
-        config.base_dir.clone(),
-        key_provider.clone(),
-    )
-    .await
+    let store = match PassSessionStore::get_from_local(storage.clone(), key_provider.clone()).await
     {
         Ok(store) => store,
         Err(e) => {
@@ -108,7 +106,7 @@ pub async fn create_client(
 
     let store = store.unwrap_or_else(|| {
         debug!("Using env {current_env:?}");
-        PassSessionStore::new_with_path(current_env.clone(), config.base_dir.clone(), key_provider)
+        PassSessionStore::new(current_env.clone(), storage.clone(), key_provider)
     });
 
     // Check for environment switch

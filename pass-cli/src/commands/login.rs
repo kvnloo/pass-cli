@@ -1,3 +1,4 @@
+use crate::auth::auth_helpers::create_authenticator;
 use crate::features::CliClientFeatures;
 use crate::helpers::{PassClientExt, SessionExt};
 use anyhow::{Context, Result};
@@ -56,7 +57,7 @@ pub async fn run(
     client_features: Arc<CliClientFeatures>,
     store: Arc<RwLock<PassSessionStore>>,
 ) -> Result<()> {
-    let authenticator = crate::auth_helpers::create_authenticator(client_features.clone())?;
+    let authenticator = create_authenticator(client_features.clone())?;
 
     let (pass_client, key) = if interactive {
         // Interactive login

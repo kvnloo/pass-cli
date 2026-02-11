@@ -1,7 +1,6 @@
 #[macro_use]
 extern crate tracing;
 
-use crate::cli_credential_provider::SERVICE_ACCOUNT_ENV_VAR;
 use crate::features::CliClientFeatures;
 use anyhow::{Context, Result, anyhow};
 use clap::{Parser, Subcommand};
@@ -9,16 +8,15 @@ use pass::PassClient;
 use std::sync::Arc;
 use zeroizing_alloc::ZeroAlloc;
 
-mod auth_helpers;
-mod cli_credential_provider;
+mod auth;
 mod client;
 mod commands;
+mod constants;
 mod features;
 mod helpers;
 mod logs;
 mod storage;
 mod telemetry;
-mod terminal_event_handler;
 mod utils;
 
 #[global_allocator]
@@ -221,6 +219,8 @@ async fn main() -> Result<()> {
                 } = &cli.command
                 {
                     // Route to service account login if --service-account is provided
+                    use crate::auth::cli_credential_provider::SERVICE_ACCOUNT_ENV_VAR;
+
                     if service_account.is_some() || std::env::var(SERVICE_ACCOUNT_ENV_VAR).is_ok() {
                         return commands::login_service_account::run(
                             service_account.clone(),

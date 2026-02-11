@@ -1,3 +1,4 @@
+use crate::auth::auth_helpers::create_authenticator;
 use crate::features::CliClientFeatures;
 use crate::helpers::{PassClientExt, SessionExt};
 use anyhow::{Context, Result};
@@ -12,7 +13,7 @@ pub async fn run(
     client_features: Arc<CliClientFeatures>,
     store: Arc<RwLock<PassSessionStore>>,
 ) -> Result<()> {
-    let authenticator = crate::auth_helpers::create_authenticator(client_features.clone())?;
+    let authenticator = create_authenticator(client_features.clone())?;
 
     // Perform service account login
     let (pass_client, service_account_key) = authenticator
