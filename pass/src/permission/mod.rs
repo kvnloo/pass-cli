@@ -47,9 +47,7 @@ impl PassClient {
                 self.not_service_account_guard()?;
                 self.create_vault_guard(user_access.plan).await
             }
-            PermissionAction::UpdateVault { share_id } => {
-                self.update_vault_guard(share_id).await
-            }
+            PermissionAction::UpdateVault { share_id } => self.update_vault_guard(share_id).await,
             PermissionAction::DeleteVault { share_id } => {
                 self.not_service_account_guard()?;
                 self.delete_vault_guard(share_id).await
