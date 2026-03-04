@@ -3,7 +3,8 @@ extern crate tracing;
 
 use crate::features::CliClientFeatures;
 use anyhow::{Context, Result, anyhow};
-use clap::{Parser, Subcommand};
+use clap::{CommandFactory, Parser, Subcommand};
+use clap_complete::{Shell, generate};
 use pass::{AnyhowErrorExt, PassClient};
 use std::sync::Arc;
 use zeroizing_alloc::ZeroAlloc;
@@ -164,6 +165,11 @@ enum Commands {
     },
     #[command(about = "Reach to us if you need help")]
     Support,
+    #[command(about = "Generate shell completion scripts", hide = true)]
+    Completions {
+        #[arg(value_enum, help = "Shell to generate completions for")]
+        shell: Shell,
+    },
 }
 
 impl Commands {
@@ -204,11 +210,20 @@ async fn run() -> Result<()> {
         return commands::logout::force_logout().await;
     }
 
+    if let Commands::Completions { shell } = cli.command {
+        let mut cmd = Cli::command();
+        generate(shell, &mut cmd, "pass-cli", &mut std::io::stdout());
+        return Ok(());
+    }
+
     let base_dir = utils::get_base_dir().context("Error getting base dir")?;
 
     // Check for updates in the background (non-blocking, weekly check)
     // This runs for all commands except update itself to avoid recursion
-    if !matches!(cli.command, Commands::Update { .. }) {
+    if !matches!(
+        cli.command,
+        Commands::Update { .. } | Commands::Completions { .. }
+    ) {
         let _ = commands::update::check_for_updates_background(&base_dir).await;
     }
 
