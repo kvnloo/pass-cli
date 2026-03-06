@@ -13,7 +13,7 @@ impl PassClient {
 
         let res = self
             .send(DELETE!(
-                "/pass/v1/service_account/{personal_access_token_id}"
+                "/account/v4/personal-access-token/{personal_access_token_id}"
             ))
             .await
             .context("Failed to delete personal access token")?;

@@ -1,7 +1,10 @@
 use crate::PassClient;
 use anyhow::{Context, Result};
 use muon::GET;
-use pass_domain::{AddressId, GroupId, ItemId, Permission, Share, ShareContent, ShareId, ShareRole, ShareType, VaultId};
+use pass_domain::{
+    AddressId, GroupId, ItemId, Permission, Share, ShareContent, ShareId, ShareRole, ShareType,
+    VaultId,
+};
 
 const TARGET_TYPE_VAULT: u8 = 1;
 const TARGET_TYPE_ITEM: u8 = 2;
@@ -46,7 +49,6 @@ pub struct ShareResponse {
     pub group_id: Option<String>,
 }
 
-
 fn share_response_to_share(value: ShareResponse, is_pat: bool) -> Result<Share> {
     let share_content = match (
         value.content,
@@ -54,8 +56,7 @@ fn share_response_to_share(value: ShareResponse, is_pat: bool) -> Result<Share> 
         value.content_key_rotation,
     ) {
         (Some(content), Some(cfv), Some(ckr)) => Some(ShareContent {
-            content: crate::utils::b64_decode(&content)
-                .context("Error decoding share content")?,
+            content: crate::utils::b64_decode(&content).context("Error decoding share content")?,
             share_key_rotation: ckr,
             content_format_version: cfv,
         }),
@@ -64,18 +65,14 @@ fn share_response_to_share(value: ShareResponse, is_pat: bool) -> Result<Share> 
 
     let is_owner = match is_pat {
         true => false,
-        false => value.owner
+        false => value.owner,
     };
 
     Ok(Share {
         id: ShareId::new(value.share_id),
         address_id: AddressId::new(value.address_id),
         vault_id: VaultId::new(value.vault_id.clone()),
-        permission: Permission::new_from_role(
-            &value.share_role_id,
-            value.owner,
-            value.permission,
-        ),
+        permission: Permission::new_from_role(&value.share_role_id, value.owner, value.permission),
         share_role: ShareRole::from_value(&value.share_role_id, is_owner, value.permission),
         content: share_content,
         group_id: value.group_id.map(GroupId::new),
@@ -91,7 +88,6 @@ fn share_response_to_share(value: ShareResponse, is_pat: bool) -> Result<Share> 
         },
     })
 }
-
 
 impl PassClient {
     pub async fn list_shares(&self) -> Result<Vec<Share>> {

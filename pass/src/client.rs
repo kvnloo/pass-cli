@@ -37,11 +37,11 @@ impl PassClient {
     pub fn account_type(&self) -> AccountType {
         self.account_type
     }
-    
+
     pub fn is_user_account(&self) -> bool {
         self.account_type == AccountType::User
     }
-    
+
     pub fn is_pat_account(&self) -> bool {
         self.account_type == AccountType::PersonalAccessToken
     }

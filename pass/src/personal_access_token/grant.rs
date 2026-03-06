@@ -200,12 +200,12 @@ impl PassClient {
         &self,
         personal_access_token_id: &PersonalAccessTokenId,
     ) -> Result<Vec<u8>> {
-        let service_accounts = self
+        let personal_access_tokens = self
             .list_personal_access_tokens()
             .await
             .context("Failed to list personal access tokens")?;
 
-        let service_account = service_accounts
+        let personal_access_token = personal_access_tokens
             .iter()
             .find(|sa| personal_access_token_id.eq(&sa.pat_id))
             .ok_or_else(|| {
@@ -215,7 +215,7 @@ impl PassClient {
                 )
             })?;
 
-        service_account
+        personal_access_token
             .pat_key
             .clone()
             .ok_or_else(|| anyhow!("Personal access token key not available"))
