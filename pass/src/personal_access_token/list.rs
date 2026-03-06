@@ -73,13 +73,13 @@ impl PassClient {
 
             let wrapper = response.personal_access_tokens;
 
-            for sa_data in wrapper.personal_access_tokens {
-                match self.open_personal_access_token(&sa_data).await {
-                    Ok(sa) => all_personal_access_tokens.push(sa),
+            for pat_data in wrapper.personal_access_tokens {
+                match self.open_personal_access_token(&pat_data).await {
+                    Ok(pat) => all_personal_access_tokens.push(pat),
                     Err(e) => {
                         warn!(
                             "Error opening personal access token {}: {}. Skipping.",
-                            sa_data.personal_access_token_id, e
+                            pat_data.personal_access_token_id, e
                         );
                     }
                 }

@@ -207,7 +207,7 @@ impl PassClient {
 
         let personal_access_token = personal_access_tokens
             .iter()
-            .find(|sa| personal_access_token_id.eq(&sa.pat_id))
+            .find(|pat| personal_access_token_id.eq(&pat.pat_id))
             .ok_or_else(|| {
                 anyhow!(
                     "Personal access token not found: {}",
