@@ -52,31 +52,31 @@ impl PassClient {
         })
     }
 
-    pub async fn get_service_account_name(&self) -> Result<String> {
-        let service_account_data = self.get_service_account_self().await?;
-        Ok(service_account_data.name)
+    pub async fn get_personal_access_token_name(&self) -> Result<String> {
+        let personal_access_token_data = self.get_personal_access_token_self().await?;
+        Ok(personal_access_token_data.name)
     }
 
-    async fn get_service_account_self(&self) -> Result<PersonalAccessTokenSelfData> {
+    async fn get_personal_access_token_self(&self) -> Result<PersonalAccessTokenSelfData> {
         let res = self
             .send(GET!("/account/v4/personal-access-token/self"))
             .await?;
         let response: PersonalAccessTokenSelfResponse = assert_response!(res);
-        Ok(response.service_account)
+        Ok(response.personal_access_token)
     }
 }
 
 #[derive(Debug, serde::Deserialize)]
 struct PersonalAccessTokenSelfResponse {
     #[serde(rename = "PersonalAccessToken")]
-    service_account: PersonalAccessTokenSelfData,
+    personal_access_token: PersonalAccessTokenSelfData,
 }
 
 #[derive(Debug, serde::Deserialize)]
 struct PersonalAccessTokenSelfData {
     #[serde(rename = "PersonalAccessTokenID")]
     #[allow(dead_code)]
-    pub service_account_id: String,
+    pub personal_access_token_id: String,
     #[serde(rename = "Name")]
     pub name: String,
     #[serde(rename = "ExpireTime")]

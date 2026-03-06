@@ -40,7 +40,9 @@ impl EncryptionTag {
             EncryptionTag::FolderKey => b"key.folder.pass.proton".to_vec(),
             EncryptionTag::FolderContent => b"content.folder.pass.proton".to_vec(),
             EncryptionTag::ShareKey => b"sharekey".to_vec(),
-            EncryptionTag::PersonalAccessTokenKey => b"proton.pass.service_account.key".to_vec(),
+            EncryptionTag::PersonalAccessTokenKey => {
+                b"proton.pass.personal_access_token.key".to_vec()
+            }
         }
     }
 }

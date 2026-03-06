@@ -74,7 +74,7 @@ impl PassClient {
         Ok(())
     }
 
-    pub async fn get_local_service_account_key(&self) -> Result<Vec<u8>> {
+    pub async fn get_local_personal_access_token_key(&self) -> Result<Vec<u8>> {
         use std::path::Path;
 
         let fs = self.client_features.get_fs().await;

@@ -228,7 +228,7 @@ async fn run() -> Result<()> {
         } => {
             #[cfg(feature = "internal")]
             {
-                // Extract service_account field when feature is enabled
+                // Extract personal_access_token field when feature is enabled
                 if let Commands::Login {
                     pat: personal_access_token,
                     ..

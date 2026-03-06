@@ -190,7 +190,7 @@ impl Authenticator {
             .context("Error creating session")?;
 
         // Perform personal access token login
-        let service_account_key = personal_access_token::perform_personal_access_token_login(
+        let personal_access_token_key = personal_access_token::perform_personal_access_token_login(
             session,
             store.clone(),
             &token,
@@ -207,7 +207,7 @@ impl Authenticator {
         let pass_client =
             PassClient::new(client, client_features, AccountType::PersonalAccessToken);
 
-        Ok((pass_client, service_account_key))
+        Ok((pass_client, personal_access_token_key))
     }
 
     pub async fn complete_login(

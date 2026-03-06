@@ -29,7 +29,7 @@ pub enum PermissionAction {
 display_for_enum!(PermissionAction);
 
 impl PassClient {
-    pub(crate) fn not_service_account_guard(&self) -> Result<()> {
+    pub(crate) fn not_personal_access_token_guard(&self) -> Result<()> {
         if self.account_type() == AccountType::PersonalAccessToken {
             return Err(anyhow!(
                 "Personal access tokens cannot perform this operation"
@@ -46,12 +46,12 @@ impl PassClient {
 
         match action {
             PermissionAction::CreateVault => {
-                self.not_service_account_guard()?;
+                self.not_personal_access_token_guard()?;
                 self.create_vault_guard(user_access.plan).await
             }
             PermissionAction::UpdateVault { share_id } => self.update_vault_guard(share_id).await,
             PermissionAction::DeleteVault { share_id } => {
-                self.not_service_account_guard()?;
+                self.not_personal_access_token_guard()?;
                 self.delete_vault_guard(share_id).await
             }
             PermissionAction::CreateItem { share_id } => self.create_item_guard(share_id).await,
@@ -81,10 +81,10 @@ impl PassClient {
                 self.create_item_guard(share_id).await?;
                 self.create_paid_item_guard(user_access.plan).await
             }
-            PermissionAction::ShareVault => self.not_service_account_guard(),
-            PermissionAction::AcceptInvite => self.not_service_account_guard(),
-            PermissionAction::RejectInvite => self.not_service_account_guard(),
-            PermissionAction::ListInvites => self.not_service_account_guard(),
+            PermissionAction::ShareVault => self.not_personal_access_token_guard(),
+            PermissionAction::AcceptInvite => self.not_personal_access_token_guard(),
+            PermissionAction::RejectInvite => self.not_personal_access_token_guard(),
+            PermissionAction::ListInvites => self.not_personal_access_token_guard(),
         }
     }
 
