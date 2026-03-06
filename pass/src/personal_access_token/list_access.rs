@@ -2,11 +2,11 @@ use crate::PassClient;
 use crate::pagination::SincePagination;
 use anyhow::{Context, Result, anyhow};
 use muon::GET;
-use pass_domain::{ItemId, ServiceAccountId, ShareId, ShareRole, TargetType};
+use pass_domain::{ItemId, PersonalAccessTokenId, ShareId, ShareRole, TargetType};
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
-pub enum ServiceAccountAccess {
+pub enum PersonalAccessTokenAccess {
     Vault {
         share_id: ShareId,
         role: ShareRole,
@@ -24,15 +24,15 @@ pub enum ServiceAccountAccess {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub(crate) struct ListServiceAccountAccessResponse {
+pub(crate) struct ListPersonalAccessTokenAccessResponse {
     #[serde(rename = "Shares")]
-    shares: Vec<ServiceAccountShare>,
+    shares: Vec<PersonalAccessTokenShare>,
     #[serde(rename = "LastToken")]
     last_token: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub(crate) struct ServiceAccountShare {
+pub(crate) struct PersonalAccessTokenShare {
     #[serde(rename = "ShareID")]
     pub share_id: String,
     #[serde(rename = "ParentShareID")]
@@ -48,31 +48,31 @@ pub(crate) struct ServiceAccountShare {
 }
 
 impl PassClient {
-    pub async fn list_service_account_access(
+    pub async fn list_personal_access_token_access(
         &self,
-        service_account_id: &ServiceAccountId,
-    ) -> Result<Vec<ServiceAccountAccess>> {
+        personal_access_token_id: &PersonalAccessTokenId,
+    ) -> Result<Vec<PersonalAccessTokenAccess>> {
         let access_list = self
-            .fetch_service_account_access(service_account_id)
+            .fetch_personal_access_token_access(personal_access_token_id)
             .await
-            .context("Error fetching service account access")?;
+            .context("Error fetching personal access token access")?;
 
         let mut result = Vec::with_capacity(access_list.len());
         for access in access_list {
             let resolved = self
-                .resolve_service_account_access(access)
+                .resolve_personal_access_token_access(access)
                 .await
-                .context("Error resolving service account access")?;
+                .context("Error resolving personal access token access")?;
             result.push(resolved);
         }
 
         Ok(result)
     }
 
-    async fn resolve_service_account_access(
+    async fn resolve_personal_access_token_access(
         &self,
-        response: ServiceAccountShare,
-    ) -> Result<ServiceAccountAccess> {
+        response: PersonalAccessTokenShare,
+    ) -> Result<PersonalAccessTokenAccess> {
         let parent_share_id = ShareId::new(response.parent_share_id);
         let share_id = ShareId::new(response.share_id);
         let role = ShareRole::from_value(&response.share_role_id, false, 0);
@@ -91,7 +91,7 @@ impl PassClient {
                     .await
                     .context("Failed to decrypt vault content")?;
 
-                Ok(ServiceAccountAccess::Vault {
+                Ok(PersonalAccessTokenAccess::Vault {
                     share_id,
                     role,
                     expire_time: response.expire_time,
@@ -114,7 +114,7 @@ impl PassClient {
                     .find(|i| i.id.value() == item_id.value())
                     .ok_or_else(|| anyhow!("Item not found: {}", item_id_str))?;
 
-                Ok(ServiceAccountAccess::Item {
+                Ok(PersonalAccessTokenAccess::Item {
                     share_id,
                     role,
                     expire_time: response.expire_time,
@@ -124,15 +124,18 @@ impl PassClient {
         }
     }
 
-    async fn fetch_service_account_access(
+    async fn fetch_personal_access_token_access(
         &self,
-        service_account_id: &ServiceAccountId,
-    ) -> Result<Vec<ServiceAccountShare>> {
+        personal_access_token_id: &PersonalAccessTokenId,
+    ) -> Result<Vec<PersonalAccessTokenShare>> {
         let mut access_list = vec![];
         let mut pagination = SincePagination::default();
 
         loop {
-            let mut req = GET!("/pass/v1/service_account/{}/access", service_account_id);
+            let mut req = GET!(
+                "/pass/v1/personal-access-token/{}/access",
+                personal_access_token_id
+            );
             if let Some(ref since) = pagination.since {
                 req = req.query(("Since", since));
             }
@@ -140,8 +143,8 @@ impl PassClient {
             let res = self
                 .send(req)
                 .await
-                .context("Error fetching service account access")?;
-            let response: ListServiceAccountAccessResponse = assert_response!(res);
+                .context("Error fetching personal access token access")?;
+            let response: ListPersonalAccessTokenAccessResponse = assert_response!(res);
 
             let should_break = response.shares.len() < pagination.page_size;
             access_list.extend(response.shares);
@@ -169,17 +172,17 @@ mod tests {
     use muon::test::server::{HTTP, Server};
 
     #[muon::test(scheme(HTTP))]
-    async fn test_list_service_account_access_vault(server: Arc<Server>) {
+    async fn test_list_personal_access_token_access_vault(server: Arc<Server>) {
         use crate::share::keys::{GetShareKeysResponse, ShareKeyList, ShareKeyResponse};
         use crate::share::list::{GetSharesResponse, ShareResponse};
         use pass_domain::{VaultData, VaultDisplayPreferences, crypto};
 
-        const SERVICE_ACCOUNT_ID: &str = "test_sa_id";
+        const PERSONAL_ACCESS_TOKEN_ID: &str = "test_sa_id";
         const SHARE_ID: &str = "share_1";
         const PARENT_SHARE_ID: &str = "parent_share_1";
         const VAULT_ID: &str = "vault_1";
         const VAULT_NAME: &str = "Test Vault";
-        const LIST_ACCESS_PATH: &str = "/pass/v1/service_account/test_sa_id/access";
+        const LIST_ACCESS_PATH: &str = "/pass/v1/personal-access-token/test_sa_id/access";
         const SHARE_KEY_PATH: &str = "/pass/v1/share/parent_share_1/key";
 
         let client = server.pass_client().await;
@@ -241,8 +244,8 @@ mod tests {
         });
 
         let list_access_handled = server.handler(LIST_ACCESS_PATH, move |_| {
-            success(ListServiceAccountAccessResponse {
-                shares: vec![ServiceAccountShare {
+            success(ListPersonalAccessTokenAccessResponse {
+                shares: vec![PersonalAccessTokenShare {
                     share_id: SHARE_ID.to_string(),
                     target_type: TargetType::Vault.value(),
                     target_id: None,
@@ -255,15 +258,17 @@ mod tests {
         });
 
         let access_list = client
-            .list_service_account_access(&ServiceAccountId::new(SERVICE_ACCOUNT_ID.to_string()))
+            .list_personal_access_token_access(&PersonalAccessTokenId::new(
+                PERSONAL_ACCESS_TOKEN_ID.to_string(),
+            ))
             .await
-            .expect("Should be able to list service account access");
+            .expect("Should be able to list personal access token access");
 
         assert_hit!(list_access_handled);
         assert_eq!(1, access_list.len());
 
         match &access_list[0] {
-            ServiceAccountAccess::Vault {
+            PersonalAccessTokenAccess::Vault {
                 share_id,
                 role,
                 expire_time,

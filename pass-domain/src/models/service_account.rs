@@ -1,8 +1,8 @@
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
-pub struct ServiceAccountId(pub(crate) String);
-display_for_basic!(ServiceAccountId);
+pub struct PersonalAccessTokenId(pub(crate) String);
+display_for_basic!(PersonalAccessTokenId);
 
-impl ServiceAccountId {
+impl PersonalAccessTokenId {
     pub fn new(id: String) -> Self {
         Self(id)
     }

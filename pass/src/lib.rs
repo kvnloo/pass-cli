@@ -28,8 +28,8 @@ pub(crate) mod muon_ext;
 mod pagination;
 pub mod password;
 mod permission;
+mod personal_access_token;
 mod ping;
-mod service_account;
 mod share;
 mod telemetry;
 mod user;
@@ -50,9 +50,9 @@ pub use item::create::note;
 pub use item::create::ssh_key;
 pub use item::create::wifi;
 pub use item::find::FindItemQuery;
-pub use service_account::{
-    CreateServiceAccountArgs, CreateServiceAccountResponse, ServiceAccount, ServiceAccountAccess,
-    UpdateServiceAccountArgs,
+pub use personal_access_token::{
+    CreatePersonalAccessTokenArgs, CreatePersonalAccessTokenResponse, PersonalAccessToken,
+    PersonalAccessTokenAccess,
 };
 pub use user::access::{PassPlan, PlanType, UserDataSettings, UserInfo};
 pub use utils::is_id;

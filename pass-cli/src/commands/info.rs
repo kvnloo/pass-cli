@@ -71,13 +71,13 @@ pub async fn run(
                 install_source: install_source_str,
             }
         }
-        AccountType::ServiceAccount => {
+        AccountType::PersonalAccessToken => {
             let service_account_name = client
                 .get_service_account_name()
                 .await
-                .context("Error getting service account name")?;
+                .context("Error getting personal access token name")?;
 
-            let env = None; // Service accounts might not have env info
+            let env = None; // Personal access tokens might not have env info
 
             // Show release track
             let release_track = update::get_release_track(&base_dir)
@@ -94,7 +94,7 @@ pub async fn run(
             InfoOutput {
                 env,
                 release_track,
-                id: "N/A".to_string(), // Service accounts don't have user IDs
+                id: "N/A".to_string(), // Personal access tokens don't have user IDs
                 username: None,
                 email: None,
                 service_account_name: Some(service_account_name),

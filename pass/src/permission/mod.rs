@@ -19,7 +19,7 @@ pub enum PermissionAction {
     CreateCustomItem { share_id: ShareId },
     CreateWifi { share_id: ShareId },
 
-    // Service account restricted operations
+    // Personal access token restricted operations
     ShareVault,
     AcceptInvite,
     RejectInvite,
@@ -30,8 +30,10 @@ display_for_enum!(PermissionAction);
 
 impl PassClient {
     pub(crate) fn not_service_account_guard(&self) -> Result<()> {
-        if self.account_type() == AccountType::ServiceAccount {
-            return Err(anyhow!("Service accounts cannot perform this operation"));
+        if self.account_type() == AccountType::PersonalAccessToken {
+            return Err(anyhow!(
+                "Personal access tokens cannot perform this operation"
+            ));
         }
         Ok(())
     }

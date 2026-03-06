@@ -2,13 +2,13 @@ use crate::PassClient;
 use anyhow::{Context, Result};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-const SERVICE_ACCOUNT_KEY_FILE_NAME: &str = "service_account_key";
+const PERSONAL_ACCESS_TOKEN_KEY_FILE_NAME: &str = "pat_key";
 
 #[derive(Zeroize, ZeroizeOnDrop)]
 pub enum FirstTimeSetupKey {
     Passphrase(Vec<u8>),
     UserPassword(String),
-    ServiceAccount(Vec<u8>),
+    PersonalAccessToken(Vec<u8>),
 }
 
 impl PassClient {
@@ -31,39 +31,45 @@ impl PassClient {
             FirstTimeSetupKey::UserPassword(ref user_pass) => {
                 self.perform_first_time_setup(user_pass.as_str()).await
             }
-            FirstTimeSetupKey::ServiceAccount(ref service_account_key) => {
-                self.setup_service_account_key(service_account_key)
+            FirstTimeSetupKey::PersonalAccessToken(ref pat_key) => {
+                self.setup_personal_access_token_key(pat_key)
                     .await
-                    .context("Error setting up service account key")?;
+                    .context("Error setting up Personal Access Token key")?;
                 Ok(())
             }
         }
     }
 
-    async fn setup_service_account_key(&self, service_account_key: &[u8]) -> Result<()> {
+    async fn setup_personal_access_token_key(
+        &self,
+        personal_access_toekn_key: &[u8],
+    ) -> Result<()> {
         use std::path::Path;
 
         let local_key_provider = self.get_key_provider().await?;
         let local_key = local_key_provider.get_key().await?;
 
-        // Encrypt the service account key with the local key
+        // Encrypt the personal access token key with the local key
         let encrypted_key = pass_domain::crypto::encrypt(
-            service_account_key,
+            personal_access_toekn_key,
             local_key.as_ref(),
-            pass_domain::crypto::EncryptionTag::ServiceAccountKey,
+            pass_domain::crypto::EncryptionTag::PersonalAccessTokenKey,
         )
         .map_err(|e| {
             anyhow::anyhow!(
-                "Error encrypting service account key with local key: {:?}",
+                "Error encrypting personal access token key with local key: {:?}",
                 e
             )
         })?;
 
-        // Store the encrypted service account key
+        // Store the encrypted personal access token key
         let fs = self.client_features.get_fs().await;
-        fs.store_file(encrypted_key, Path::new(SERVICE_ACCOUNT_KEY_FILE_NAME))
-            .await
-            .context("Error storing service account key")?;
+        fs.store_file(
+            encrypted_key,
+            Path::new(PERSONAL_ACCESS_TOKEN_KEY_FILE_NAME),
+        )
+        .await
+        .context("Error storing personal access token key")?;
 
         Ok(())
     }
@@ -73,9 +79,9 @@ impl PassClient {
 
         let fs = self.client_features.get_fs().await;
         let encrypted_key = fs
-            .get_file(Path::new(SERVICE_ACCOUNT_KEY_FILE_NAME))
+            .get_file(Path::new(PERSONAL_ACCESS_TOKEN_KEY_FILE_NAME))
             .await
-            .context("Error loading service account key")?;
+            .context("Error loading personal access token key")?;
 
         let local_key_provider = self.get_key_provider().await?;
         let local_key = local_key_provider.get_key().await?;
@@ -83,11 +89,11 @@ impl PassClient {
         let decrypted_key = pass_domain::crypto::decrypt(
             &encrypted_key,
             local_key.as_ref(),
-            pass_domain::crypto::EncryptionTag::ServiceAccountKey,
+            pass_domain::crypto::EncryptionTag::PersonalAccessTokenKey,
         )
         .map_err(|e| {
             anyhow::anyhow!(
-                "Error decrypting service account key with local key: {:?}",
+                "Error decrypting personal access token key with local key: {:?}",
                 e
             )
         })?;

@@ -3,7 +3,7 @@ use crate::common::CodeResponse;
 use anyhow::{Context, Result, anyhow};
 use muon::POST;
 use pass_domain::crypto::EncryptionTag;
-use pass_domain::{ItemId, ServiceAccountId, ShareId, ShareRole, TargetType, crypto};
+use pass_domain::{ItemId, PersonalAccessTokenId, ShareId, ShareRole, TargetType, crypto};
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 struct KeyRotationKeyPair {
@@ -14,7 +14,7 @@ struct KeyRotationKeyPair {
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-struct ServiceAccountGrantAccessRequest {
+struct PersonalAccessTokenGrantAccessRequest {
     #[serde(rename = "ShareID")]
     share_id: String,
     #[serde(rename = "TargetID", skip_serializing_if = "Option::is_none")]
@@ -30,23 +30,23 @@ struct ServiceAccountGrantAccessRequest {
 }
 
 impl PassClient {
-    pub async fn grant_service_account_access(
+    pub async fn grant_personal_access_token_access(
         &self,
-        service_account_id: &ServiceAccountId,
+        personal_access_token_id: &PersonalAccessTokenId,
         share_id: &ShareId,
         item_id: Option<&ItemId>,
         role: &ShareRole,
         expiration_time: Option<i64>,
     ) -> Result<()> {
         info!(
-            "Granting service account {} access to share {} (item: {:?})",
-            service_account_id, share_id, item_id
+            "Granting personal access token {} access to share {} (item: {:?})",
+            personal_access_token_id, share_id, item_id
         );
 
         // Prepare the access grant request
         let request = self
             .prepare_grant_access_request(
-                service_account_id,
+                personal_access_token_id,
                 share_id,
                 item_id,
                 role,
@@ -55,12 +55,12 @@ impl PassClient {
             .await?;
 
         // Send the request to the server
-        self.send_grant_access_request(service_account_id, request)
+        self.send_grant_access_request(personal_access_token_id, request)
             .await?;
 
         info!(
-            "Service account {} granted access successfully",
-            service_account_id
+            "Personal access token {} granted access successfully",
+            personal_access_token_id
         );
 
         Ok(())
@@ -68,29 +68,29 @@ impl PassClient {
 
     async fn prepare_grant_access_request(
         &self,
-        service_account_id: &ServiceAccountId,
+        personal_access_token_id: &PersonalAccessTokenId,
         share_id: &ShareId,
         item_id: Option<&ItemId>,
         role: &ShareRole,
         expiration_time: Option<i64>,
-    ) -> Result<ServiceAccountGrantAccessRequest> {
-        let service_account_key = self
-            .get_service_account_key(service_account_id)
+    ) -> Result<PersonalAccessTokenGrantAccessRequest> {
+        let personal_access_token_key = self
+            .get_personal_access_token_key(personal_access_token_id)
             .await
-            .context("Failed to get service account key")?;
+            .context("Failed to get personal access token key")?;
 
         let (target_type, target_id, keys) = match item_id {
             Some(item_id) => {
-                self.prepare_item_access_keys(share_id, item_id, &service_account_key)
+                self.prepare_item_access_keys(share_id, item_id, &personal_access_token_key)
                     .await?
             }
             None => {
-                self.prepare_vault_access_keys(share_id, &service_account_key)
+                self.prepare_vault_access_keys(share_id, &personal_access_token_key)
                     .await?
             }
         };
 
-        Ok(ServiceAccountGrantAccessRequest {
+        Ok(PersonalAccessTokenGrantAccessRequest {
             share_id: share_id.value().to_string(),
             target_id,
             target_type,
@@ -103,7 +103,7 @@ impl PassClient {
     async fn prepare_vault_access_keys(
         &self,
         share_id: &ShareId,
-        service_account_key: &[u8],
+        personal_access_token_key: &[u8],
     ) -> Result<(u8, Option<String>, Vec<KeyRotationKeyPair>)> {
         let share_keys = self
             .get_all_opened_share_keys(share_id, true)
@@ -114,7 +114,7 @@ impl PassClient {
             .into_iter()
             .map(|k| {
                 let encrypted_key =
-                    crypto::encrypt(k.key(), service_account_key, EncryptionTag::ShareKey)
+                    crypto::encrypt(k.key(), personal_access_token_key, EncryptionTag::ShareKey)
                         .map_err(|e| {
                             error!("Error encrypting vault key: {:?}", e);
                             anyhow!("Error encrypting vault key")
@@ -134,7 +134,7 @@ impl PassClient {
         &self,
         share_id: &ShareId,
         item_id: &ItemId,
-        service_account_key: &[u8],
+        personal_access_token_key: &[u8],
     ) -> Result<(u8, Option<String>, Vec<KeyRotationKeyPair>)> {
         let item_keys = self
             .get_item_keys(share_id, item_id)
@@ -149,12 +149,15 @@ impl PassClient {
         let encrypted_keys: Vec<KeyRotationKeyPair> = opened_item_keys
             .into_iter()
             .map(|k| {
-                let encrypted_key =
-                    crypto::encrypt(k.key.as_ref(), service_account_key, EncryptionTag::ShareKey)
-                        .map_err(|e| {
-                        error!("Error encrypting item key: {:?}", e);
-                        anyhow!("Error encrypting item key")
-                    })?;
+                let encrypted_key = crypto::encrypt(
+                    k.key.as_ref(),
+                    personal_access_token_key,
+                    EncryptionTag::ShareKey,
+                )
+                .map_err(|e| {
+                    error!("Error encrypting item key: {:?}", e);
+                    anyhow!("Error encrypting item key")
+                })?;
 
                 Ok(KeyRotationKeyPair {
                     key: crate::utils::b64_encode(encrypted_key),
@@ -172,12 +175,15 @@ impl PassClient {
 
     async fn send_grant_access_request(
         &self,
-        service_account_id: &ServiceAccountId,
-        request: ServiceAccountGrantAccessRequest,
+        personal_access_token_id: &PersonalAccessTokenId,
+        request: PersonalAccessTokenGrantAccessRequest,
     ) -> Result<()> {
-        let req = POST!("/pass/v1/service_account/{}/access", service_account_id)
-            .body_json(&request)
-            .context("Failed to create grant access request")?;
+        let req = POST!(
+            "/pass/v1/personal-access-token/{}/access",
+            personal_access_token_id
+        )
+        .body_json(&request)
+        .context("Failed to create grant access request")?;
 
         let res = self
             .send(req)
@@ -189,13 +195,38 @@ impl PassClient {
 
         Ok(())
     }
+
+    pub(crate) async fn get_personal_access_token_key(
+        &self,
+        personal_access_token_id: &PersonalAccessTokenId,
+    ) -> Result<Vec<u8>> {
+        let service_accounts = self
+            .list_personal_access_tokens()
+            .await
+            .context("Failed to list personal access tokens")?;
+
+        let service_account = service_accounts
+            .iter()
+            .find(|sa| personal_access_token_id.eq(&sa.pat_id))
+            .ok_or_else(|| {
+                anyhow!(
+                    "Personal access token not found: {}",
+                    personal_access_token_id
+                )
+            })?;
+
+        service_account
+            .pat_key
+            .clone()
+            .ok_or_else(|| anyhow!("Personal access token key not available"))
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::service_account::list::{
-        ListServiceAccountsResponse, ServiceAccountData, ServiceAccountsWrapper,
+    use crate::personal_access_token::list::{
+        ListPersonalAccessTokensResponse, PersonalAccessTokenData, PersonalAccessTokensWrapper,
     };
     use crate::test_tools::*;
     use pass_domain::PlainText;
@@ -205,47 +236,40 @@ mod tests {
 
     #[muon::test(scheme(HTTP))]
     async fn test_grant_vault_access(server: Arc<Server>) {
-        const SERVICE_ACCOUNT_ID: &str = "test_sa_id";
+        const PERSONAL_ACCESS_TOKEN_ID: &str = "test_sa_id";
         const SHARE_ID: &str = "test_share_id";
         const VAULT_ID: &str = "test_vault_id";
-        const GRANT_PATH: &str = "/pass/v1/service_account/test_sa_id/access";
+        const GRANT_PATH: &str = "/pass/v1/personal-access-token/test_sa_id/access";
         const SHARE_KEY_PATH: &str = "/pass/v1/share/test_share_id/key";
 
         let client = server.pass_client().await;
 
-        let service_account_key = crypto::generate_encryption_key();
+        let personal_access_token_key = crypto::generate_encryption_key();
 
         let user_key = client.get_primary_user_key().await.unwrap();
         let (private, public) = user_key.into_keys();
         let pgp_crypto = client.client_features.get_pgp_crypto().await;
 
-        let encrypted_service_account_key = pgp_crypto
+        let encrypted_personal_access_token_key = pgp_crypto
             .encrypt_and_sign(
-                PlainText::new(service_account_key.clone()),
+                PlainText::new(personal_access_token_key.clone()),
                 public,
                 private,
                 None,
             )
             .await
-            .expect("Error encrypting service account key");
+            .expect("Error encrypting personal access token key");
 
-        let encrypted_name = crypto::encrypt(
-            b"TestServiceAccount",
-            &service_account_key,
-            EncryptionTag::ServiceAccountName,
-        )
-        .expect("encryption failed");
+        let name = "TestPersonalAccessToken".to_string();
+        let encrypted_key_b64 = crate::utils::b64_encode(encrypted_personal_access_token_key);
 
-        let encrypted_name_b64 = crate::utils::b64_encode(encrypted_name);
-        let encrypted_key_b64 = crate::utils::b64_encode(encrypted_service_account_key);
-
-        let list_handled = server.handler("/pass/v1/service_account", move |_| {
-            success(ListServiceAccountsResponse {
-                service_accounts: ServiceAccountsWrapper {
-                    service_accounts: vec![ServiceAccountData {
-                        service_account_id: SERVICE_ACCOUNT_ID.to_string(),
-                        name: encrypted_name_b64.clone(),
-                        service_account_key: encrypted_key_b64.clone(),
+        let list_handled = server.handler("/account/v4/personal-access-token", move |_| {
+            success(ListPersonalAccessTokensResponse {
+                personal_access_tokens: PersonalAccessTokensWrapper {
+                    personal_access_tokens: vec![PersonalAccessTokenData {
+                        personal_access_token_id: PERSONAL_ACCESS_TOKEN_ID.to_string(),
+                        name: name.clone(),
+                        personal_access_token_key: encrypted_key_b64.clone(),
                         expire_time: None,
                         create_time: 1704067200,
                         modify_time: 1704067200,
@@ -303,8 +327,8 @@ mod tests {
         let recorder = server.new_recorder();
 
         client
-            .grant_service_account_access(
-                &ServiceAccountId::new(SERVICE_ACCOUNT_ID.to_string()),
+            .grant_personal_access_token_access(
+                &PersonalAccessTokenId::new(PERSONAL_ACCESS_TOKEN_ID.to_string()),
                 &ShareId::new(SHARE_ID.to_string()),
                 None,
                 &ShareRole::Viewer,
@@ -318,7 +342,7 @@ mod tests {
         assert_hit!(share_handled);
         assert_hit!(grant_handled);
 
-        let req: ServiceAccountGrantAccessRequest = last_request!(recorder);
+        let req: PersonalAccessTokenGrantAccessRequest = last_request!(recorder);
 
         assert_eq!(SHARE_ID, req.share_id);
         assert_eq!(None, req.target_id);

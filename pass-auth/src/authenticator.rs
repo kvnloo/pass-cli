@@ -3,7 +3,7 @@ use crate::client_builder;
 use crate::config::ClientConfig;
 use crate::storage::SessionStorage;
 use crate::store::PassSessionStore;
-use crate::{extra_password, interactive_login, post_login, service_account, web_login};
+use crate::{extra_password, interactive_login, personal_access_token, post_login, web_login};
 use anyhow::{Context, Result, bail};
 use pass::{Client, FirstTimeSetupKey, PassClient};
 use pass_domain::{AccountType, LocalKeyProvider};
@@ -159,7 +159,7 @@ impl Authenticator {
         Ok((pass_client, auth_result.password))
     }
 
-    pub async fn login_service_account(
+    pub async fn login_personal_access_token(
         &self,
         client: Client,
         client_features: Arc<dyn pass_domain::ClientFeatures>,
@@ -180,7 +180,7 @@ impl Authenticator {
         // Get token
         let token = match token {
             Some(t) => t,
-            None => self.credential_provider.get_service_account_token().await?,
+            None => self.credential_provider.get_personal_access_token().await?,
         };
 
         // Create unauthenticated session
@@ -189,19 +189,23 @@ impl Authenticator {
             .await
             .context("Error creating session")?;
 
-        // Perform service account login
-        let service_account_key =
-            service_account::perform_service_account_login(session, store.clone(), &token)
-                .await
-                .context("Error in service account login flow")?;
+        // Perform personal access token login
+        let service_account_key = personal_access_token::perform_personal_access_token_login(
+            session,
+            store.clone(),
+            &token,
+        )
+        .await
+        .context("Error in personal access token login flow")?;
 
         self.event_handler
-            .on_auth_success("Service account session created successfully")
+            .on_auth_success("Personal access token session created successfully")
             .await?;
 
         // Create a new PassClient (HACK to ensure store is fresh)
         let (client, _store) = self.create_client().await?;
-        let pass_client = PassClient::new(client, client_features, AccountType::ServiceAccount);
+        let pass_client =
+            PassClient::new(client, client_features, AccountType::PersonalAccessToken);
 
         Ok((pass_client, service_account_key))
     }
