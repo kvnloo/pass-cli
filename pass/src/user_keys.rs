@@ -6,7 +6,8 @@ use pass_domain::{AccountType, LockedUserKey, UserKey};
 use std::path::Path;
 
 const USER_KEYS_FILE_NAME: &str = "user_keys.enc";
-const SERVICE_ACCOUNT_ERROR: &str = "Service accounts cannot perform user key operations";
+const PERSONAL_ACCESS_TOKEN_ERROR: &str =
+    "Personal access tokens cannot perform user key operations";
 
 fn api_user_key_to_locked_user_key(value: Key) -> LockedUserKey {
     LockedUserKey {
@@ -36,8 +37,8 @@ struct UserKeysResponse {
 
 impl PassClient {
     pub async fn get_user_keys(&self) -> Result<Vec<UserKey>> {
-        if self.account_type() == AccountType::ServiceAccount {
-            return Err(anyhow!(SERVICE_ACCOUNT_ERROR));
+        if self.account_type() == AccountType::PersonalAccessToken {
+            return Err(anyhow!(PERSONAL_ACCESS_TOKEN_ERROR));
         }
 
         let client = self.clone();
@@ -63,8 +64,8 @@ impl PassClient {
     }
 
     pub(crate) async fn get_primary_user_key(&self) -> Result<UserKey> {
-        if self.account_type() == AccountType::ServiceAccount {
-            return Err(anyhow!(SERVICE_ACCOUNT_ERROR));
+        if self.account_type() == AccountType::PersonalAccessToken {
+            return Err(anyhow!(PERSONAL_ACCESS_TOKEN_ERROR));
         }
 
         let keys = self
@@ -79,8 +80,8 @@ impl PassClient {
     }
 
     pub(crate) async fn load_user_keys(&self) -> Result<Vec<LockedUserKey>> {
-        if self.account_type() == AccountType::ServiceAccount {
-            return Err(anyhow!(SERVICE_ACCOUNT_ERROR));
+        if self.account_type() == AccountType::PersonalAccessToken {
+            return Err(anyhow!(PERSONAL_ACCESS_TOKEN_ERROR));
         }
 
         match self.load_user_keys_from_fs().await {

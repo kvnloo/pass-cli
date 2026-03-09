@@ -2,31 +2,33 @@ use crate::PassClient;
 use crate::common::CodeResponse;
 use anyhow::{Context, Result};
 use muon::DELETE;
-use pass_domain::{ServiceAccountId, ShareId};
+use pass_domain::{PersonalAccessTokenId, ShareId};
 
 impl PassClient {
-    pub async fn revoke_service_account_access(
+    pub async fn revoke_personal_access_token_access(
         &self,
-        service_account_id: &ServiceAccountId,
+        personal_access_token_id: &PersonalAccessTokenId,
         share_id: &ShareId,
     ) -> Result<()> {
-        info!("Revoking service account {service_account_id} access from share {share_id}");
+        info!(
+            "Revoking personal access token {personal_access_token_id} access from share {share_id}"
+        );
 
         let res = self
             .send(DELETE!(
-                "/pass/v1/service_account/{}/access/{}",
-                service_account_id,
+                "/pass/v1/personal-access-token/{}/access/{}",
+                personal_access_token_id,
                 share_id.value()
             ))
             .await
-            .context("Failed to revoke service account access")?;
+            .context("Failed to revoke personal access token access")?;
 
         let response: CodeResponse = assert_response!(res);
         response.success_guard()?;
 
         info!(
-            "Service account {} access revoked successfully from share {}",
-            service_account_id, share_id
+            "Personal access token {} access revoked successfully from share {}",
+            personal_access_token_id, share_id
         );
 
         Ok(())
@@ -43,9 +45,9 @@ mod tests {
 
     #[muon::test(scheme(HTTP))]
     async fn test_revoke_access(server: Arc<Server>) {
-        const SERVICE_ACCOUNT_ID: &str = "test_sa_id";
+        const PERSONAL_ACCESS_TOKEN_ID: &str = "test_sa_id";
         const SHARE_ID: &str = "test_share_id";
-        const REVOKE_PATH: &str = "/pass/v1/service_account/test_sa_id/access/test_share_id";
+        const REVOKE_PATH: &str = "/pass/v1/personal-access-token/test_sa_id/access/test_share_id";
 
         let client = server.pass_client().await;
 
@@ -53,8 +55,8 @@ mod tests {
             server.handler_with_method(Method::DELETE, REVOKE_PATH, |_| success_code());
 
         client
-            .revoke_service_account_access(
-                &ServiceAccountId::new(SERVICE_ACCOUNT_ID.to_string()),
+            .revoke_personal_access_token_access(
+                &PersonalAccessTokenId::new(PERSONAL_ACCESS_TOKEN_ID.to_string()),
                 &ShareId::new(SHARE_ID.to_string()),
             )
             .await

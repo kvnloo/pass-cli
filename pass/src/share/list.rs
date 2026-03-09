@@ -49,47 +49,44 @@ pub struct ShareResponse {
     pub group_id: Option<String>,
 }
 
-impl TryFrom<ShareResponse> for Share {
-    type Error = anyhow::Error;
-    fn try_from(value: ShareResponse) -> Result<Self> {
-        let share_content = match (
-            value.content,
-            value.content_format_version,
-            value.content_key_rotation,
-        ) {
-            (Some(content), Some(cfv), Some(ckr)) => Some(ShareContent {
-                content: crate::utils::b64_decode(&content)
-                    .context("Error decoding share content")?,
-                share_key_rotation: ckr,
-                content_format_version: cfv,
-            }),
-            _ => None,
-        };
+fn share_response_to_share(value: ShareResponse, is_pat: bool) -> Result<Share> {
+    let share_content = match (
+        value.content,
+        value.content_format_version,
+        value.content_key_rotation,
+    ) {
+        (Some(content), Some(cfv), Some(ckr)) => Some(ShareContent {
+            content: crate::utils::b64_decode(&content).context("Error decoding share content")?,
+            share_key_rotation: ckr,
+            content_format_version: cfv,
+        }),
+        _ => None,
+    };
 
-        Ok(Self {
-            id: ShareId::new(value.share_id),
-            address_id: AddressId::new(value.address_id),
-            vault_id: VaultId::new(value.vault_id.clone()),
-            permission: Permission::new_from_role(
-                &value.share_role_id,
-                value.owner,
-                value.permission,
-            ),
-            share_role: ShareRole::from_value(&value.share_role_id, value.owner, value.permission),
-            content: share_content,
-            group_id: value.group_id.map(GroupId::new),
-            share_type: match value.target_type {
-                TARGET_TYPE_VAULT => ShareType::Vault {
-                    vault_id: VaultId::new(value.target_id),
-                },
-                TARGET_TYPE_ITEM => ShareType::Item {
-                    vault_id: VaultId::new(value.vault_id),
-                    item_id: ItemId::new(value.target_id),
-                },
-                _ => anyhow::bail!("Invalid share type {}", value.target_type),
+    let is_owner = match is_pat {
+        true => false,
+        false => value.owner,
+    };
+
+    Ok(Share {
+        id: ShareId::new(value.share_id),
+        address_id: AddressId::new(value.address_id),
+        vault_id: VaultId::new(value.vault_id.clone()),
+        permission: Permission::new_from_role(&value.share_role_id, value.owner, value.permission),
+        share_role: ShareRole::from_value(&value.share_role_id, is_owner, value.permission),
+        content: share_content,
+        group_id: value.group_id.map(GroupId::new),
+        share_type: match value.target_type {
+            TARGET_TYPE_VAULT => ShareType::Vault {
+                vault_id: VaultId::new(value.target_id),
             },
-        })
-    }
+            TARGET_TYPE_ITEM => ShareType::Item {
+                vault_id: VaultId::new(value.vault_id),
+                item_id: ItemId::new(value.target_id),
+            },
+            _ => anyhow::bail!("Invalid share type {}", value.target_type),
+        },
+    })
 }
 
 impl PassClient {
@@ -104,9 +101,10 @@ impl PassClient {
         let response = self.send(GET!("/pass/v1/share")).await?;
         let res: GetSharesResponse = assert_response!(response);
 
+        let is_pat = self.is_pat_account();
         let mut result = vec![];
         for share in res.shares {
-            result.push(share.try_into()?);
+            result.push(share_response_to_share(share, is_pat)?);
         }
 
         self.cache.store(GetSharesCacheType, result.clone()).await;

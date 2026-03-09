@@ -17,7 +17,7 @@ struct InfoOutput {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub service_account_name: Option<String>,
+    pub personal_access_token_name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub install_source: Option<String>,
 }
@@ -67,17 +67,17 @@ pub async fn run(
                 id: info.user.id,
                 username: Some(info.user.name),
                 email: Some(info.user.email),
-                service_account_name: None,
+                personal_access_token_name: None,
                 install_source: install_source_str,
             }
         }
-        AccountType::ServiceAccount => {
-            let service_account_name = client
-                .get_service_account_name()
+        AccountType::PersonalAccessToken => {
+            let personal_access_token_name = client
+                .get_personal_access_token_name()
                 .await
-                .context("Error getting service account name")?;
+                .context("Error getting personal access token name")?;
 
-            let env = None; // Service accounts might not have env info
+            let env = None; // Personal access tokens might not have env info
 
             // Show release track
             let release_track = update::get_release_track(&base_dir)
@@ -94,10 +94,10 @@ pub async fn run(
             InfoOutput {
                 env,
                 release_track,
-                id: "N/A".to_string(), // Service accounts don't have user IDs
+                id: "N/A".to_string(), // Personal access tokens don't have user IDs
                 username: None,
                 email: None,
-                service_account_name: Some(service_account_name),
+                personal_access_token_name: Some(personal_access_token_name),
                 install_source: install_source_str,
             }
         }
@@ -115,8 +115,8 @@ fn print(info: InfoOutput, output: OutputFormat) -> Result<()> {
                 println!("- ENV: {}", env);
             }
             println!("- Release track: {}", info.release_track);
-            if let Some(service_account_name) = &info.service_account_name {
-                println!("- Service Account: {}", service_account_name);
+            if let Some(personal_access_token_name) = &info.personal_access_token_name {
+                println!("- Service Account: {}", personal_access_token_name);
             } else {
                 println!("- ID: {}", info.id);
                 if let Some(username) = &info.username {

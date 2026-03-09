@@ -17,5 +17,5 @@ pub trait CredentialProvider: Send + Sync {
     async fn get_password(&self) -> Result<String>;
     async fn get_totp(&self) -> Result<String>;
     async fn get_extra_password(&self) -> Result<String>;
-    async fn get_service_account_token(&self) -> Result<String>;
+    async fn get_personal_access_token(&self) -> Result<String>;
 }

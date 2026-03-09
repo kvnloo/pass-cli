@@ -1,8 +1,7 @@
 use crate::PassClient;
-use anyhow::{Context, Result};
+use anyhow::Result;
 use muon::GET;
 use muon::env::EnvId;
-use pass_domain::crypto;
 
 #[derive(Debug)]
 pub struct UserInfo {
@@ -53,45 +52,31 @@ impl PassClient {
         })
     }
 
-    pub async fn get_service_account_name(&self) -> Result<String> {
-        let service_account_data = self.get_service_account_self().await?;
-
-        let encrypted_name = crate::utils::b64_decode(&service_account_data.name)
-            .context("Error decoding service account name")?;
-
-        let service_account_key = self
-            .get_local_service_account_key()
-            .await
-            .context("Error getting local service account key")?;
-
-        let decrypted_name = crypto::decrypt(
-            &encrypted_name,
-            &service_account_key,
-            crypto::EncryptionTag::ServiceAccountName,
-        )
-        .map_err(|e| anyhow::anyhow!("Error decrypting service account name: {:?}", e))?;
-
-        String::from_utf8(decrypted_name).context("Service account name is not valid UTF-8")
+    pub async fn get_personal_access_token_name(&self) -> Result<String> {
+        let personal_access_token_data = self.get_personal_access_token_self().await?;
+        Ok(personal_access_token_data.name)
     }
 
-    async fn get_service_account_self(&self) -> Result<ServiceAccountSelfData> {
-        let res = self.send(GET!("/pass/v1/service_account/self")).await?;
-        let response: ServiceAccountSelfResponse = assert_response!(res);
-        Ok(response.service_account)
+    async fn get_personal_access_token_self(&self) -> Result<PersonalAccessTokenSelfData> {
+        let res = self
+            .send(GET!("/account/v4/personal-access-token/self"))
+            .await?;
+        let response: PersonalAccessTokenSelfResponse = assert_response!(res);
+        Ok(response.personal_access_token)
     }
 }
 
 #[derive(Debug, serde::Deserialize)]
-struct ServiceAccountSelfResponse {
-    #[serde(rename = "ServiceAccount")]
-    service_account: ServiceAccountSelfData,
+struct PersonalAccessTokenSelfResponse {
+    #[serde(rename = "PersonalAccessToken")]
+    personal_access_token: PersonalAccessTokenSelfData,
 }
 
 #[derive(Debug, serde::Deserialize)]
-struct ServiceAccountSelfData {
-    #[serde(rename = "ServiceAccountID")]
+struct PersonalAccessTokenSelfData {
+    #[serde(rename = "PersonalAccessTokenID")]
     #[allow(dead_code)]
-    pub service_account_id: String,
+    pub personal_access_token_id: String,
     #[serde(rename = "Name")]
     pub name: String,
     #[serde(rename = "ExpireTime")]

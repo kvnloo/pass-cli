@@ -1,7 +1,7 @@
 use anyhow::Result;
 use pass_auth::CredentialProvider;
 
-pub const SERVICE_ACCOUNT_ENV_VAR: &str = "PROTON_PASS_SERVICE_ACCOUNT";
+pub const PERSONAL_ACCESS_TOKEN_ENV_VAR: &str = "PROTON_PASS_PERSONAL_ACCESS_TOKEN";
 
 pub struct CliCredentialProvider;
 
@@ -23,10 +23,10 @@ impl CredentialProvider for CliCredentialProvider {
         crate::client::get_extra_password()
     }
 
-    async fn get_service_account_token(&self) -> Result<String> {
-        std::env::var(SERVICE_ACCOUNT_ENV_VAR)
+    async fn get_personal_access_token(&self) -> Result<String> {
+        std::env::var(PERSONAL_ACCESS_TOKEN_ENV_VAR)
             .map_err(|_| anyhow::anyhow!(
-                "Service account token not found. Set {SERVICE_ACCOUNT_ENV_VAR} environment variable"
+                "Personal access token token not found. Set {PERSONAL_ACCESS_TOKEN_ENV_VAR} environment variable"
             ))
     }
 }

@@ -160,20 +160,20 @@ impl PassClient {
                     .await
                     .context("failed to open ShareKey")?
             }
-            AccountType::ServiceAccount => {
-                let service_account_key = self
-                    .get_local_service_account_key()
+            AccountType::PersonalAccessToken => {
+                let personal_access_token_key = self
+                    .get_local_personal_access_token_key()
                     .await
-                    .context("Error getting local service account key")?;
+                    .context("Error getting local personal access token key")?;
 
                 pass_domain::crypto::decrypt(
                     key.key.as_ref(),
-                    &service_account_key,
+                    &personal_access_token_key,
                     pass_domain::crypto::EncryptionTag::ShareKey,
                 )
                 .map_err(|e| {
                     anyhow!(
-                        "Error decrypting share key with service account key: {:?}",
+                        "Error decrypting share key with personal access token key: {:?}",
                         e
                     )
                 })?

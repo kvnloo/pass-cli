@@ -15,9 +15,9 @@ pub async fn run(
 ) -> Result<()> {
     let authenticator = create_authenticator(client_features.clone())?;
 
-    // Perform service account login
-    let (pass_client, service_account_key) = authenticator
-        .login_service_account(
+    // Perform personal access token login
+    let (pass_client, personal_access_token_key) = authenticator
+        .login_personal_access_token(
             client,
             client_features.clone(),
             store.clone(),
@@ -25,25 +25,27 @@ pub async fn run(
         )
         .await?;
 
-    // Perform first-time setup with the service account key
+    // Perform first-time setup with the personal access token key
     let user_id = store.get_user_id().await?;
     let client_features = pass_client.get_cli_client_features()?;
     client_features.set_user_id(Some(user_id)).await;
 
     pass_client
-        .perform_first_time_setup_with_key(FirstTimeSetupKey::ServiceAccount(service_account_key))
+        .perform_first_time_setup_with_key(FirstTimeSetupKey::PersonalAccessToken(
+            personal_access_token_key,
+        ))
         .await
         .context("Error performing first time setup")?;
 
-    // Get and display service account name
-    let service_account_name = pass_client
-        .get_service_account_name()
+    // Get and display personal access token name
+    let personal_access_token_name = pass_client
+        .get_personal_access_token_name()
         .await
-        .context("Error getting service account name")?;
+        .context("Error getting personal access token name")?;
 
     println!(
-        "Successfully logged in as service account: {}",
-        service_account_name
+        "Successfully logged in as personal access token: {}",
+        personal_access_token_name
     );
     Ok(())
 }
