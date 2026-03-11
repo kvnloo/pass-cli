@@ -52,7 +52,7 @@ pub use item::create::wifi;
 pub use item::find::FindItemQuery;
 pub use personal_access_token::{
     CreatePersonalAccessTokenArgs, CreatePersonalAccessTokenResponse, PersonalAccessToken,
-    PersonalAccessTokenAccess,
+    PersonalAccessTokenAccess, RenewPersonalAccessTokenResponse,
 };
 pub use user::access::{PassPlan, PlanType, UserDataSettings, UserInfo};
 pub use utils::is_id;

@@ -49,10 +49,7 @@ impl PassClient {
         self.send_grant_access_request(personal_access_token_id, request)
             .await?;
 
-        info!(
-            "Personal access token {} granted access successfully",
-            personal_access_token_id
-        );
+        info!("Personal access token {personal_access_token_id} granted access successfully",);
 
         Ok(())
     }
@@ -167,12 +164,9 @@ impl PassClient {
         personal_access_token_id: &PersonalAccessTokenId,
         request: PersonalAccessTokenGrantAccessRequest,
     ) -> Result<()> {
-        let req = POST!(
-            "/pass/v1/personal-access-token/{}/access",
-            personal_access_token_id
-        )
-        .body_json(&request)
-        .context("Failed to create grant access request")?;
+        let req = POST!("/pass/v1/personal-access-token/{personal_access_token_id}/access",)
+            .body_json(&request)
+            .context("Failed to create grant access request")?;
 
         let res = self
             .send(req)
@@ -198,10 +192,7 @@ impl PassClient {
             .iter()
             .find(|pat| personal_access_token_id.eq(&pat.pat_id))
             .ok_or_else(|| {
-                anyhow!(
-                    "Personal access token not found: {}",
-                    personal_access_token_id
-                )
+                anyhow!("Personal access token not found: {personal_access_token_id}",)
             })?;
 
         personal_access_token
