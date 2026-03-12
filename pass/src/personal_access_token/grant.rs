@@ -25,8 +25,6 @@ struct PersonalAccessTokenGrantAccessRequest {
     share_role_id: String,
     #[serde(rename = "Keys")]
     keys: Vec<KeyRotationKeyPair>,
-    #[serde(rename = "ExpireTime", skip_serializing_if = "Option::is_none")]
-    expire_time: Option<i64>,
 }
 
 impl PassClient {
@@ -36,7 +34,6 @@ impl PassClient {
         share_id: &ShareId,
         item_id: Option<&ItemId>,
         role: &ShareRole,
-        expiration_time: Option<i64>,
     ) -> Result<()> {
         info!(
             "Granting personal access token {} access to share {} (item: {:?})",
@@ -45,23 +42,14 @@ impl PassClient {
 
         // Prepare the access grant request
         let request = self
-            .prepare_grant_access_request(
-                personal_access_token_id,
-                share_id,
-                item_id,
-                role,
-                expiration_time,
-            )
+            .prepare_grant_access_request(personal_access_token_id, share_id, item_id, role)
             .await?;
 
         // Send the request to the server
         self.send_grant_access_request(personal_access_token_id, request)
             .await?;
 
-        info!(
-            "Personal access token {} granted access successfully",
-            personal_access_token_id
-        );
+        info!("Personal access token {personal_access_token_id} granted access successfully",);
 
         Ok(())
     }
@@ -72,7 +60,6 @@ impl PassClient {
         share_id: &ShareId,
         item_id: Option<&ItemId>,
         role: &ShareRole,
-        expiration_time: Option<i64>,
     ) -> Result<PersonalAccessTokenGrantAccessRequest> {
         let personal_access_token_key = self
             .get_personal_access_token_key(personal_access_token_id)
@@ -96,7 +83,6 @@ impl PassClient {
             target_type,
             share_role_id: role.value(),
             keys,
-            expire_time: expiration_time,
         })
     }
 
@@ -178,12 +164,9 @@ impl PassClient {
         personal_access_token_id: &PersonalAccessTokenId,
         request: PersonalAccessTokenGrantAccessRequest,
     ) -> Result<()> {
-        let req = POST!(
-            "/pass/v1/personal-access-token/{}/access",
-            personal_access_token_id
-        )
-        .body_json(&request)
-        .context("Failed to create grant access request")?;
+        let req = POST!("/pass/v1/personal-access-token/{personal_access_token_id}/access",)
+            .body_json(&request)
+            .context("Failed to create grant access request")?;
 
         let res = self
             .send(req)
@@ -209,10 +192,7 @@ impl PassClient {
             .iter()
             .find(|pat| personal_access_token_id.eq(&pat.pat_id))
             .ok_or_else(|| {
-                anyhow!(
-                    "Personal access token not found: {}",
-                    personal_access_token_id
-                )
+                anyhow!("Personal access token not found: {personal_access_token_id}",)
             })?;
 
         personal_access_token
@@ -332,7 +312,6 @@ mod tests {
                 &ShareId::new(SHARE_ID.to_string()),
                 None,
                 &ShareRole::Viewer,
-                None,
             )
             .await
             .expect("Should be able to grant vault access");
