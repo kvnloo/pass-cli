@@ -20,6 +20,7 @@ pub enum PersonalAccessTokenAccess {
         #[serde(skip_serializing_if = "Option::is_none")]
         expire_time: Option<i64>,
         item_title: String,
+        item_id: ItemId,
     },
 }
 
@@ -117,6 +118,7 @@ impl PassClient {
                 Ok(PersonalAccessTokenAccess::Item {
                     share_id,
                     role,
+                    item_id,
                     expire_time: response.expire_time,
                     item_title: item.content.title.clone(),
                 })
