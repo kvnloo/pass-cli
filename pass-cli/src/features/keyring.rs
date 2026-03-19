@@ -1,7 +1,7 @@
 use crate::constants::SESSION_FILE_NAME;
 use anyhow::{Context, Result};
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
-use keyring::{Entry, Error as KeyringError};
+use keyring_core::{Entry, Error as KeyringError};
 use pass_domain::utils::xor_key_multibyte;
 use pass_domain::{LocalKey, LocalKeyProvider};
 use sha2::{Digest, Sha256};
@@ -12,6 +12,47 @@ const KEYRING_SERVICE_NAME: &str = "ProtonPassCLI";
 const KEYRING_CREDENTIAL_NAME: &str = "cli-local-key";
 const XOR_KEY_LENGTH: usize = 32;
 
+#[cfg(target_os = "linux")]
+fn init_linux_store() -> Result<()> {
+    match zbus_secret_service_keyring_store::Store::new() {
+        Ok(store) => {
+            keyring_core::set_default_store(store);
+            info!("Linux keyring: using zbus secret service (persistent)");
+            Ok(())
+        }
+        Err(e) => {
+            warn!(
+                "Linux keyring: D-Bus unavailable ({e}), falling back to kernel keyutils (cleared on reboot)"
+            );
+            let store = linux_keyutils_keyring_store::Store::new()
+                .map_err(|e| anyhow::anyhow!("No keyring backend available: zbus secret service and kernel keyutils both failed: {e}"))?;
+            keyring_core::set_default_store(store);
+            Ok(())
+        }
+    }
+}
+
+fn init_keyring_store() -> Result<()> {
+    #[cfg(target_os = "macos")]
+    {
+        let store = apple_native_keyring_store::keychain::Store::new()
+            .map_err(|e| anyhow::anyhow!("Failed to initialize macOS keychain store: {e}"))?;
+        keyring_core::set_default_store(store);
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        let store = windows_native_keyring_store::Store::new()
+            .map_err(|e| anyhow::anyhow!("Failed to initialize Windows keyring store: {e}"))?;
+        keyring_core::set_default_store(store);
+    }
+
+    #[cfg(target_os = "linux")]
+    init_linux_store()?;
+
+    Ok(())
+}
+
 pub struct KeyringKeyProvider {
     key: RwLock<Option<Vec<u8>>>,
     xor_key: Vec<u8>,
@@ -20,6 +61,7 @@ pub struct KeyringKeyProvider {
 
 impl KeyringKeyProvider {
     pub fn new(base_dir: PathBuf) -> Result<Self> {
+        init_keyring_store()?;
         let xor_key = pass_domain::crypto::random_bytes(XOR_KEY_LENGTH);
         Ok(Self {
             key: RwLock::new(None),
