@@ -116,7 +116,7 @@ fn print(info: InfoOutput, output: OutputFormat) -> Result<()> {
             }
             println!("- Release track: {}", info.release_track);
             if let Some(personal_access_token_name) = &info.personal_access_token_name {
-                println!("- Service Account: {}", personal_access_token_name);
+                println!("- Personal Access Token: {}", personal_access_token_name);
             } else {
                 println!("- ID: {}", info.id);
                 if let Some(username) = &info.username {
