@@ -150,12 +150,11 @@ pub fn run_daemon_status(pid_file: Option<PathBuf>) -> Result<()> {
 
     let info = read_pid_file(&pid_file).context("Failed to read PID file")?;
 
-    let has_socket = !info.socket_path.as_os_str().is_empty();
     let process_alive = is_process_running(info.pid);
     // Socket existence check is meaningful on Unix where the socket is a real
     // filesystem entry. Skip it on Windows where named pipes are not regular files.
     #[cfg(unix)]
-    let socket_exists = !has_socket || info.socket_path.exists();
+    let socket_exists = info.socket_path.exists();
     #[cfg(windows)]
     let socket_exists = true;
 
@@ -163,15 +162,13 @@ pub fn run_daemon_status(pid_file: Option<PathBuf>) -> Result<()> {
         (true, true) => {
             println!("Status:   running");
             println!("PID:      {}", info.pid);
-            if has_socket {
-                println!("Socket:   {}", info.socket_path.display());
-                println!();
-                println!("To connect to the agent, set SSH_AUTH_SOCK:");
-                #[cfg(unix)]
-                println!("  export SSH_AUTH_SOCK={}", info.socket_path.display());
-                #[cfg(windows)]
-                println!("  $env:SSH_AUTH_SOCK={}", info.socket_path.display());
-            }
+            println!("Socket:   {}", info.socket_path.display());
+            println!();
+            println!("To connect to the agent, set SSH_AUTH_SOCK:");
+            #[cfg(unix)]
+            println!("  export SSH_AUTH_SOCK={}", info.socket_path.display());
+            #[cfg(windows)]
+            println!("  $env:SSH_AUTH_SOCK={}", info.socket_path.display());
         }
         (true, false) => {
             println!("Status:   degraded (process is running but socket is missing)");
@@ -192,9 +189,7 @@ pub fn run_daemon_status(pid_file: Option<PathBuf>) -> Result<()> {
         (false, false) => {
             println!("Status:   stopped");
             println!("PID:      {} (not running)", info.pid);
-            if has_socket {
-                println!("Socket:   {} (not found)", info.socket_path.display());
-            }
+            println!("Socket:   {} (not found)", info.socket_path.display());
             println!();
             println!("Hint:     run 'ssh-agent daemon start' to start the daemon.");
         }
