@@ -35,7 +35,7 @@ impl ShareQuery {
             ShareQuery::ShareId(share_id) => Ok(share_id.clone()),
             ShareQuery::VaultName(name) => match client.find_vault(name).await {
                 Ok(v) => Ok(v.share_id),
-                Err(e) => Err(anyhow!("Error finding vault {name}: {e}")),
+                Err(e) => Err(anyhow!("Error finding vault [{name}]: {e}")),
             },
         }
     }
