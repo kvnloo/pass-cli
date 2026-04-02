@@ -59,7 +59,8 @@ impl PassClient {
 
         loop {
             let mut req = GET!("/account/v4/personal-access-token")
-                .query(("PageSize", format!("{}", PAGE_SIZE)));
+                .query(("PageSize", format!("{}", PAGE_SIZE)))
+                .query(("Product", "pass".to_string()));
 
             if let Some(token) = &last_token {
                 req = req.query(("Since", token.clone()));
