@@ -19,7 +19,6 @@ pub async fn get_default_format(client: &PassClient) -> Result<Option<OutputForm
     }
 }
 
-#[cfg(feature = "internal")]
 pub async fn get_format(format: Option<OutputFormat>, client: &PassClient) -> Result<OutputFormat> {
     match format {
         Some(o) => Ok(o),

@@ -44,7 +44,6 @@ enum Commands {
         #[arg(long, help = "Use interactive login mode")]
         interactive: bool,
 
-        #[cfg(feature = "internal")]
         #[arg(long, help = "Personal access token (format: pst_<token>::<key>)")]
         pat: Option<String>,
     },
