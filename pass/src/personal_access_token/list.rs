@@ -51,6 +51,7 @@ pub struct PersonalAccessToken {
 
 impl PassClient {
     pub async fn list_personal_access_tokens(&self) -> Result<Vec<PersonalAccessToken>> {
+        self.personal_access_token_operation_guard()?;
         info!("Fetching personal access tokens");
 
         let mut all_personal_access_tokens = Vec::new();
@@ -58,7 +59,8 @@ impl PassClient {
 
         loop {
             let mut req = GET!("/account/v4/personal-access-token")
-                .query(("PageSize", format!("{}", PAGE_SIZE)));
+                .query(("PageSize", format!("{}", PAGE_SIZE)))
+                .query(("Product", "pass".to_string()));
 
             if let Some(token) = &last_token {
                 req = req.query(("Since", token.clone()));
