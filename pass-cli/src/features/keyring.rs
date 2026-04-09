@@ -2,6 +2,7 @@ use crate::constants::SESSION_FILE_NAME;
 use anyhow::{Context, Result};
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use keyring_core::{Entry, Error as KeyringError};
+use pass_db::DATABASE_NAME;
 use pass_domain::utils::xor_key_multibyte;
 use pass_domain::{LocalKey, LocalKeyProvider};
 use sha2::{Digest, Sha256};
@@ -110,6 +111,16 @@ impl KeyringKeyProvider {
     fn session_exists(&self) -> bool {
         let session_path = self.base_dir.join(SESSION_FILE_NAME);
         session_path.exists() && session_path.is_file()
+    }
+
+    // Returns true if any local state that was encrypted with the stored key exists.
+    // This is broader than `session_exists` because the database is created before
+    // session.json is written. If the process is killed between those two steps, the
+    // database exists without a session file. On the next start, if the keyring key is
+    // also gone (e.g. Linux reboot with kernel keyring), we must not generate a new key
+    // and try to open the existing database with it, as that would cause an HMAC failure.
+    fn local_data_exists(&self) -> bool {
+        self.session_exists() || self.base_dir.join(DATABASE_NAME).is_file()
     }
 
     // Creates a session-scoped credential name: `cli-local-key:{sha256(abs(base_dir))}`.
@@ -227,9 +238,9 @@ impl KeyringKeyProvider {
             }
             Err(KeyringError::NoEntry) => {
                 debug!("No credential found in keyring (neither session-scoped nor legacy)");
-                if self.session_exists() {
+                if self.local_data_exists() {
                     eprintln!(
-                        "Error: Local encryption key not found but session exists. Forcing logout for security."
+                        "Error: Local encryption key not found but local data exists. Forcing logout for security."
                     );
                     if let Err(logout_err) = crate::commands::logout::force_logout().await {
                         error!("Error during force logout: {logout_err:#}");

@@ -46,8 +46,24 @@ impl Manager for EncryptedSqliteManager {
             // Set SQLCipher encryption key immediately after opening
             // Use pragma_update instead of execute because PRAGMA key returns results
             conn.pragma_update(None, "key", &key)?;
-            // Verify the key is correct by querying the database
-            let _ = conn.query_row("SELECT count(*) FROM sqlite_master", [], |_| Ok(()));
+            // Verify the key is correct by querying the database.
+            // Errors here (e.g. SQLCipher HMAC failure) should be handled, as a wrong key
+            // or corrupted database would otherwise surface as a misleading "out of memory"
+            // error later when migrations try to write to the database.
+            conn.query_row("SELECT count(*) FROM sqlite_master", [], |_| Ok(()))
+                .map_err(|e| {
+                    rusqlite::Error::SqliteFailure(
+                        rusqlite::ffi::Error {
+                            code: rusqlite::ffi::ErrorCode::DatabaseCorrupt,
+                            extended_code: 0,
+                        },
+                        Some(format!(
+                            "Failed to open encrypted database: {e}. \
+                             The encryption key may not match or the database may be corrupted. \
+                             Try running 'pass-cli logout --force' to reset local state."
+                        )),
+                    )
+                })?;
             Ok(conn)
         })
         .await
