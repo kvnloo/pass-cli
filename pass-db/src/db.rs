@@ -5,7 +5,7 @@ use pass_domain::LocalKey;
 use std::path::PathBuf;
 use tokio::fs;
 
-const DATABASE_NAME: &str = "pass-cli.db";
+pub const DATABASE_NAME: &str = "pass-cli.db";
 
 #[derive(Clone)]
 pub struct DatabaseManager {
@@ -59,7 +59,7 @@ impl DatabaseManager {
             .context("Failed to create temporary directory")?
             .keep();
 
-        let db_path = dir.join("pass-cli.db");
+        let db_path = dir.join(DATABASE_NAME);
 
         // Make extra-sure that the DB does not exist before we initialize it
         let _ = std::fs::remove_file(&db_path);

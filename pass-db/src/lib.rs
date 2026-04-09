@@ -10,7 +10,7 @@ mod db_manager;
 mod migration;
 mod models;
 
-pub use db::DatabaseManager;
+pub use db::{DATABASE_NAME, DatabaseManager};
 pub use db_manager::{DbConnection, EncryptedSqliteManager, format_key_for_sqlcipher};
 pub use models::*;
 

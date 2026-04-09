@@ -20,6 +20,21 @@ use tracing::info;
 
 const LOCAL_KEY_FILENAME: &str = "local.key";
 
+// Best-effort keyring cleanup used by force-logout paths. Errors are intentionally swallowed
+// because force logout must succeed even when the keyring is unreachable.
+pub async fn try_cleanup_keyring(base_dir: PathBuf) {
+    match get_key_provider(base_dir) {
+        Ok(provider) => {
+            if let Err(e) = provider.remove_key().await {
+                info!("Best-effort keyring cleanup during force logout did not complete: {e:#}");
+            }
+        }
+        Err(e) => {
+            info!("Could not initialise key provider for force-logout keyring cleanup: {e:#}");
+        }
+    }
+}
+
 fn get_key_provider(base_dir: PathBuf) -> Result<Arc<dyn LocalKeyProvider>> {
     let provider_type = env::var("PROTON_PASS_KEY_PROVIDER").unwrap_or_default();
 
