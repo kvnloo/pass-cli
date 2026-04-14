@@ -138,14 +138,6 @@ pub async fn replace_binary_from_dir(source_dir: &Path) -> Result<()> {
         .await
         .context("Failed to create update script")?;
 
-    // Restrict the batch script to the current user so other users cannot
-    // read install paths or tamper with the script before it executes.
-    if let Err(e) =
-        crate::platform::windows_permissions::restrict_file_to_current_user(&script_path)
-    {
-        warn!("Failed to restrict update script permissions: {e:#}");
-    }
-
     // Verify the script on-disk still matches what we wrote.  If it has been
     // replaced during the race window between write and permission lock, abort.
     let on_disk = tokio::fs::read(&script_path)

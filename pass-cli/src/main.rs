@@ -36,7 +36,6 @@ mod constants;
 mod features;
 mod helpers;
 mod logs;
-mod platform;
 mod storage;
 mod telemetry;
 mod utils;

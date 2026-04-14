@@ -3449,7 +3449,6 @@ dependencies = [
  "urlencoding",
  "uuid",
  "windows-native-keyring-store",
- "windows-sys 0.52.0",
  "zbus-secret-service-keyring-store",
  "zeroize",
  "zeroizing-alloc",
