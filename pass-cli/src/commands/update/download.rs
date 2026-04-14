@@ -120,7 +120,10 @@ fn extract_zip(zip_path: &PathBuf) -> Result<PathBuf> {
 
     for i in 0..archive.len() {
         let mut file = archive.by_index(i).context("Failed to read zip entry")?;
-        let outpath = extract_dir.join(file.name());
+        let relative_path = file
+            .enclosed_name()
+            .ok_or_else(|| anyhow::anyhow!("Zip entry has invalid path: {:?}", file.name()))?;
+        let outpath = extract_dir.join(relative_path);
 
         if file.is_dir() {
             std::fs::create_dir_all(&outpath).context("Failed to create directory from zip")?;
