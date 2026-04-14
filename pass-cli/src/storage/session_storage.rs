@@ -35,6 +35,7 @@ impl FileSystemSessionStorage {
             Ok(metadata) if metadata.is_symlink() => Err(anyhow!(
                 "Session file is a symlink, which is not allowed for security reasons"
             )),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
             Err(e) => Err(anyhow!("Error reading file metadata: {e}")),
             _ => Ok(()),
         }
@@ -56,9 +57,7 @@ impl SessionStorage for FileSystemSessionStorage {
     }
 
     async fn save(&self, data: &[u8]) -> Result<()> {
-        if self.file_path.exists() {
-            self.ensure_session_file_not_symlink().await?;
-        }
+        self.ensure_session_file_not_symlink().await?;
 
         #[cfg(not(target_os = "windows"))]
         {
