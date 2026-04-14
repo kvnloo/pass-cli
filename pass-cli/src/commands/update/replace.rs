@@ -83,6 +83,7 @@ fn strip_extended_length_path_prefix(path: &str) -> String {
 
 #[cfg(windows)]
 pub async fn replace_binary_from_dir(source_dir: &Path) -> Result<()> {
+    use sha2::{Digest, Sha256};
     use tokio::process::Command;
 
     // On Windows, the running executable is locked. We need to use a helper script.
@@ -101,9 +102,10 @@ pub async fn replace_binary_from_dir(source_dir: &Path) -> Result<()> {
         .parent()
         .context("Failed to get installation directory")?;
 
-    // Create a batch script that will perform the replacement
+    // Create a batch script that will perform the replacement.
+    // Use a random UUID so the filename cannot be predicted or pre-created by another process.
     let temp_dir = std::env::temp_dir();
-    let script_path = temp_dir.join(format!("pass-cli-update-{}.bat", std::process::id()));
+    let script_path = temp_dir.join(format!("pass-cli-update-{}.bat", uuid::Uuid::new_v4()));
 
     // Convert paths to strings for batch script
     // Strip the Windows extended-length path prefix (\\?\) which doesn't work with batch commands
@@ -112,6 +114,7 @@ pub async fn replace_binary_from_dir(source_dir: &Path) -> Result<()> {
 
     let script_path_str = script_path.to_string_lossy().to_string();
 
+    let pid = std::process::id();
     let script_content = format!(
         "@echo off\r\n\
         :wait\r\n\
@@ -121,13 +124,17 @@ pub async fn replace_binary_from_dir(source_dir: &Path) -> Result<()> {
         xcopy /Y /E /I /Q \"{source}\\*\" \"{dest}\\\" >nul 2>&1\r\n\
         rmdir /S /Q \"{source}\" >nul 2>&1\r\n\
         del /F /Q \"{script}\" >nul 2>&1\r\n",
-        pid = std::process::id(),
+        pid = pid,
         source = source_dir_str,
         dest = install_dir_str,
         script = script_path_str
     );
 
-    tokio::fs::write(&script_path, script_content)
+    // Record the expected digest before writing so we can detect any tampering
+    // that occurs in the race window between write and execution.
+    let expected_hash = Sha256::digest(script_content.as_bytes());
+
+    tokio::fs::write(&script_path, &script_content)
         .await
         .context("Failed to create update script")?;
 
@@ -137,6 +144,18 @@ pub async fn replace_binary_from_dir(source_dir: &Path) -> Result<()> {
         crate::platform::windows_permissions::restrict_file_to_current_user(&script_path)
     {
         warn!("Failed to restrict update script permissions: {e:#}");
+    }
+
+    // Verify the script on-disk still matches what we wrote.  If it has been
+    // replaced during the race window between write and permission lock, abort.
+    let on_disk = tokio::fs::read(&script_path)
+        .await
+        .context("Failed to read update script for integrity check")?;
+    if Sha256::digest(&on_disk) != expected_hash {
+        let _ = tokio::fs::remove_file(&script_path).await;
+        return Err(anyhow::anyhow!(
+            "Update script integrity check failed — aborting update"
+        ));
     }
 
     // Spawn detached process to run the script without creating a visible window
