@@ -23,15 +23,12 @@ pub enum EventAction {
     #[default]
     Unknown = 0,
     VaultUpdate = 2,
-    VaultSoftDelete = 3,
     ItemCreate = 20,
     ItemUpdate = 21,
     ItemTrash = 22,
     ItemUntrash = 23,
     ItemSoftDelete = 24,
     ItemRead = 31,
-    PublicLinkCreated = 60,
-    PublicLinkDeleted = 61,
 }
 
 impl EventAction {
