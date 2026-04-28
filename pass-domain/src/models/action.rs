@@ -17,28 +17,26 @@
  *
  */
 
-#[derive(Clone, Copy, Debug, serde::Serialize, Default)]
+#[derive(Clone, Copy, Debug, serde::Serialize, Default, strum::FromRepr)]
+#[repr(u64)]
 pub enum EventAction {
-    ItemRead,
     #[default]
-    Unknown,
+    Unknown = 0,
+    VaultUpdate = 2,
+    ItemCreate = 20,
+    ItemUpdate = 21,
+    ItemTrash = 22,
+    ItemUntrash = 23,
+    ItemSoftDelete = 24,
+    ItemRead = 31,
 }
 
 impl EventAction {
-    const ITEM_READ: u64 = 31;
-    const UNKNOWN: u64 = 9999;
-
-    pub fn value(&self) -> u64 {
-        match self {
-            Self::ItemRead => Self::ITEM_READ,
-            Self::Unknown => Self::UNKNOWN,
-        }
+    pub fn value(self) -> u64 {
+        self as u64
     }
 
     pub fn from(value: u64) -> Option<Self> {
-        match value {
-            Self::ITEM_READ => Some(Self::ItemRead),
-            _ => None,
-        }
+        Self::from_repr(value)
     }
 }
