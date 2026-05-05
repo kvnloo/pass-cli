@@ -147,6 +147,7 @@ impl SecretReference {
 #[async_trait(?Send)]
 pub trait SecretResolver {
     async fn resolve_secret(&self, secret_ref: &SecretReference) -> Result<String>;
+    async fn resolve_secret_and_send_reason(&self, secret_ref: &SecretReference) -> Result<String>;
 }
 
 pub struct PassClientResolver {
@@ -189,6 +190,18 @@ impl SecretResolver for PassClientResolver {
             )
         })?;
         Ok(field.value())
+    }
+    async fn resolve_secret_and_send_reason(&self, secret_ref: &SecretReference) -> Result<String> {
+        let share_id = ShareId::new(secret_ref.share_id.clone());
+        let item_id = ItemId::new(secret_ref.item_id.clone());
+        send_reason_if_agent(
+            &self.client,
+            EventAction::ItemRead,
+            &share_id,
+            Some(&item_id),
+        )
+        .await?;
+        self.resolve_secret(secret_ref).await
     }
 }
 
@@ -300,6 +313,13 @@ pub(crate) mod tests {
                     secret_ref.field_name
                 )
             })
+        }
+
+        async fn resolve_secret_and_send_reason(
+            &self,
+            secret_ref: &SecretReference,
+        ) -> Result<String> {
+            self.resolve_secret(secret_ref).await
         }
     }
 

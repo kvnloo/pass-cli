@@ -192,7 +192,7 @@ impl<R: SecretResolver> TemplateProcessor<R> {
                 // Fetch the secret
                 let value = self
                     .resolver
-                    .resolve_secret(&secret_ref)
+                    .resolve_secret_and_send_reason(&secret_ref)
                     .await
                     .with_context(|| format!("Failed to fetch secret for {uri}"))?;
 
