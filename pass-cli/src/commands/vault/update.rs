@@ -26,12 +26,12 @@ use pass_domain::EventAction;
 
 pub async fn run(client: PassClient, query: VaultQuery, name: String) -> Result<()> {
     let share_id = query.resolve(&client).await?;
-    send_reason_if_agent(&client, EventAction::VaultUpdate, &share_id, None).await?;
     let args = UpdateVaultArgs::new(name).context("invalid args for update vault")?;
     client
         .update_vault(&share_id, args)
         .await
         .context("error updating vault")?;
+    send_reason_if_agent(&client, EventAction::VaultUpdate, &share_id, None).await?;
 
     println!("Updated vault");
     Ok(())

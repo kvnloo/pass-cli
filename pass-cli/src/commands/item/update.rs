@@ -57,8 +57,6 @@ pub async fn run(
     let share_id = share_query.share_id(&client).await?;
     let item_id = item_query.item_id(&share_id, &client).await?;
 
-    send_reason_if_agent(&client, EventAction::ItemUpdate, &share_id, Some(&item_id)).await?;
-
     let item_details = client
         .view_item(&share_id, &item_id)
         .await
@@ -91,6 +89,7 @@ pub async fn run(
         .update_item(&share_id, &item_id, updated_content)
         .await
         .context("Error updating item")?;
+    send_reason_if_agent(&client, EventAction::ItemUpdate, &share_id, Some(&item_id)).await?;
 
     eprintln!(
         "Item updated successfully: {} field(s) updated, {} custom field(s) created",
