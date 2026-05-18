@@ -17,6 +17,7 @@
  *
  */
 
+use crate::core_events::{self, PendingCursorUpdateCacheType};
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result, anyhow};
 use muon::GET;
@@ -24,7 +25,7 @@ use muon::rest::core::v4::keys::Key;
 use pass_domain::{AccountType, LockedUserKey, UserKey};
 use std::path::Path;
 
-const USER_KEYS_FILE_NAME: &str = "user_keys.enc";
+pub(crate) const USER_KEYS_FILE_NAME: &str = "user_keys.enc";
 const PERSONAL_ACCESS_TOKEN_ERROR: &str =
     "Personal access tokens and agent sessions cannot perform user key operations";
 
@@ -63,7 +64,8 @@ impl<C: PassClientContext> PassClient<C> {
         }
 
         let client = self.clone();
-        self.cache
+        let keys = self
+            .cache
             .update_if_no_value(UserKeysCacheType, || async move {
                 let passphrases = client
                     .get_key_passphrases()
@@ -73,15 +75,29 @@ impl<C: PassClientContext> PassClient<C> {
                     .load_user_keys()
                     .await
                     .context("Error fetching user keys")?;
-
                 let account_crypto = client.client_features.get_account_crypto().await;
-
                 account_crypto
                     .open_user_keys(user_keys, passphrases.into_map())
                     .await
                     .context("Error opening user keys")
             })
+            .await?;
+
+        // Commit pending cursor left by bootstrap_event_sync (golden rule: only advance
+        // cursor after confirming keys were successfully refreshed).
+        if let Some(event_id) = self
+            .cache
+            .get::<PendingCursorUpdateCacheType, String>(PendingCursorUpdateCacheType)
             .await
+        {
+            if let Err(e) = core_events::write_cursor(self, &event_id).await {
+                warn!("Failed to persist event cursor after key refresh: {e:#}");
+            } else {
+                self.cache.delete(PendingCursorUpdateCacheType).await;
+            }
+        }
+
+        Ok(keys)
     }
 
     pub(crate) async fn get_primary_user_key(&self) -> Result<UserKey> {
