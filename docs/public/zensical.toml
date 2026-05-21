@@ -38,7 +38,6 @@ nav = [
 ]
 
 [project.theme]
-custom_dir = "overrides"
 logo = "assets/logo.png"
 favicon = "assets/logo.png"
 language = "en"
