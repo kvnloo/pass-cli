@@ -23,7 +23,7 @@ use muon::GET;
 use pass_domain::AccountType;
 
 const CORE_EVENTS_SYNC_INTERVAL_SECS: i64 = 30 * 60; // 30 mins
-const CORE_EVENTS_MAX_PAGES: u32 = 50;
+const CORE_EVENTS_MAX_PAGES: u32 = 10;
 
 #[derive(serde::Deserialize)]
 struct LatestEventResponse {
@@ -106,9 +106,10 @@ async fn sync_core_events<C: PassClientContext>(client: &PassClient<C>) -> Resul
             keys_changed = true;
         }
 
+        let previous_id = current_id;
         current_id = response.event_id;
 
-        if response.more == 0 {
+        if response.more == 0 || current_id == previous_id {
             break;
         }
         if page == CORE_EVENTS_MAX_PAGES {
