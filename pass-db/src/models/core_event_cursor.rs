@@ -28,13 +28,14 @@ pub struct CoreEventCursorModel {
 }
 
 impl CoreEventCursorModel {
-    pub fn from_row(row: &Row<'_>) -> Result<Self> {
+    pub fn from_row(row: &Row<'_>) -> rusqlite::Result<Self> {
         Ok(CoreEventCursorModel {
             user_id: row.get("user_id")?,
             event_id: row.get("event_id")?,
             updated_at: row.get("updated_at")?,
         })
     }
+
     pub async fn get(db: &crate::DatabaseManager, user_id: &str) -> Result<Option<Self>> {
         let user_id = user_id.to_string();
         let conn = db.get_connection().await?;
@@ -42,7 +43,7 @@ impl CoreEventCursorModel {
             let mut stmt = conn.prepare(
                 "SELECT user_id, event_id, updated_at FROM core_event_cursors WHERE user_id = ?1",
             )?;
-            match stmt.query_row([&user_id], |row| CoreEventCursorModel::from_row(row)) {
+            match stmt.query_row([&user_id], CoreEventCursorModel::from_row) {
                 Ok(entry) => Ok(Some(entry)),
                 Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
                 Err(e) => Err(anyhow::Error::from(e)),
@@ -51,19 +52,19 @@ impl CoreEventCursorModel {
         .await?
     }
 
-    pub async fn upsert(db: &crate::DatabaseManager, user_id: &str, cursor: &str) -> Result<()> {
+    pub async fn upsert(db: &crate::DatabaseManager, user_id: &str, event_id: &str) -> Result<()> {
         let user_id = user_id.to_string();
-        let cursor = cursor.to_string();
+        let event_id = event_id.to_string();
         let updated_at = jiff::Timestamp::now().as_second();
         let conn = db.get_connection().await?;
         conn.interact(move |conn| {
             conn.execute(
-                "INSERT INTO core_event_cursors (user_id, cursor, updated_at)
+                "INSERT INTO core_event_cursors (user_id, event_id, updated_at)
                  VALUES (?1, ?2, ?3)
                  ON CONFLICT(user_id) DO UPDATE SET
-                 cursor = excluded.cursor,
+                 event_id = excluded.event_id,
                  updated_at = excluded.updated_at",
-                params![user_id, cursor, updated_at],
+                params![user_id, event_id, updated_at],
             )?;
             Ok(())
         })
@@ -90,12 +91,12 @@ mod tests {
         CoreEventCursorModel::upsert(&db, "user1", "event-abc")
             .await
             .unwrap();
-        let (cursor, updated_at) = CoreEventCursorModel::get(&db, "user1")
+        let entry = CoreEventCursorModel::get(&db, "user1")
             .await
             .unwrap()
             .unwrap();
-        assert_eq!(cursor, "event-abc");
-        assert!(updated_at >= before);
+        assert_eq!(entry.event_id, "event-abc");
+        assert!(entry.updated_at >= before);
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -107,11 +108,11 @@ mod tests {
         CoreEventCursorModel::upsert(&db, "user1", "event-xyz")
             .await
             .unwrap();
-        let (cursor, _) = CoreEventCursorModel::get(&db, "user1")
+        let entry = CoreEventCursorModel::get(&db, "user1")
             .await
             .unwrap()
             .unwrap();
-        assert_eq!(cursor, "event-xyz");
+        assert_eq!(entry.event_id, "event-xyz");
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -123,15 +124,15 @@ mod tests {
         CoreEventCursorModel::upsert(&db, "user2", "event-xyz")
             .await
             .unwrap();
-        let (cursor1, _) = CoreEventCursorModel::get(&db, "user1")
+        let entry1 = CoreEventCursorModel::get(&db, "user1")
             .await
             .unwrap()
             .unwrap();
-        let (cursor2, _) = CoreEventCursorModel::get(&db, "user2")
+        let entry2 = CoreEventCursorModel::get(&db, "user2")
             .await
             .unwrap()
             .unwrap();
-        assert_eq!(cursor1, "event-abc");
-        assert_eq!(cursor2, "event-xyz");
+        assert_eq!(entry1.event_id, "event-abc");
+        assert_eq!(entry2.event_id, "event-xyz");
     }
 }

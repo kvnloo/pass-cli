@@ -105,7 +105,7 @@ pub fn get_migrations() -> Vec<Migration> {
             sql: "
                     CREATE TABLE core_event_cursors (
                         user_id TEXT NOT NULL PRIMARY KEY,
-                        cursor TEXT NOT NULL,
+                        event_id TEXT NOT NULL,
                         updated_at INTEGER NOT NULL
                     );
                 ",
