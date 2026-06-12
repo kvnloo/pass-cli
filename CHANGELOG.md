@@ -3,6 +3,7 @@
 ### Fixes :bug:
 
 - Enforce signature verification upon data decryption in some code paths.
+- Make `ssh-agent` more resilient.
 
 ### Other
 
