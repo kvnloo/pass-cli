@@ -61,10 +61,25 @@ impl Item {
     pub fn get_field(&self, field: &str) -> Option<Field> {
         let fields = self.fields();
         let field_query = field.to_lowercase();
+
+        // First try exact match (supports qualified names like "section.field")
         let res: Option<(String, Field)> = fields
+            .iter()
+            .find(|(name, _)| name.to_lowercase() == field_query)
+            .cloned();
+        if let Some((_name, field)) = res {
+            return Some(field);
+        }
+
+        // Fall back to matching by unqualified name (the part after the last '.')
+        // This allows looking up "field" even when the stored name is "Section.field"
+        fields
             .into_iter()
-            .find(|(name, _)| name.to_lowercase() == field_query);
-        res.map(|(_, f)| f)
+            .find(|(name, _)| {
+                let unqualified = name.rsplit('.').next().unwrap_or(name);
+                unqualified.to_lowercase() == field_query
+            })
+            .map(|(_, f)| f)
     }
 
     /// Returns all fields in the item as a vector of (field_name, Field) tuples
@@ -331,7 +346,8 @@ impl Item {
         // Add extra sections
         for section in identity.extra_sections.iter() {
             for section_field in section.section_fields.iter() {
-                fields.push((section_field.name.clone(), section_field.as_field()));
+                let qualified_name = format!("{}.{}", section.section_name, section_field.name);
+                fields.push((qualified_name, section_field.as_field()));
             }
         }
     }
@@ -347,6 +363,14 @@ impl Item {
                 fields.push((k.to_string(), Field::Text(ssh.public_key.clone())));
             }
         }
+
+        // Add section fields with qualified names
+        for section in &ssh.sections {
+            for section_field in &section.section_fields {
+                let qualified_name = format!("{}.{}", section.section_name, section_field.name);
+                fields.push((qualified_name, section_field.as_field()));
+            }
+        }
     }
 
     fn add_wifi_fields(&self, wifi: &WifiItem, fields: &mut Vec<(String, Field)>) {
@@ -360,12 +384,21 @@ impl Item {
             "security".to_string(),
             Field::Text(format!("{:?}", wifi.security)),
         ));
+
+        // Add section fields with qualified names
+        for section in &wifi.sections {
+            for section_field in &section.section_fields {
+                let qualified_name = format!("{}.{}", section.section_name, section_field.name);
+                fields.push((qualified_name, section_field.as_field()));
+            }
+        }
     }
 
     fn add_custom_fields(&self, custom: &CustomItem, fields: &mut Vec<(String, Field)>) {
         for section in &custom.sections {
             for section_field in &section.section_fields {
-                fields.push((section_field.name.clone(), section_field.as_field()));
+                let qualified_name = format!("{}.{}", section.section_name, section_field.name);
+                fields.push((qualified_name, section_field.as_field()));
             }
         }
     }
@@ -978,14 +1011,109 @@ mod tests {
             "department should be in fields"
         );
 
-        // Verify extra section fields appear in the full fields list
+        // Verify extra section fields appear with qualified names
         assert!(
-            field_names.contains(&"custom_id"),
-            "custom_id should be in fields"
+            field_names.contains(&"Extra fields.custom_id"),
+            "Extra fields.custom_id should be in fields, got: {:?}",
+            field_names
         );
         assert!(
-            field_names.contains(&"secret_code"),
-            "secret_code should be in fields"
+            field_names.contains(&"Extra fields.secret_code"),
+            "Extra fields.secret_code should be in fields, got: {:?}",
+            field_names
+        );
+    }
+
+    #[test]
+    fn test_section_qualified_get_field_custom_item() {
+        let custom = CustomItem {
+            sections: vec![
+                CustomSection {
+                    section_name: "Staging".to_string(),
+                    section_fields: vec![
+                        ItemExtraField {
+                            name: "password".to_string(),
+                            content: ItemExtraFieldContent::Hidden("staging_pass".to_string()),
+                        },
+                        ItemExtraField {
+                            name: "url".to_string(),
+                            content: ItemExtraFieldContent::Text(
+                                "https://staging.example.com".to_string(),
+                            ),
+                        },
+                    ],
+                },
+                CustomSection {
+                    section_name: "Production".to_string(),
+                    section_fields: vec![
+                        ItemExtraField {
+                            name: "password".to_string(),
+                            content: ItemExtraFieldContent::Hidden("prod_pass".to_string()),
+                        },
+                        ItemExtraField {
+                            name: "url".to_string(),
+                            content: ItemExtraFieldContent::Text(
+                                "https://prod.example.com".to_string(),
+                            ),
+                        },
+                    ],
+                },
+            ],
+        };
+        let item = create_item_with_content(ItemContent::Custom(custom));
+
+        // Qualified lookup targets the exact section
+        assert_eq!(
+            item.get_field("Staging.password"),
+            Some(Field::Hidden("staging_pass".to_string()))
+        );
+        assert_eq!(
+            item.get_field("Production.password"),
+            Some(Field::Hidden("prod_pass".to_string()))
+        );
+
+        // Unqualified falls back to the first match
+        assert_eq!(
+            item.get_field("password"),
+            Some(Field::Hidden("staging_pass".to_string()))
+        );
+
+        // Case-insensitive qualified lookup
+        assert_eq!(
+            item.get_field("production.url"),
+            Some(Field::Text("https://prod.example.com".to_string()))
+        );
+        assert_eq!(
+            item.get_field("STAGING.URL"),
+            Some(Field::Text("https://staging.example.com".to_string()))
+        );
+
+        // Qualified names appear in the fields list
+        let field_names: Vec<String> = item.fields().into_iter().map(|(n, _)| n).collect();
+        assert!(field_names.iter().any(|n| n == "Staging.password"));
+        assert!(field_names.iter().any(|n| n == "Production.password"));
+        assert!(field_names.iter().any(|n| n == "Staging.url"));
+        assert!(field_names.iter().any(|n| n == "Production.url"));
+    }
+
+    #[test]
+    fn test_section_qualified_get_field_identity() {
+        let item = create_item_with_content(ItemContent::Identity(create_identity_item()));
+
+        // Qualified lookup for extra sections
+        assert_eq!(
+            item.get_field("Extra fields.custom_id"),
+            Some(Field::Text("ID-99".to_string()))
+        );
+        assert_eq!(
+            item.get_field("Extra fields.secret_code"),
+            Some(Field::Hidden("abc123".to_string()))
+        );
+
+        // Unqualified fallback still works
+        assert_eq!(
+            item.get_field("custom_id"),
+            Some(Field::Text("ID-99".to_string()))
         );
     }
 }
