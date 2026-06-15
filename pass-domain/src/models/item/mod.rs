@@ -448,7 +448,30 @@ impl ItemData {
                 identity.job_title = field_value.to_string();
                 true
             }
-            _ => false,
+            _ => {
+                // Try extra detail fields and extra sections
+                Self::update_extra_detail_field(
+                    &mut identity.extra_personal_details,
+                    field_name,
+                    field_value,
+                ) || Self::update_extra_detail_field(
+                    &mut identity.extra_address_details,
+                    field_name,
+                    field_value,
+                ) || Self::update_extra_detail_field(
+                    &mut identity.extra_contact_details,
+                    field_name,
+                    field_value,
+                ) || Self::update_extra_detail_field(
+                    &mut identity.extra_work_details,
+                    field_name,
+                    field_value,
+                ) || Self::update_section_field(
+                    &mut identity.extra_sections,
+                    field_name,
+                    field_value,
+                )
+            }
         }
     }
 
@@ -462,7 +485,7 @@ impl ItemData {
                 ssh.public_key = field_value.to_string();
                 true
             }
-            _ => false,
+            _ => Self::update_section_field(&mut ssh.sections, field_name, field_value),
         }
     }
 
@@ -487,30 +510,96 @@ impl ItemData {
                 };
                 true
             }
-            _ => false,
+            _ => Self::update_section_field(&mut wifi.sections, field_name, field_value),
         }
     }
 
     fn update_custom_field(custom: &mut CustomItem, field_name: &str, field_value: &str) -> bool {
-        // Search through all sections for the first matching field
+        // Try section-qualified lookup first ("section.field")
+        if let Some((section_name, field_name_only)) = field_name.split_once('.') {
+            for section in &mut custom.sections {
+                if section.section_name.to_lowercase() == section_name.to_lowercase() {
+                    for field in &mut section.section_fields {
+                        if field.name.to_lowercase() == field_name_only.to_lowercase() {
+                            return Self::update_extra_field_value(field, field_value);
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        // Fall back to searching all sections by unqualified field name
         for section in &mut custom.sections {
             for field in &mut section.section_fields {
                 if field.name.to_lowercase() == field_name {
-                    // Update the field preserving type, but skip timestamp and totp fields
-                    match &field.content {
-                        ItemExtraFieldContent::Hidden(_) => {
-                            field.content = ItemExtraFieldContent::Hidden(field_value.to_string());
-                        }
-                        ItemExtraFieldContent::Text(_) => {
-                            field.content = ItemExtraFieldContent::Text(field_value.to_string());
-                        }
-                        ItemExtraFieldContent::Totp(_) | ItemExtraFieldContent::Timestamp(_) => {
-                            // Don't update totp or timestamp fields in custom sections
-                            continue;
+                    return Self::update_extra_field_value(field, field_value);
+                }
+            }
+        }
+        false
+    }
+
+    /// Update an extra field's value, preserving type. Returns false if the field
+    /// type cannot be updated (timestamp/totp).
+    fn update_extra_field_value(field: &mut ItemExtraField, field_value: &str) -> bool {
+        match &field.content {
+            ItemExtraFieldContent::Hidden(_) => {
+                field.content = ItemExtraFieldContent::Hidden(field_value.to_string());
+                true
+            }
+            ItemExtraFieldContent::Text(_) => {
+                field.content = ItemExtraFieldContent::Text(field_value.to_string());
+                true
+            }
+            ItemExtraFieldContent::Totp(_) | ItemExtraFieldContent::Timestamp(_) => {
+                // Don't update totp or timestamp fields
+                false
+            }
+        }
+    }
+
+    /// Update a field within a Vec<CustomSection> using section-qualified or
+    /// unqualified field name syntax.
+    fn update_section_field(
+        sections: &mut [CustomSection],
+        field_name: &str,
+        field_value: &str,
+    ) -> bool {
+        // Try section-qualified lookup first ("section.field")
+        if let Some((section_name, field_name_only)) = field_name.split_once('.') {
+            for section in sections.iter_mut() {
+                if section.section_name.to_lowercase() == section_name.to_lowercase() {
+                    for field in &mut section.section_fields {
+                        if field.name.to_lowercase() == field_name_only.to_lowercase() {
+                            return Self::update_extra_field_value(field, field_value);
                         }
                     }
-                    return true;
                 }
+            }
+            return false;
+        }
+
+        // Fall back to searching all sections by unqualified field name
+        for section in sections.iter_mut() {
+            for field in &mut section.section_fields {
+                if field.name.to_lowercase() == field_name {
+                    return Self::update_extra_field_value(field, field_value);
+                }
+            }
+        }
+        false
+    }
+
+    /// Update a field within a Vec<ItemExtraField> by field name.
+    fn update_extra_detail_field(
+        fields: &mut [ItemExtraField],
+        field_name: &str,
+        field_value: &str,
+    ) -> bool {
+        for field in fields.iter_mut() {
+            if field.name.to_lowercase() == field_name {
+                return Self::update_extra_field_value(field, field_value);
             }
         }
         false
@@ -2502,6 +2591,198 @@ mod tests {
             assert_eq!(login.urls[1], "https://new2.example.com");
         } else {
             panic!("Expected Login content");
+        }
+    }
+
+    #[test]
+    fn test_update_custom_field_section_qualified() {
+        let mut item = create_test_item_data(ItemContent::Custom(CustomItem {
+            sections: vec![
+                CustomSection {
+                    section_name: "Staging".to_string(),
+                    section_fields: vec![
+                        ItemExtraField {
+                            name: "password".to_string(),
+                            content: ItemExtraFieldContent::Hidden("staging_old".to_string()),
+                        },
+                        ItemExtraField {
+                            name: "url".to_string(),
+                            content: ItemExtraFieldContent::Text(
+                                "https://staging.example.com".to_string(),
+                            ),
+                        },
+                    ],
+                },
+                CustomSection {
+                    section_name: "Production".to_string(),
+                    section_fields: vec![
+                        ItemExtraField {
+                            name: "password".to_string(),
+                            content: ItemExtraFieldContent::Hidden("prod_old".to_string()),
+                        },
+                        ItemExtraField {
+                            name: "url".to_string(),
+                            content: ItemExtraFieldContent::Text(
+                                "https://prod.example.com".to_string(),
+                            ),
+                        },
+                    ],
+                },
+            ],
+        }));
+
+        // Section-qualified update targets the exact section
+        assert_eq!(
+            item.update_field("Staging.password", "staging_new")
+                .unwrap(),
+            UpdateFieldResult::FieldUpdated
+        );
+        assert_eq!(
+            item.update_field("Production.password", "prod_new")
+                .unwrap(),
+            UpdateFieldResult::FieldUpdated
+        );
+
+        // Case-insensitive section-qualified update
+        assert_eq!(
+            item.update_field("production.url", "https://new.prod.example.com")
+                .unwrap(),
+            UpdateFieldResult::FieldUpdated
+        );
+
+        if let ItemContent::Custom(ref custom) = item.content {
+            // Staging section
+            assert_eq!(
+                custom.sections[0].section_fields[0].content,
+                ItemExtraFieldContent::Hidden("staging_new".to_string())
+            );
+            assert_eq!(
+                custom.sections[0].section_fields[1].content,
+                ItemExtraFieldContent::Text("https://staging.example.com".to_string())
+            );
+            // Production section
+            assert_eq!(
+                custom.sections[1].section_fields[0].content,
+                ItemExtraFieldContent::Hidden("prod_new".to_string())
+            );
+            assert_eq!(
+                custom.sections[1].section_fields[1].content,
+                ItemExtraFieldContent::Text("https://new.prod.example.com".to_string())
+            );
+        } else {
+            panic!("Expected Custom content");
+        }
+
+        // Unqualified update still hits the first match (Staging)
+        assert_eq!(
+            item.update_field("url", "https://fallback.example.com")
+                .unwrap(),
+            UpdateFieldResult::FieldUpdated
+        );
+        if let ItemContent::Custom(ref custom) = item.content {
+            assert_eq!(
+                custom.sections[0].section_fields[1].content,
+                ItemExtraFieldContent::Text("https://fallback.example.com".to_string())
+            );
+        } else {
+            panic!("Expected Custom content");
+        }
+    }
+
+    #[test]
+    fn test_update_identity_extra_detail_fields() {
+        let mut item = create_test_item_data(ItemContent::Identity(Box::new(IdentityItem {
+            full_name: "John Doe".to_string(),
+            email: "john@example.com".to_string(),
+            phone_number: "".to_string(),
+            first_name: "John".to_string(),
+            middle_name: "".to_string(),
+            last_name: "Doe".to_string(),
+            birthdate: "".to_string(),
+            gender: "".to_string(),
+            extra_personal_details: vec![ItemExtraField {
+                name: "nickname".to_string(),
+                content: ItemExtraFieldContent::Text("Johnny".to_string()),
+            }],
+            organization: "".to_string(),
+            street_address: "".to_string(),
+            zip_or_postal_code: "".to_string(),
+            city: "".to_string(),
+            state_or_province: "".to_string(),
+            country_or_region: "".to_string(),
+            floor: "".to_string(),
+            county: "".to_string(),
+            extra_address_details: vec![],
+            social_security_number: "".to_string(),
+            passport_number: "".to_string(),
+            license_number: "".to_string(),
+            website: "".to_string(),
+            x_handle: "".to_string(),
+            second_phone_number: "".to_string(),
+            linkedin: "".to_string(),
+            reddit: "".to_string(),
+            facebook: "".to_string(),
+            yahoo: "".to_string(),
+            instagram: "".to_string(),
+            extra_contact_details: vec![],
+            company: "".to_string(),
+            job_title: "".to_string(),
+            personal_website: "".to_string(),
+            work_phone_number: "".to_string(),
+            work_email: "".to_string(),
+            extra_work_details: vec![ItemExtraField {
+                name: "department".to_string(),
+                content: ItemExtraFieldContent::Text("Engineering".to_string()),
+            }],
+            extra_sections: vec![CustomSection {
+                section_name: "Extra fields".to_string(),
+                section_fields: vec![ItemExtraField {
+                    name: "custom_id".to_string(),
+                    content: ItemExtraFieldContent::Text("ID-99".to_string()),
+                }],
+            }],
+        })));
+
+        // Update extra personal detail field
+        assert_eq!(
+            item.update_field("nickname", "JD").unwrap(),
+            UpdateFieldResult::FieldUpdated
+        );
+
+        // Update extra work detail field
+        assert_eq!(
+            item.update_field("department", "Marketing").unwrap(),
+            UpdateFieldResult::FieldUpdated
+        );
+
+        // Update extra section field by unqualified name
+        assert_eq!(
+            item.update_field("custom_id", "ID-100").unwrap(),
+            UpdateFieldResult::FieldUpdated
+        );
+
+        // Update extra section field by qualified name
+        assert_eq!(
+            item.update_field("Extra fields.custom_id", "ID-101")
+                .unwrap(),
+            UpdateFieldResult::FieldUpdated
+        );
+
+        if let ItemContent::Identity(ref identity) = item.content {
+            assert_eq!(
+                identity.extra_personal_details[0].content,
+                ItemExtraFieldContent::Text("JD".to_string())
+            );
+            assert_eq!(
+                identity.extra_work_details[0].content,
+                ItemExtraFieldContent::Text("Marketing".to_string())
+            );
+            assert_eq!(
+                identity.extra_sections[0].section_fields[0].content,
+                ItemExtraFieldContent::Text("ID-101".to_string())
+            );
+        } else {
+            panic!("Expected Identity content");
         }
     }
 }
