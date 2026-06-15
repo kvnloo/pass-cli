@@ -19,7 +19,7 @@
 
 use crate::helpers::CliPassClient as PassClient;
 use crate::utils::ask_for_input;
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use pass_auth::store::PassSessionStore;
 use std::sync::{Arc, RwLock};
 
@@ -44,7 +44,10 @@ pub async fn run(client: PassClient, store: Arc<RwLock<PassSessionStore>>) -> Re
         guard.set_has_session_lock(false);
         guard.clone()
     };
-    snapshot.persist_now().await.context("Error persisting session")?;
+    snapshot
+        .persist_now()
+        .await
+        .context("Error persisting session")?;
 
     println!("Session lock removed successfully");
     Ok(())
