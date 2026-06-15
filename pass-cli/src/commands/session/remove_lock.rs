@@ -23,10 +23,7 @@ use anyhow::{Context, Result};
 use pass_auth::store::PassSessionStore;
 use std::sync::{Arc, RwLock};
 
-pub async fn run(
-    client: PassClient,
-    store: Arc<RwLock<PassSessionStore>>,
-) -> Result<()> {
+pub async fn run(client: PassClient, store: Arc<RwLock<PassSessionStore>>) -> Result<()> {
     let pin = ask_for_input("Enter PIN: ", true).context("Error reading PIN")?;
 
     client
@@ -37,7 +34,7 @@ pub async fn run(
     // Update the local session state to mark it as unlocked
     {
         let mut store_guard = store.write().expect("store rwlock poisoned");
-        store_guard.set_session_lock(false);
+        store_guard.set_has_session_lock(false);
     }
 
     println!("Session lock removed successfully");

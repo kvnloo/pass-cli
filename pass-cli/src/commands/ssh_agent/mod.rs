@@ -29,7 +29,7 @@ mod ssh_key_parsing;
 
 use crate::helpers::CliPassClient as PassClient;
 use crate::telemetry::event::CommandEvent;
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use clap::Subcommand;
 use key_storage::{KeyStorage, SshIdentity};
 use pass::is_id;
@@ -41,7 +41,7 @@ use ssh_key::HashAlg;
 pub(crate) use ssh_key_parsing::parse_private_key_with_rsa_pem_fallback;
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
-use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver};
+use tokio::sync::mpsc::{UnboundedReceiver, unbounded_channel};
 
 #[derive(Subcommand)]
 pub enum SshAgentCommands {
@@ -251,12 +251,12 @@ async fn run_start(
     client: PassClient,
     store: Arc<RwLock<PassSessionStore>>,
 ) -> Result<()> {
-    let session_locked = store
+    let session_has_lock = store
         .read()
         .expect("store rwlock poisoned")
-        .is_session_locked();
+        .has_session_lock();
 
-    if session_locked {
+    if session_has_lock {
         eprintln!(
             "Session has a lock, creating new items and refreshing information from Pass has been disabled."
         );
@@ -268,7 +268,7 @@ async fn run_start(
     let vault_query = VaultQuery::new(share_id, vault_name)?;
 
     // Resolve the target share ID for creating new identities (skipped when session is locked)
-    let create_target_share_id = if session_locked {
+    let create_target_share_id = if session_has_lock {
         None
     } else if let Some(ref target) = create_new_identities {
         Some(resolve_vault_to_share_id(&client, target).await?)
@@ -308,7 +308,7 @@ async fn run_start(
         key_storage,
         socket_path,
         refresh_interval,
-        session_locked,
+        session_has_lock,
     );
 
     tokio::select! {

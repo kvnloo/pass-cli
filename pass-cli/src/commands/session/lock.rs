@@ -57,7 +57,7 @@ pub async fn run(
     // Update the local session state to mark it as locked
     {
         let mut store_guard = store.write().expect("store rwlock poisoned");
-        store_guard.set_session_lock(true);
+        store_guard.set_has_session_lock(true);
     }
 
     println!("Session locked successfully");

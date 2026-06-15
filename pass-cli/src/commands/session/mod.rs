@@ -50,14 +50,8 @@ pub async fn run(
     store: Arc<RwLock<PassSessionStore>>,
 ) -> Result<()> {
     match subcommand {
-        SessionCommands::Lock { lock_time } => {
-            lock::run(client, store, Some(lock_time)).await
-        }
-        SessionCommands::Unlock => {
-            unlock::run(client, store).await
-        }
-        SessionCommands::RemoveLock => {
-            remove_lock::run(client, store).await
-        }
+        SessionCommands::Lock { lock_time } => lock::run(client, store, Some(lock_time)).await,
+        SessionCommands::Unlock => unlock::run(client, store).await,
+        SessionCommands::RemoveLock => remove_lock::run(client, store).await,
     }
 }
