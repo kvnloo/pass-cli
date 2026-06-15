@@ -34,6 +34,7 @@ pub mod password;
 pub mod personal_access_token;
 pub mod run;
 pub mod secret_resolver;
+pub mod session;
 pub mod settings;
 pub mod settings_helper;
 pub mod share;

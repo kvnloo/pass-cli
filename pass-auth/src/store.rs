@@ -152,10 +152,16 @@ pub struct SerializedStore {
     pub env: SerializedEnv,
     #[serde(default = "default_account_type")]
     pub account_type: AccountType,
+    #[serde(default = "default_session_lock")]
+    pub session_lock: bool,
 }
 
 fn default_account_type() -> AccountType {
     AccountType::User
+}
+
+const fn default_session_lock() -> bool {
+    false
 }
 
 #[derive(Clone)]
@@ -165,6 +171,7 @@ pub struct PassSessionStore {
     pub storage: Arc<dyn SessionStorage>,
     pub key_provider: Arc<dyn LocalKeyProvider>,
     pub account_type: AccountType,
+    pub session_lock: bool,
     persist_generation: Arc<AtomicU64>,
     persist_lock: Arc<tokio::sync::Mutex<()>>,
 }
@@ -174,6 +181,7 @@ impl std::fmt::Debug for PassSessionStore {
         f.debug_struct("PassSessionStore")
             .field("env", &self.env)
             .field("account_type", &self.account_type)
+            .field("session_lock", &self.session_lock)
             .finish()
     }
 }
@@ -293,6 +301,7 @@ impl PassSessionStore {
             storage,
             key_provider,
             account_type: AccountType::User, // Default to User for new stores
+            session_lock: false,
             persist_generation: Arc::new(AtomicU64::new(0)),
             persist_lock: Arc::new(tokio::sync::Mutex::new(())),
         }
@@ -359,6 +368,7 @@ impl PassSessionStore {
             storage,
             key_provider,
             account_type: deserialized.account_type,
+            session_lock: deserialized.session_lock,
             persist_generation: Arc::new(AtomicU64::new(0)),
             persist_lock: Arc::new(tokio::sync::Mutex::new(())),
         }))
@@ -371,6 +381,7 @@ impl PassSessionStore {
                 env: SerializedEnv::from(self.env.clone()),
                 auth: auth.clone(),
                 account_type: self.account_type,
+                session_lock: self.session_lock,
             }
         };
 
@@ -413,5 +424,14 @@ impl PassSessionStore {
         } else {
             false
         }
+    }
+
+    pub fn is_session_locked(&self) -> bool {
+        self.session_lock
+    }
+
+    pub fn set_session_lock(&mut self, locked: bool) {
+        self.session_lock = locked;
+        self.schedule_persist();
     }
 }
