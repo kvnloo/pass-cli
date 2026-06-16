@@ -186,7 +186,7 @@ mod tests {
             response_from_status_and_payload(
                 400,
                 &CodeResponse {
-                    code: ProtonApiErrorCode::PermissionDenied as u32,
+                    code: ProtonApiErrorCode::SessionLocked as u32,
                 },
             )
         });
