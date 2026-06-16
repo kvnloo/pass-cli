@@ -18,13 +18,13 @@ proton-crypto-account = { version = "0.19.0", registry = "proton", default-featu
 
 proton-pass-common = {  git = "https://github.com/protonpass/proton-pass-common.git", tag = "1.5.2" }
 
-parking_lot = "0.12"
 anyhow = "1.0"
 async-trait = "0.1"
 base64 = "0.22.1"
 bytes = "1.10.1"
 futures = "0.3"
 jiff = { version = "0.2.18", features = ["serde"] }
+parking_lot = "0.12"
 protobuf = "3.7.2"
 protobuf-codegen = "3.7.2"
 rand = "0.10"
