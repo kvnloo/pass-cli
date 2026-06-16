@@ -16,11 +16,12 @@
  *  along with Proton Pass.  If not, see <https://www.gnu.org/licenses/>.
  *
  */
-
 use crate::commands::OutputFormat;
 use crate::helpers::CliPassClient as PassClient;
 use anyhow::Result;
 use clap::Subcommand;
+use pass_auth::PassSessionStore;
+use std::sync::{Arc, RwLock};
 
 pub mod info;
 
@@ -33,8 +34,12 @@ pub enum UserCommands {
     },
 }
 
-pub async fn run(subcommand: UserCommands, client: PassClient) -> Result<()> {
+pub async fn run(
+    subcommand: UserCommands,
+    client: PassClient,
+    store: Arc<RwLock<PassSessionStore>>,
+) -> Result<()> {
     match subcommand {
-        UserCommands::Info { output } => info::run(client, output).await,
+        UserCommands::Info { output } => info::run(client, output, store).await,
     }
 }

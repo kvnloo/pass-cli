@@ -16,11 +16,12 @@
  *  along with Proton Pass.  If not, see <https://www.gnu.org/licenses/>.
  *
  */
-
 use crate::commands::OutputFormat;
 use crate::helpers::CliPassClient as PassClient;
 use anyhow::{Context, Result};
 use jiff::Timestamp;
+use pass_auth::PassSessionStore;
+use std::sync::{Arc, RwLock};
 
 #[derive(serde::Serialize)]
 struct UserInfoJsonOutput {
@@ -32,14 +33,23 @@ struct UserInfoJsonOutput {
     pub totp_limit: Option<u16>,
     pub storage_used: u64,
     pub storage_quota: u64,
+    pub session_has_lock: bool,
 }
 
-pub async fn run(client: PassClient, output_format: OutputFormat) -> Result<()> {
+pub async fn run(
+    client: PassClient,
+    output_format: OutputFormat,
+    store: Arc<RwLock<PassSessionStore>>,
+) -> Result<()> {
     let addresses = client.get_addresses().await?;
     let primary_address = addresses.first().ok_or_else(|| {
         anyhow::anyhow!("No addresses found. Please add an address to your account.")
     })?;
     let user_info = client.get_user_access().await?;
+    let session_has_lock = store
+        .read()
+        .expect("store rwlock poisoned")
+        .has_session_lock();
 
     match output_format {
         OutputFormat::Human => {
@@ -67,6 +77,9 @@ pub async fn run(client: PassClient, output_format: OutputFormat) -> Result<()> 
                 user_info.plan.storage_used / (1 << 20),
                 user_info.plan.storage_quota / (1 << 20)
             );
+            if session_has_lock {
+                println!("Session has a lock")
+            }
         }
         OutputFormat::Json => {
             let out = UserInfoJsonOutput {
@@ -78,6 +91,7 @@ pub async fn run(client: PassClient, output_format: OutputFormat) -> Result<()> 
                 totp_limit: user_info.plan.totp_limit,
                 storage_used: user_info.plan.storage_used,
                 storage_quota: user_info.plan.storage_quota,
+                session_has_lock,
             };
             let as_json =
                 serde_json::to_string_pretty(&out).context("Error serializing user info")?;

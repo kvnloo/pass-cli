@@ -24,11 +24,11 @@ use pass_auth::store::PassSessionStore;
 use std::sync::{Arc, RwLock};
 
 pub async fn run(client: PassClient, store: Arc<RwLock<PassSessionStore>>) -> Result<()> {
-    let is_locked = store
+    if !store
         .read()
         .expect("store rwlock poisoned")
-        .has_session_lock();
-    if !is_locked {
+        .has_session_lock()
+    {
         bail!("Session is not locked");
     }
 

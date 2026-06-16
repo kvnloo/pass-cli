@@ -44,11 +44,11 @@ pub async fn run(
     store: Arc<RwLock<PassSessionStore>>,
     lock_time: Option<u32>,
 ) -> Result<()> {
-    let is_locked = store
+    if store
         .read()
         .expect("store rwlock poisoned")
-        .has_session_lock();
-    if is_locked {
+        .has_session_lock()
+    {
         bail!("Session already has a lock");
     }
     let pin = ask_for_input("Enter PIN: ", true).context("Error reading PIN")?;
