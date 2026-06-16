@@ -121,3 +121,5 @@ automatically.
 - **lock code not stored** The lock code is never written to disk or the keyring. If you forget it, you cannot unlock or
   remove
   the lock until it auto-expires. You will need to log out and log in again.
+- **ssh-agent** The `ssh-agent` commands will not refresh the keys automatically nor create items directly from ssh if
+  the session has a lock.

@@ -45,6 +45,9 @@ pub async fn run(
     store: Arc<RwLock<PassSessionStore>>,
     lock_time: Option<u32>,
 ) -> Result<()> {
+    if client.is_agent_session() {
+        bail!("Session lock is not available for agent sessions");
+    }
     if store.read().get_session_lock_after_seconds().is_some() {
         bail!("Session already has a lock");
     }
