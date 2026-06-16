@@ -18,6 +18,7 @@ proton-crypto-account = { version = "0.19.0", registry = "proton", default-featu
 
 proton-pass-common = {  git = "https://github.com/protonpass/proton-pass-common.git", tag = "1.5.2" }
 
+parking_lot = "0.12"
 anyhow = "1.0"
 async-trait = "0.1"
 base64 = "0.22.1"
