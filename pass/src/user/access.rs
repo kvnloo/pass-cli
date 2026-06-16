@@ -172,6 +172,7 @@ impl<C: PassClientContext> PassClient<C> {
 
 #[cfg(test)]
 mod tests {
+    use crate::common::CodeResponse;
     use crate::error::ProtonApiErrorCode;
     use crate::test_tools::*;
 
@@ -182,9 +183,11 @@ mod tests {
 
         // Set up handler to return a 400 with SessionLocked error code
         api.handler("/pass/v1/user/access", |_| {
-            error_response_from_json(
+            response_from_status_and_payload(
                 400,
-                &format!("{{\"Code\":{}}}", ProtonApiErrorCode::SessionLocked as i32),
+                &CodeResponse {
+                    code: ProtonApiErrorCode::PermissionDenied as u32,
+                },
             )
         });
 
@@ -205,9 +208,11 @@ mod tests {
 
         // Set up handler to return a 400 with a different error code
         api.handler("/pass/v1/user/access", |_| {
-            error_response_from_json(
+            response_from_status_and_payload(
                 400,
-                &format!("{{\"Code\":{}}}", ProtonApiErrorCode::AlreadyExists as i32),
+                &CodeResponse {
+                    code: ProtonApiErrorCode::AlreadyExists as u32,
+                },
             )
         });
 

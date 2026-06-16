@@ -17,16 +17,16 @@
  *
  */
 
-use crate::PassClient;
-pub use crate::PlanType;
 use crate::common::{CodeResponse, SUCCESS_CODE};
 use crate::test_tools::client_features::TestClientFeatures;
 use crate::test_tools::{init_session, setup_user_access};
+use crate::PassClient;
+pub use crate::PlanType;
 use muon::common::sdk::Sdk;
 pub use muon::http::Method;
 use muon_test::server::{ProtonAPI, Request, Response};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 pub type TestPassClient = PassClient<muon_test::server::TestContext<()>>;
 
@@ -166,20 +166,22 @@ pub fn success<R: serde::Serialize>(res: R) -> Option<Response> {
 }
 
 pub fn success_code() -> Option<Response> {
-    let body = serde_json::to_vec(&CodeResponse { code: SUCCESS_CODE }).unwrap();
-    Some(
-        Response::builder()
-            .status(200)
-            .body(axum::body::Body::from(body))
-            .unwrap(),
-    )
+    payload_to_response(200, &CodeResponse { code: SUCCESS_CODE })
 }
 
-pub fn error_response_from_json(status: u16, json_str: &str) -> Option<Response> {
+pub fn response_from_status_and_payload(
+    status: u16,
+    payload: impl serde::Serialize,
+) -> Option<Response> {
+    payload_to_response(status, payload)
+}
+
+fn payload_to_response(status: u16, payload: impl serde::Serialize) -> Option<Response> {
+    let body = serde_json::to_vec(&payload).unwrap();
     Some(
         Response::builder()
             .status(status)
-            .body(axum::body::Body::from(json_str.as_bytes().to_vec()))
+            .body(axum::body::Body::from(body))
             .unwrap(),
     )
 }
