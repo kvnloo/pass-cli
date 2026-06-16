@@ -166,10 +166,21 @@ pub fn success<R: serde::Serialize>(res: R) -> Option<Response> {
 }
 
 pub fn success_code() -> Option<Response> {
-    let body = serde_json::to_vec(&CodeResponse { code: SUCCESS_CODE }).unwrap();
+    payload_to_response(200, &CodeResponse { code: SUCCESS_CODE })
+}
+
+pub fn response_from_status_and_payload(
+    status: u16,
+    payload: impl serde::Serialize,
+) -> Option<Response> {
+    payload_to_response(status, payload)
+}
+
+fn payload_to_response(status: u16, payload: impl serde::Serialize) -> Option<Response> {
+    let body = serde_json::to_vec(&payload).unwrap();
     Some(
         Response::builder()
-            .status(200)
+            .status(status)
             .body(axum::body::Body::from(body))
             .unwrap(),
     )

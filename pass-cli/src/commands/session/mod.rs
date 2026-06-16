@@ -16,30 +16,42 @@
  *  along with Proton Pass.  If not, see <https://www.gnu.org/licenses/>.
  *
  */
-use crate::commands::OutputFormat;
+
 use crate::helpers::CliPassClient as PassClient;
 use anyhow::Result;
 use clap::Subcommand;
-use pass_auth::PassSessionStore;
+use pass_auth::store::PassSessionStore;
 use std::sync::{Arc, RwLock};
 
-pub mod info;
+pub mod lock;
+pub mod remove_lock;
+pub mod unlock;
 
 #[derive(Subcommand)]
-pub enum UserCommands {
-    #[command(about = "Show user info")]
-    Info {
-        #[arg(long, default_value = "human")]
-        output: OutputFormat,
+pub enum SessionCommands {
+    #[command(about = "Lock the current session with a PIN")]
+    Lock {
+        #[arg(
+            long,
+            help = "Time in seconds before the session auto-unlocks (min 30, max 900)",
+            default_value = "300"
+        )]
+        lock_time: u32,
     },
+    #[command(about = "Unlock the current session with a PIN")]
+    Unlock,
+    #[command(about = "Remove the session lock entirely")]
+    RemoveLock,
 }
 
 pub async fn run(
-    subcommand: UserCommands,
+    subcommand: SessionCommands,
     client: PassClient,
     store: Arc<RwLock<PassSessionStore>>,
 ) -> Result<()> {
     match subcommand {
-        UserCommands::Info { output } => info::run(client, output, store).await,
+        SessionCommands::Lock { lock_time } => lock::run(client, store, Some(lock_time)).await,
+        SessionCommands::Unlock => unlock::run(client, store).await,
+        SessionCommands::RemoveLock => remove_lock::run(client, store).await,
     }
 }

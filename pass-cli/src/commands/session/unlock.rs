@@ -17,5 +17,27 @@
  *
  */
 
-pub(crate) mod access;
-pub(crate) mod lock;
+use crate::helpers::CliPassClient as PassClient;
+use crate::utils::ask_for_input;
+use anyhow::{Context, Result, bail};
+use pass_auth::store::PassSessionStore;
+use std::sync::{Arc, RwLock};
+
+pub async fn run(client: PassClient, store: Arc<RwLock<PassSessionStore>>) -> Result<()> {
+    if !store
+        .read()
+        .expect("store rwlock poisoned")
+        .has_session_lock()
+    {
+        bail!("Session is not locked");
+    }
+
+    let pin = ask_for_input("Enter PIN: ", true).context("Error reading PIN")?;
+
+    client
+        .unlock_session(&pin)
+        .await
+        .context("Error unlocking session")?;
+    println!("Session unlocked successfully");
+    Ok(())
+}

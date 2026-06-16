@@ -171,6 +171,11 @@ enum Commands {
         #[command(subcommand)]
         command: commands::user::UserCommands,
     },
+    #[command(about = "Session operations")]
+    Session {
+        #[command(subcommand)]
+        command: commands::session::SessionCommands,
+    },
     #[command(about = "SSH agent operations")]
     SshAgent {
         #[command(subcommand)]
@@ -387,8 +392,9 @@ async fn run() -> Result<()> {
         Commands::Item { command } => commands::item::run(command, client).await,
         Commands::Invite { command } => commands::invite::run(command, client).await,
         Commands::Share { command } => commands::share::run(command, client).await,
-        Commands::User { command } => commands::user::run(command, client).await,
-        Commands::SshAgent { command } => commands::ssh_agent::run(command, client).await,
+        Commands::Session { command } => commands::session::run(command, client, store).await,
+        Commands::User { command } => commands::user::run(command, client, store).await,
+        Commands::SshAgent { command } => commands::ssh_agent::run(command, client, store).await,
         Commands::Settings { command } => commands::settings::run(command, client).await,
         Commands::PersonalAccessToken { command } => {
             commands::personal_access_token::run(command, client).await
