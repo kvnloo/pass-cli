@@ -14,6 +14,7 @@ nav = [
   {"Commands" = [
     "commands/login.md",
     "commands/logout.md",
+    "commands/session.md",
     "commands/info.md",
     "commands/user.md",
     "commands/settings.md",

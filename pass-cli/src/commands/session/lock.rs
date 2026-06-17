@@ -45,10 +45,13 @@ pub async fn run(
     store: Arc<RwLock<PassSessionStore>>,
     lock_time: Option<u32>,
 ) -> Result<()> {
-    if store.read().has_session_lock() {
+    if client.is_agent_session() {
+        bail!("Session lock is not available for agent sessions");
+    }
+    if store.read().get_session_lock_after_seconds().is_some() {
         bail!("Session already has a lock");
     }
-    let pin = ask_for_input("Enter PIN: ", true).context("Error reading PIN")?;
+    let pin = ask_for_input("Enter lock code: ", true).context("Error reading lock code")?;
 
     let lock_time = lock_time.unwrap_or(DEFAULT_LOCK_TIME);
     let lock_time = validate_lock_time(lock_time)?;
@@ -60,7 +63,7 @@ pub async fn run(
 
     let snapshot = {
         let mut guard = store.write();
-        guard.set_has_session_lock(true);
+        guard.set_session_lock_after_seconds(Some(lock_time));
         guard.clone()
     };
     snapshot
