@@ -29,6 +29,7 @@ struct InviteList {
 
 #[derive(serde::Serialize)]
 struct InviteEntry {
+    token: String,
     invite_type: String,
     inviter: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -43,6 +44,7 @@ impl InviteEntry {
         };
 
         Self {
+            token: invite.token,
             invite_type,
             inviter: invite.inviter_email,
             name,
