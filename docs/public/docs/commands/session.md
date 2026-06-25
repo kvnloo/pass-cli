@@ -29,7 +29,7 @@ You will be prompted to enter a lock code. The lock code is not stored anywhere,
 **Options:**
 
 - `--idle-timeout SECONDS` Time in seconds before the session auto-unlocks. Must be between 30 and 900. Default: `300` (5 minutes).
-- 
+ 
 **Examples:**
 
 ```bash
