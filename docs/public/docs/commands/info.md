@@ -20,6 +20,7 @@ The command retrieves user information from the Proton Pass API and displays:
 - Username
 - Email address
 - Release track (stable, beta, etc.)
+- Whether the session has a lock
 
 ## Arguments
 
@@ -33,6 +34,7 @@ The command displays:
 - **Username**: Your Proton account username
 - **Email**: Your Proton account email address
 - **Release track**: The release track you're using (stable, beta, etc.)
+- **Session has lock**: Whether the current session has a lock configured. Shows `yes` (with the idle timeout) when a lock exists, or `no` otherwise. Having a lock does not mean the session is locked right now, only that it will lock automatically when idle. See the [session](session.md) command to create, remove, or trigger a lock.
 
 ## Examples
 
@@ -44,6 +46,7 @@ pass-cli info
 - ID: YOUR_USER_ID
 - Username: your-username
 - Email: youruser@proton.me
+- Session has lock: no
 ```
 
 ### Troubleshooting workflow
@@ -111,3 +114,4 @@ The `info` command shows information that is mainly safe to display to the opera
 - **[logout](logout.md)** - End current session
 - **[test](test.md)** - Test connection and authentication
 - **[user info](user.md#info)** - More detailed user account information
+- **[session](session.md)** - Create, remove, or trigger the session lock

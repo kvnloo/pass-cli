@@ -24,14 +24,15 @@ use parking_lot::RwLock;
 use pass_auth::store::PassSessionStore;
 use std::sync::Arc;
 
+pub mod create_lock;
 pub mod lock;
 pub mod remove_lock;
 pub mod unlock;
 
 #[derive(Subcommand)]
 pub enum SessionCommands {
-    #[command(about = "Lock the current session with a lock code")]
-    Lock {
+    #[command(about = "Create a lock for the current session with a lock code")]
+    CreateLock {
         #[arg(
             long,
             help = "Time in seconds before the session auto-unlocks (min 30, max 900)",
@@ -39,6 +40,8 @@ pub enum SessionCommands {
         )]
         idle_timeout: u32,
     },
+    #[command(about = "Lock the current session now (requires an existing lock)")]
+    Lock,
     #[command(about = "Unlock the current session with a lock code")]
     Unlock,
     #[command(about = "Remove the session lock entirely")]
@@ -51,9 +54,10 @@ pub async fn run(
     store: Arc<RwLock<PassSessionStore>>,
 ) -> Result<()> {
     match subcommand {
-        SessionCommands::Lock {
+        SessionCommands::CreateLock {
             idle_timeout: lock_time,
-        } => lock::run(client, store, Some(lock_time)).await,
+        } => create_lock::run(client, store, Some(lock_time)).await,
+        SessionCommands::Lock => lock::run(client, store).await,
         SessionCommands::Unlock => unlock::run(client, store).await,
         SessionCommands::RemoveLock => remove_lock::run(client, store).await,
     }

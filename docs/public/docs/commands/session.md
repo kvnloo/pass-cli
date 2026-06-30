@@ -5,7 +5,8 @@ Manage the session lock to prevent unauthorized access to your Proton Pass CLI s
 ## Synopsis
 
 ```bash
-pass-cli session lock [--idle-timeout SECONDS]
+pass-cli session create-lock [--idle-timeout SECONDS]
+pass-cli session lock
 pass-cli session unlock
 pass-cli session remove-lock
 ```
@@ -16,12 +17,12 @@ The `session` command lets you add a lock code-based lock to your active session
 
 ## Subcommands
 
-### lock
+### create-lock
 
-Lock the current session with a lock code.
+Create a lock for the current session with a lock code.
 
 ```bash
-pass-cli session lock [--idle-timeout SECONDS]
+pass-cli session create-lock [--idle-timeout SECONDS]
 ```
 
 You will be prompted to enter a lock code. The lock code is not stored anywhere, it is sent to the Proton Pass API to establish the lock. You must use the same lock code to unlock or remove the lock later.
@@ -34,12 +35,31 @@ You will be prompted to enter a lock code. The lock code is not stored anywhere,
 
 ```bash
 # Lock with the default 5-minute timeout
-pass-cli session lock
+pass-cli session create-lock
 # Enter lock code:
 # Session locked successfully
 # Lock with a custom 10-minute timeout
-pass-cli session lock --idle-timeout 600
+pass-cli session create-lock --idle-timeout 600
 # Enter lock code:
+# Session locked successfully
+```
+
+---
+
+### lock
+
+Lock the current session immediately, without waiting for the idle timeout to elapse.
+
+```bash
+pass-cli session lock
+```
+
+This requires a lock to already exist (created with `create-lock`). If the session has no lock, the command fails and asks you to create one first. After locking, all operations that require the Proton Pass API are blocked until you unlock the session with the correct lock code.
+
+**Examples:**
+
+```bash
+pass-cli session lock
 # Session locked successfully
 ```
 

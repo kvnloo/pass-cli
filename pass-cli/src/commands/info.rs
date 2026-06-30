@@ -22,9 +22,11 @@ use crate::commands::{OutputFormat, settings_helper, update};
 use crate::helpers::CliPassClient as PassClient;
 use crate::telemetry::event::CommandEvent;
 use anyhow::{Context, Result};
-use pass_auth::store::SerializedEnv;
+use parking_lot::RwLock;
+use pass_auth::store::{PassSessionStore, SerializedEnv};
 use pass_domain::AccountType;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 #[derive(serde::Serialize)]
 struct InfoOutput {
@@ -40,14 +42,20 @@ struct InfoOutput {
     pub personal_access_token_name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub install_source: Option<String>,
+    pub session_has_lock: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_lock_after_seconds: Option<u32>,
 }
 
 pub async fn run(
     client: PassClient,
     base_dir: PathBuf,
     output: Option<OutputFormat>,
+    store: Arc<RwLock<PassSessionStore>>,
 ) -> Result<()> {
     client.emit_telemetry(&CommandEvent::new("info")).await;
+
+    let session_lock_after_seconds = store.read().get_session_lock_after_seconds();
 
     // Resolve output format from settings if not provided
     let output = match output {
@@ -89,6 +97,8 @@ pub async fn run(
                 email: Some(info.user.email),
                 personal_access_token_name: None,
                 install_source: install_source_str,
+                session_has_lock: session_lock_after_seconds.is_some(),
+                session_lock_after_seconds,
             }
         }
         AccountType::PersonalAccessToken | AccountType::AgentSession => {
@@ -126,6 +136,8 @@ pub async fn run(
                     "{name_prefix}{personal_access_token_name}"
                 )),
                 install_source: install_source_str,
+                session_has_lock: session_lock_after_seconds.is_some(),
+                session_lock_after_seconds,
             }
         }
     };
@@ -155,6 +167,12 @@ fn print(info: InfoOutput, output: OutputFormat) -> Result<()> {
             }
             if let Some(install_source) = &info.install_source {
                 println!("- Install source: {}", install_source);
+            }
+            match info.session_lock_after_seconds {
+                Some(lock_seconds) => println!(
+                    "- Session has lock: yes (locks after {lock_seconds} seconds of inactivity)"
+                ),
+                None => println!("- Session has lock: no"),
             }
         }
         OutputFormat::Json => {

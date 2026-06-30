@@ -1,3 +1,14 @@
+## Unreleased
+
+### Features :tada:
+
+- Add `pass-cli session lock` to lock the current session immediately (requires an existing lock).
+- Show whether the current session has a lock in the output of `pass-cli info`.
+
+### Other
+
+- Rename `pass-cli session lock` to `pass-cli session create-lock`. The `lock` subcommand now locks an already-created lock immediately.
+
 ## 2.2.1 (2026-06-29)
 
 ### Fixes :bug:
