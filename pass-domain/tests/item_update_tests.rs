@@ -21,7 +21,7 @@ use anyhow::Result;
 use pass_domain::{
     CardType, CreditCardItem, CustomItem, CustomSection, IdentityItem, ItemContent, ItemData,
     ItemExtraField, ItemExtraFieldContent, LoginItem, NoteItem, Passkey, PasskeyCreationData,
-    SshKeyItem, WifiItem, WifiSecurity,
+    SshKeyItem, UpdateFieldResult, WifiItem, WifiSecurity,
 };
 
 fn create_login_item_data() -> ItemData {
@@ -743,6 +743,66 @@ fn test_perform_update_identity_with_extra_sections() -> Result<()> {
     } else {
         panic!("Expected Identity content");
     }
+
+    Ok(())
+}
+
+#[test]
+fn test_update_field_timestamp_via_api() -> Result<()> {
+    // Test that timestamp fields can be updated via the update_field API
+    let mut item = ItemData::new(
+        "Test Item".to_string(),
+        "Test note".to_string(),
+        "uuid-test".to_string(),
+        ItemContent::Note(NoteItem),
+        vec![ItemExtraField {
+            name: "valid-until".to_string(),
+            content: ItemExtraFieldContent::Timestamp(1790726400),
+        }],
+    )?;
+
+    // Update the timestamp field with a new Unix timestamp
+    let result = item.update_field("valid-until", "1783029600")?;
+    assert_eq!(result, UpdateFieldResult::FieldUpdated);
+
+    // Verify the timestamp was updated correctly
+    if let Some(field) = item.extra_fields.iter().find(|f| f.name == "valid-until") {
+        match &field.content {
+            ItemExtraFieldContent::Timestamp(ts) => {
+                assert_eq!(*ts, 1783029600);
+            }
+            _ => panic!("Expected Timestamp content"),
+        }
+    } else {
+        panic!("Timestamp field not found");
+    }
+
+    Ok(())
+}
+
+#[test]
+fn test_update_field_timestamp_invalid_format() -> Result<()> {
+    // Test that invalid timestamp formats are rejected
+    let mut item = ItemData::new(
+        "Test Item".to_string(),
+        "Test note".to_string(),
+        "uuid-test".to_string(),
+        ItemContent::Note(NoteItem),
+        vec![ItemExtraField {
+            name: "valid-until".to_string(),
+            content: ItemExtraFieldContent::Timestamp(1790726400),
+        }],
+    )?;
+
+    // Try to update with an invalid format (date string instead of timestamp)
+    let result = item.update_field("valid-until", "2026-07-03");
+    assert!(result.is_err());
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("Invalid timestamp value")
+    );
 
     Ok(())
 }

@@ -238,13 +238,21 @@ impl ItemData {
         // Check if this is an existing extra field
         for extra_field in self.extra_fields.iter_mut() {
             if extra_field.name.to_lowercase() == field_name_lower {
-                // Don't allow updating timestamp or totp fields
+                // Don't allow updating totp fields
                 match &extra_field.content {
-                    ItemExtraFieldContent::Timestamp(_) => {
-                        return Err(anyhow!("Cannot update timestamp field '{}'", field_name));
-                    }
                     ItemExtraFieldContent::Totp(_) => {
                         return Err(anyhow!("Editing TOTP fields is unsupported"));
+                    }
+                    ItemExtraFieldContent::Timestamp(_) => {
+                        // Field exists and is a timestamp - try to parse as Unix timestamp
+                        let timestamp: i64 = field_value
+                            .trim()
+                            .parse()
+                            .map_err(|_| anyhow!(
+                                "Invalid timestamp value '{}'. Expected a Unix timestamp in seconds (e.g., 1783029600).",
+                                field_value
+                            ))?;
+                        extra_field.content = ItemExtraFieldContent::Timestamp(timestamp);
                     }
                     ItemExtraFieldContent::Hidden(_) => {
                         extra_field.content =
@@ -540,8 +548,10 @@ impl ItemData {
         false
     }
 
-    /// Update an extra field's value, preserving type. Returns false if the field
-    /// type cannot be updated (timestamp/totp).
+    /// Update an extra field's value, preserving type.
+    /// For timestamp fields, attempts to parse the value as a Unix timestamp.
+    /// Returns false if the field type cannot be updated (totp) or if a timestamp
+    /// value fails to parse.
     fn update_extra_field_value(field: &mut ItemExtraField, field_value: &str) -> bool {
         match &field.content {
             ItemExtraFieldContent::Hidden(_) => {
@@ -552,9 +562,19 @@ impl ItemData {
                 field.content = ItemExtraFieldContent::Text(field_value.to_string());
                 true
             }
-            ItemExtraFieldContent::Totp(_) | ItemExtraFieldContent::Timestamp(_) => {
-                // Don't update totp or timestamp fields
+            ItemExtraFieldContent::Totp(_) => {
+                // Don't update totp fields
                 false
+            }
+            ItemExtraFieldContent::Timestamp(_) => {
+                // Try to parse as Unix timestamp
+                match field_value.trim().parse::<i64>() {
+                    Ok(timestamp) => {
+                        field.content = ItemExtraFieldContent::Timestamp(timestamp);
+                        true
+                    }
+                    Err(_) => false,
+                }
             }
         }
     }
@@ -2195,21 +2215,51 @@ mod tests {
     }
 
     #[test]
-    fn test_update_timestamp_field_error() {
+    fn test_update_timestamp_field_success() {
         let mut item = create_test_item_data(ItemContent::Note(NoteItem));
         item.extra_fields = vec![ItemExtraField {
             name: "timestamp_field".to_string(),
             content: ItemExtraFieldContent::Timestamp(1234567890),
         }];
 
-        // Attempting to update a timestamp field should fail
-        let result = item.update_field("timestamp_field", "new_value");
+        // Successfully update a timestamp field with a Unix timestamp
+        let result = item.update_field("timestamp_field", "1783029600");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), UpdateFieldResult::FieldUpdated);
+
+        // Verify the timestamp was updated
+        if let Some(field) = item
+            .extra_fields
+            .iter()
+            .find(|f| f.name == "timestamp_field")
+        {
+            match &field.content {
+                ItemExtraFieldContent::Timestamp(ts) => {
+                    assert_eq!(*ts, 1783029600);
+                }
+                _ => panic!("Expected Timestamp content"),
+            }
+        } else {
+            panic!("Timestamp field not found");
+        }
+    }
+
+    #[test]
+    fn test_update_timestamp_field_invalid_format() {
+        let mut item = create_test_item_data(ItemContent::Note(NoteItem));
+        item.extra_fields = vec![ItemExtraField {
+            name: "timestamp_field".to_string(),
+            content: ItemExtraFieldContent::Timestamp(1234567890),
+        }];
+
+        // Attempting to update with invalid format should fail
+        let result = item.update_field("timestamp_field", "not_a_number");
         assert!(result.is_err());
         assert!(
             result
                 .unwrap_err()
                 .to_string()
-                .contains("Cannot update timestamp field")
+                .contains("Invalid timestamp value")
         );
     }
 
