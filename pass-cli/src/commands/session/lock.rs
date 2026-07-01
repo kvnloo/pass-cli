@@ -18,92 +18,24 @@
  */
 
 use crate::helpers::CliPassClient as PassClient;
-use crate::utils::ask_for_input;
-use anyhow::{Context, Result, bail, ensure};
+use anyhow::{Context, Result, bail};
 use parking_lot::RwLock;
 use pass_auth::store::PassSessionStore;
 use std::sync::Arc;
 
-const MIN_LOCK_TIME: u32 = 30;
-const MAX_LOCK_TIME: u32 = 900;
-const DEFAULT_LOCK_TIME: u32 = 300;
-
-pub fn validate_lock_time(lock_time: u32) -> Result<u32> {
-    ensure!(
-        lock_time >= MIN_LOCK_TIME,
-        "Lock time must be at least {MIN_LOCK_TIME} seconds"
-    );
-    ensure!(
-        lock_time <= MAX_LOCK_TIME,
-        "Lock time must be at most {MAX_LOCK_TIME} seconds"
-    );
-    Ok(lock_time)
-}
-
-pub async fn run(
-    client: PassClient,
-    store: Arc<RwLock<PassSessionStore>>,
-    lock_time: Option<u32>,
-) -> Result<()> {
+pub async fn run(client: PassClient, store: Arc<RwLock<PassSessionStore>>) -> Result<()> {
     if client.is_agent_session() {
         bail!("Session lock is not available for agent sessions");
     }
-    if store.read().get_session_lock_after_seconds().is_some() {
-        bail!("Session already has a lock");
+    if store.read().get_session_lock_after_seconds().is_none() {
+        bail!("Session has no lock. Create one first with `pass-cli session create-lock`");
     }
-    let pin = ask_for_input("Enter lock code: ", true).context("Error reading lock code")?;
-
-    let lock_time = lock_time.unwrap_or(DEFAULT_LOCK_TIME);
-    let lock_time = validate_lock_time(lock_time)?;
 
     client
-        .lock_session(&pin, lock_time)
+        .force_lock_session()
         .await
         .context("Error locking session")?;
 
-    let snapshot = {
-        let mut guard = store.write();
-        guard.set_session_lock_after_seconds(Some(lock_time));
-        guard.clone()
-    };
-    snapshot
-        .persist_now()
-        .await
-        .context("Error persisting session")?;
-
     println!("Session locked successfully");
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_validate_lock_time_minimum() {
-        assert_eq!(validate_lock_time(MIN_LOCK_TIME).unwrap(), MIN_LOCK_TIME);
-    }
-
-    #[test]
-    fn test_validate_lock_time_maximum() {
-        assert_eq!(validate_lock_time(MAX_LOCK_TIME).unwrap(), MAX_LOCK_TIME);
-    }
-
-    #[test]
-    fn test_validate_lock_time_default() {
-        assert_eq!(
-            validate_lock_time(DEFAULT_LOCK_TIME).unwrap(),
-            DEFAULT_LOCK_TIME
-        );
-    }
-
-    #[test]
-    fn test_validate_lock_time_below_minimum() {
-        assert!(validate_lock_time(MIN_LOCK_TIME - 1).is_err());
-    }
-
-    #[test]
-    fn test_validate_lock_time_above_maximum() {
-        assert!(validate_lock_time(MAX_LOCK_TIME + 1).is_err());
-    }
 }

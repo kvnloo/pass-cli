@@ -58,6 +58,20 @@ impl<C: PassClientContext> PassClient<C> {
         Ok(())
     }
 
+    pub async fn force_lock_session(&self) -> Result<()> {
+        let req = POST!("/pass/v1/user/session/lock/force_lock");
+
+        let res = self
+            .send(req)
+            .await
+            .context("Error sending force lock session request")?;
+
+        let response: CodeResponse = assert_response!(res);
+        response.success_guard()?;
+
+        Ok(())
+    }
+
     pub async fn unlock_session(&self, lock_code: &str) -> Result<()> {
         let request = UnlockSessionRequest {
             lock_code: lock_code.to_string(),

@@ -376,7 +376,7 @@ async fn run() -> Result<()> {
     match cli.command {
         Commands::Logout { .. } => commands::logout::run(client).await,
         Commands::Test => commands::test::run(client).await,
-        Commands::Info { output } => commands::info::run(client, base_dir, output).await,
+        Commands::Info { output } => commands::info::run(client, base_dir, output, store).await,
         Commands::Inject {
             file_mode,
             force,
