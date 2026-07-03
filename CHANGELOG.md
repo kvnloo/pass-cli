@@ -1,9 +1,17 @@
+<!--
 ## Unreleased
+### Features :tada:
+### Fixes :bug:
+### Other
+-->
+
+## 2.2.2 (2026-07-02)
 
 ### Features :tada:
 
 - Add `pass-cli session lock` to lock the current session immediately (requires an existing lock).
 - Show whether the current session has a lock in the output of `pass-cli info`.
+- Allow to update timestamp fields on items.
 
 ### Other
 
