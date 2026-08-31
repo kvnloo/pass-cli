@@ -16,7 +16,7 @@ muon-test = { version = "1.1.0", registry = "proton" }
 proton-crypto = { version = "0.13.2", registry = "proton", default-features = false, features = ["rustpgp"] }
 proton-crypto-account = { version = "0.19.2", registry = "proton", default-features = false, features = ["rustpgp"] }
 
-proton-pass-common = {  git = "https://github.com/protonpass/proton-pass-common.git", tag = "1.7.3" }
+proton-pass-common = {  git = "https://github.com/protonpass/proton-pass-common.git", tag = "2.0.0" }
 
 anyhow = "1.0"
 async-trait = "0.1"

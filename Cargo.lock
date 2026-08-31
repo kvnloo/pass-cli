@@ -1078,6 +1078,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "credential-exchange-format"
+version = "0.4.0"
+source = "git+https://github.com/bitwarden/credential-exchange?rev=22a87d9852ae64a659ae37774bd9194fd362bdde#22a87d9852ae64a659ae37774bd9194fd362bdde"
+dependencies = [
+ "chrono",
+ "data-encoding",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "critical-section"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4359,21 +4370,27 @@ dependencies = [
 
 [[package]]
 name = "proton-pass-common"
-version = "1.7.3"
-source = "git+https://github.com/protonpass/proton-pass-common.git?tag=1.7.3#65bb8448a41098686c9305265d2312c79d4dcef8"
+version = "2.0.0"
+source = "git+https://github.com/protonpass/proton-pass-common.git?tag=2.0.0#69a0927f0fe7071243d6c38e404459a69210fdd4"
 dependencies = [
  "async-trait",
+ "chrono",
  "coset",
+ "credential-exchange-format",
+ "ed25519-dalek",
  "email_address",
  "file-format",
  "getrandom 0.3.4",
  "lazy_static",
  "luhn",
+ "p256",
  "passkey",
  "passkey-authenticator",
  "passkey-types",
+ "pkcs8",
  "proton-pass-derive",
  "proton-pass-totp",
+ "proton-pass-types",
  "public-suffix",
  "pulldown-cmark",
  "qrcode",
@@ -4389,17 +4406,17 @@ dependencies = [
 
 [[package]]
 name = "proton-pass-derive"
-version = "1.7.3"
-source = "git+https://github.com/protonpass/proton-pass-common.git?tag=1.7.3#65bb8448a41098686c9305265d2312c79d4dcef8"
+version = "2.0.0"
+source = "git+https://github.com/protonpass/proton-pass-common.git?tag=2.0.0#69a0927f0fe7071243d6c38e404459a69210fdd4"
 dependencies = [
  "quote",
- "syn 2.0.119",
+ "syn 3.0.4",
 ]
 
 [[package]]
 name = "proton-pass-totp"
-version = "1.7.3"
-source = "git+https://github.com/protonpass/proton-pass-common.git?tag=1.7.3#65bb8448a41098686c9305265d2312c79d4dcef8"
+version = "2.0.0"
+source = "git+https://github.com/protonpass/proton-pass-common.git?tag=2.0.0#69a0927f0fe7071243d6c38e404459a69210fdd4"
 dependencies = [
  "proton-pass-derive",
  "serde",
@@ -4407,6 +4424,20 @@ dependencies = [
  "totp-rs",
  "url",
  "urlencoding",
+]
+
+[[package]]
+name = "proton-pass-types"
+version = "2.0.0"
+source = "git+https://github.com/protonpass/proton-pass-common.git?tag=2.0.0#69a0927f0fe7071243d6c38e404459a69210fdd4"
+dependencies = [
+ "anyhow",
+ "protobuf",
+ "protobuf-codegen",
+ "protoc-bin-vendored",
+ "proton-pass-derive",
+ "serde",
+ "uuid",
 ]
 
 [[package]]
