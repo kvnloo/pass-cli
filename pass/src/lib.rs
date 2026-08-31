@@ -16,6 +16,7 @@
  *  along with Proton Pass.  If not, see <https://www.gnu.org/licenses/>.
  *
  */
+#![recursion_limit = "256"]
 
 #[macro_use]
 extern crate tracing;
