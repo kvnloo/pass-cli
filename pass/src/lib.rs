@@ -54,6 +54,7 @@ pub mod password;
 mod permission;
 pub(crate) mod personal_access_token;
 mod ping;
+mod reports;
 mod share;
 mod telemetry;
 mod user;
@@ -83,6 +84,7 @@ pub use personal_access_token::{
     CreatePersonalAccessTokenArgs, CreatePersonalAccessTokenResponse, PersonalAccessToken,
     PersonalAccessTokenAccess, RenewPersonalAccessTokenResponse,
 };
+pub use reports::{BreachCount, ItemsReport, MemberReport, MonitorReport, Report};
 pub use user::access::{PassPlan, PlanType, UserDataSettings, UserInfo};
 pub use utils::is_id;
 pub use vault::{CreateVaultArgs, UpdateVaultArgs};
