@@ -24,12 +24,18 @@ use parking_lot::RwLock;
 use pass_auth::PassSessionStore;
 use std::sync::Arc;
 
+pub mod generate_report;
 pub mod info;
 
 #[derive(Subcommand)]
 pub enum UserCommands {
     #[command(about = "Show user info")]
     Info {
+        #[arg(long, default_value = "human")]
+        output: OutputFormat,
+    },
+    #[command(about = "Generate a report on users in the organization")]
+    GenerateReport {
         #[arg(long, default_value = "human")]
         output: OutputFormat,
     },
@@ -42,5 +48,6 @@ pub async fn run(
 ) -> Result<()> {
     match subcommand {
         UserCommands::Info { output } => info::run(client, output, store).await,
+        UserCommands::GenerateReport { output } => generate_report::run(client, output).await,
     }
 }
