@@ -394,6 +394,7 @@ mod tests {
             create_time: jiff::civil::DateTime::constant(2026, 1, 1, 0, 0, 0, 0),
             modify_time: jiff::civil::DateTime::constant(2026, 1, 1, 0, 0, 0, 0),
             folder_id: None,
+            alias_email: None,
         }
     }
 

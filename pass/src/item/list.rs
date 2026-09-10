@@ -243,6 +243,7 @@ mod tests {
                 content: item_data,
                 state: ItemState::Active,
                 flags: vec![],
+                alias_email: None,
                 create_time: jiff::Timestamp::from_second(1234567890)
                     .unwrap()
                     .to_zoned(jiff::tz::TimeZone::UTC)
@@ -303,6 +304,7 @@ mod tests {
                 content: item_data,
                 state: ItemState::Active,
                 flags: vec![],
+                alias_email: None,
                 create_time: jiff::Timestamp::from_second(1234567890)
                     .unwrap()
                     .to_zoned(jiff::tz::TimeZone::UTC)
@@ -367,6 +369,7 @@ mod tests {
                 content: item_data,
                 state: ItemState::Active,
                 flags: vec![],
+                alias_email: None,
                 create_time: jiff::Timestamp::from_second(1234567890)
                     .unwrap()
                     .to_zoned(jiff::tz::TimeZone::UTC)
