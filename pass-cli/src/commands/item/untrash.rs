@@ -18,7 +18,7 @@
  */
 
 use super::common::{ItemQuery, ShareQuery};
-use crate::commands::item::agent_monitor::send_reason_if_agent;
+use crate::commands::item::agent_monitor::{ensure_reason_if_agent, send_reason_if_agent};
 use crate::helpers::CliPassClient as PassClient;
 use anyhow::{Context, Result};
 use pass_domain::EventAction;
@@ -46,6 +46,8 @@ impl UntrashItemQuery {
 }
 
 pub async fn run(client: PassClient, query: UntrashItemQuery) -> Result<()> {
+    ensure_reason_if_agent(&client)?;
+
     let share_id = query.share_query.share_id(&client).await?;
     let item_id = query.item_query.item_id(&share_id, &client).await?;
 
