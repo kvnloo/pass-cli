@@ -61,8 +61,38 @@ pub fn get_base_dir() -> anyhow::Result<PathBuf> {
         data_dir.join("proton-pass-cli")
     };
 
+    // Reject symlinks in the custom base dir: recursive creation below would
+    // otherwise happily traverse a symlinked parent.
+    if proton_dir.is_symlink() {
+        anyhow::bail!(
+            "Session directory parent is a symlink, refusing to use it: {}",
+            proton_dir.display()
+        );
+    }
+
     // Create a .session subfolder (just like before, but in the platform-specific location)
     let session_dir = proton_dir.join(".session");
+
+    // Check if it already exists
+    if let Ok(meta) = std::fs::symlink_metadata(&session_dir) {
+        // Reject symlinks if it already existed
+        if meta.file_type().is_symlink() {
+            anyhow::bail!(
+                "Session directory is a symlink, refusing to use it: {}",
+                session_dir.display()
+            );
+        }
+
+        if !meta.is_dir() {
+            anyhow::bail!(
+                "Session directory path is not a directory, refusing to use it: {}",
+                session_dir.display()
+            );
+        }
+
+        #[cfg(unix)]
+        validate_session_dir_permissions(&session_dir, &meta)?;
+    }
 
     // Create the directory if it doesn't exist, with owner-only permissions on Unix
     #[cfg(unix)]
@@ -83,6 +113,25 @@ pub fn get_base_dir() -> anyhow::Result<PathBuf> {
     let session_dir_absolute =
         std::fs::canonicalize(&session_dir).context("Error getting absolute path")?;
     Ok(session_dir_absolute)
+}
+
+/// The session directory holds sensitive data and must be private to the owner:
+/// no group or other access is allowed.
+#[cfg(unix)]
+fn validate_session_dir_permissions(
+    session_dir: &std::path::Path,
+    meta: &std::fs::Metadata,
+) -> anyhow::Result<()> {
+    use std::os::unix::fs::MetadataExt;
+
+    if meta.mode() & 0o077 != 0 {
+        anyhow::bail!(
+            "Session directory is accessible by group or others: {}. Restrict it with 'chmod 700 {}'",
+            session_dir.display(),
+            session_dir.display()
+        );
+    }
+    Ok(())
 }
 
 pub fn is_experimental_features_disabled() -> bool {
