@@ -18,6 +18,7 @@
  */
 
 use anyhow::anyhow;
+use pass_domain::password_hash::PasswordHasher as PasswordHasherKdf;
 use pass_domain::{ItemId, ShareId};
 use ssh_agent_lib::error::AgentError;
 use ssh_key::public::KeyData;
@@ -27,7 +28,8 @@ use ssh_key::{
 };
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::Mutex;
+use std::time::Instant;
+use tokio::sync::RwLock;
 use tokio::sync::mpsc::UnboundedSender;
 
 #[derive(Clone, PartialEq, Debug)]
@@ -44,11 +46,20 @@ pub struct SshIdentity {
     pub comment: String,
     pub source: IdentitySource,
     pub certificate: Option<Certificate>,
-
-    // The pubkey data to return in SSH_AGENTC_REQUEST_IDENTITIES
-    // For certificates, this contains the certificate blob
-    // For regular keys, this contains the public key data
     pub pubkey_data: KeyData,
+    pub constraints: Option<IdentityConstraints>,
+}
+
+#[derive(Clone, PartialEq, Debug, Default)]
+pub struct IdentityConstraints {
+    pub expires_at: Option<Instant>,
+    pub confirm: bool,
+}
+
+impl IdentityConstraints {
+    pub fn lifetime_expired(&self, now: Instant) -> bool {
+        self.expires_at.is_some_and(|expires_at| now >= expires_at)
+    }
 }
 
 impl SshIdentity {
@@ -57,9 +68,25 @@ impl SshIdentity {
         comment: String,
         source: IdentitySource,
     ) -> anyhow::Result<Self> {
+        Self::new_with_constraints(private_key, comment, source, None)
+    }
+
+    pub fn new_with_constraints(
+        private_key: SshPrivateKey,
+        comment: String,
+        source: IdentitySource,
+        constraints: Option<IdentityConstraints>,
+    ) -> anyhow::Result<Self> {
         let public_key = SshPublicKey::from(&private_key);
         let pubkey_data = public_key.key_data().clone();
-        Self::new_with_pubkey_data(private_key, pubkey_data, comment, source, None)
+        Self::new_with_pubkey_data(private_key, pubkey_data, comment, source, None, constraints)
+    }
+
+    pub fn is_usable(&self, now: Instant) -> bool {
+        match &self.constraints {
+            Some(constraints) => !constraints.lifetime_expired(now),
+            None => true,
+        }
     }
 
     fn new_with_pubkey_data(
@@ -68,6 +95,7 @@ impl SshIdentity {
         comment: String,
         source: IdentitySource,
         certificate: Option<Certificate>,
+        constraints: Option<IdentityConstraints>,
     ) -> anyhow::Result<Self> {
         let public_key = SshPublicKey::from(&private_key);
         let xor_key = pass_domain::crypto::generate_random_byte();
@@ -86,6 +114,7 @@ impl SshIdentity {
             source,
             certificate,
             pubkey_data,
+            constraints,
         })
     }
 
@@ -103,27 +132,100 @@ impl SshIdentity {
 
 #[derive(Clone)]
 pub struct KeyStorage {
-    pub identities: Arc<Mutex<Vec<SshIdentity>>>,
+    pub identities: Arc<RwLock<Vec<SshIdentity>>>,
     pub create_item_sender: UnboundedSender<SshIdentity>,
+    lock_hash: Arc<RwLock<Option<String>>>,
+    password_hasher: PasswordHasherKdf,
 }
 
 impl KeyStorage {
     pub fn new(create_item_sender: UnboundedSender<SshIdentity>) -> Self {
         Self {
-            identities: Arc::new(Mutex::new(Vec::new())),
+            identities: Arc::new(RwLock::new(Vec::new())),
             create_item_sender,
+            lock_hash: Arc::new(RwLock::new(None)),
+            password_hasher: PasswordHasherKdf::default(),
         }
     }
 
+    #[cfg(test)]
+    pub fn new_with_password_hasher(
+        create_item_sender: UnboundedSender<SshIdentity>,
+        password_hasher: PasswordHasherKdf,
+    ) -> Self {
+        Self {
+            identities: Arc::new(RwLock::new(Vec::new())),
+            create_item_sender,
+            lock_hash: Arc::new(RwLock::new(None)),
+            password_hasher,
+        }
+    }
+
+    pub async fn is_locked(&self) -> bool {
+        self.lock_hash.read().await.is_some()
+    }
+
+    /// Locks the agent by storing an Argon2id hash of the given password.
+    /// While locked, [`KeyStorage::is_locked`] returns `true` and the agent
+    /// refuses to list identities or sign.
+    ///
+    /// Fails if the agent is already locked: allowing a re-lock would let
+    /// anyone who reaches the socket overwrite the lock password with their
+    /// own and immediately unlock the agent, bypassing the original lock.
+    pub async fn lock_agent(&self, password: String) -> Result<(), AgentError> {
+        if self.is_locked().await {
+            warn!("Refusing lock request: agent is already locked");
+            return Err(AgentError::Failure);
+        }
+        // Hash outside of the write lock: Argon2 is expensive.
+        let hashed = self.password_hasher.hash_password(&password).map_err(|e| {
+            error!("Failed to hash lock password: {e:#}");
+            AgentError::Failure
+        })?;
+        *self.lock_hash.write().await = Some(hashed);
+        Ok(())
+    }
+
+    /// Attempts to unlock the agent by verifying the given password against
+    /// the stored lock hash. Returns `Err(AgentError::Failure)` if the agent
+    /// is not locked or the password is wrong.
+    pub async fn unlock_agent(&self, password: String) -> Result<(), AgentError> {
+        let stored_hash = self.lock_hash.read().await.clone();
+        let Some(stored_hash) = stored_hash else {
+            warn!("Refusing unlock request: agent is not locked");
+            return Err(AgentError::Failure);
+        };
+
+        if !self
+            .password_hasher
+            .verify_password(&password, &stored_hash)
+        {
+            warn!("Refusing unlock request: wrong password");
+            return Err(AgentError::Failure);
+        }
+
+        *self.lock_hash.write().await = None;
+        Ok(())
+    }
+
+    /// Removes every identity whose lifetime constraint has expired.
+    /// Returns the number of removed identities.
+    pub async fn remove_expired_identities(&self) -> usize {
+        let mut identities = self.identities.write().await;
+        let before = identities.len();
+        identities.retain(|identity| identity.is_usable(Instant::now()));
+        before - identities.len()
+    }
+
     pub async fn identity_from_pubkey(&self, pubkey: &SshPublicKey) -> Option<SshIdentity> {
-        let identities = self.identities.lock().await;
+        let identities = self.identities.read().await;
 
         let index = Self::identity_index_from_pubkey(&identities, pubkey)?;
         Some(identities[index].clone())
     }
 
     pub async fn identity_add(&self, identity: SshIdentity) {
-        let mut identities = self.identities.lock().await;
+        let mut identities = self.identities.write().await;
         if Self::identity_index_from_pubkey(&identities, &identity.public_key).is_none() {
             if let Err(e) = self.create_item_sender.send(identity.clone()) {
                 warn!("Failed to send identity add: {}", e);
@@ -137,7 +239,7 @@ impl KeyStorage {
         pubkey: &SshPublicKey,
         fail_on_not_found: bool,
     ) -> anyhow::Result<(), AgentError> {
-        let mut identities = self.identities.lock().await;
+        let mut identities = self.identities.write().await;
 
         if let Some(index) = Self::identity_index_from_pubkey(&identities, pubkey) {
             identities.remove(index);
@@ -153,7 +255,7 @@ impl KeyStorage {
     }
 
     pub async fn replace_all_identities(&self, new_identities: Vec<SshIdentity>) {
-        let mut self_identities = self.identities.lock().await;
+        let mut self_identities = self.identities.write().await;
 
         let mut final_identities = HashMap::new();
 
@@ -194,7 +296,7 @@ impl KeyStorage {
     // If an identity with the same share_id and item_id exists, replace it.
     // Otherwise, add it as a new identity.
     pub async fn identity_upsert(&self, identity: SshIdentity) {
-        let mut identities = self.identities.lock().await;
+        let mut identities = self.identities.write().await;
 
         // Find existing by share_id + item_id
         if let IdentitySource::ProtonPass { share_id, item_id } = &identity.source
@@ -223,7 +325,7 @@ impl KeyStorage {
         share_id: &ShareId,
         item_id: &ItemId,
     ) -> anyhow::Result<()> {
-        let mut identities = self.identities.lock().await;
+        let mut identities = self.identities.write().await;
 
         if let Some(idx) = identities.iter().position(|i| match &i.source {
             IdentitySource::ProtonPass {
@@ -244,7 +346,7 @@ impl KeyStorage {
     // Remove all ProtonPass-sourced identities for a given share (for share deletion / unsharing)
     // Only removes ProtonPass-sourced keys, preserves User-added keys
     pub async fn identity_remove_by_share_id(&self, share_id: &ShareId) {
-        let mut identities = self.identities.lock().await;
+        let mut identities = self.identities.write().await;
         let before = identities.len();
         identities.retain(|i| match &i.source {
             IdentitySource::ProtonPass { share_id: s, .. } => s != share_id,
@@ -296,7 +398,7 @@ mod tests {
         let key_b_pubkey = key_b.public_key.clone();
         storage.identity_upsert(key_b).await;
 
-        assert_eq!(storage.identities.lock().await.len(), 1);
+        assert_eq!(storage.identities.read().await.len(), 1);
         assert!(storage.identity_from_pubkey(&key_a_pubkey).await.is_none());
         assert!(storage.identity_from_pubkey(&key_b_pubkey).await.is_some());
     }
@@ -309,6 +411,6 @@ mod tests {
         storage.identity_upsert(key_a.clone()).await;
         storage.identity_upsert(key_a).await;
 
-        assert_eq!(storage.identities.lock().await.len(), 1);
+        assert_eq!(storage.identities.read().await.len(), 1);
     }
 }

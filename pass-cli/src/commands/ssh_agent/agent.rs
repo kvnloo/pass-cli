@@ -32,12 +32,16 @@ use ssh_key::{private::PrivateKey as SshPrivateKey, public::PublicKey as SshPubl
 
 use super::event_handler::SshAgentEventHandler;
 use super::event_processor::SshEventProcessor;
-use super::key_storage::{IdentitySource, KeyStorage};
+use super::key_storage::{IdentityConstraints, IdentitySource, KeyStorage};
 use super::{SshIdentity, VaultQuery};
 use crate::helpers::CliPassClient as PassClient;
 use ssh_key::private::KeypairData;
 use ssh_key::{Algorithm, HashAlg, Signature};
 use std::sync::Arc;
+use std::time::{Duration, Instant};
+
+const MAX_KEY_LIFETIME: Duration = Duration::from_secs(30 * 24 * 60 * 60);
+const RESTRICT_DESTINATION_EXTENSION_NAME: &str = "restrict-destination-v00@openssh.com";
 
 pub async fn start_agent(
     client: &PassClient,
@@ -237,8 +241,21 @@ where
 impl Session for KeyStorage {
     async fn request_identities(&mut self) -> Result<Vec<message::Identity>, AgentError> {
         debug!("List identities request");
+
+        if self.is_locked().await {
+            info!("Returning empty identity list: agent is locked");
+
+            // Follow OpenSSH behaviour returning an empty identity list
+            return Ok(vec![]);
+        }
+
+        // Drop identities whose lifetime constraints have expired.
+        if self.remove_expired_identities().await > 0 {
+            info!("Removed expired identities");
+        }
+
         let mut identities = vec![];
-        for identity in self.identities.lock().await.iter() {
+        for identity in self.identities.read().await.iter() {
             // For now, always return the regular public key
             // Certificates are handled during signing, not in identity listing
             identities.push(message::Identity {
@@ -250,6 +267,17 @@ impl Session for KeyStorage {
     }
 
     async fn sign(&mut self, sign_request: SignRequest) -> Result<Signature, AgentError> {
+        // A locked agent must never produce signatures.
+        if self.is_locked().await {
+            warn!("Refusing to sign: agent is locked");
+            return Err(AgentError::Failure);
+        }
+
+        // Drop identities whose lifetime constraints have expired.
+        if self.remove_expired_identities().await > 0 {
+            info!("Removed expired identities");
+        }
+
         let pubkey: SshPublicKey = sign_request.credential.key_data().clone().into();
 
         debug!(
@@ -259,7 +287,7 @@ impl Session for KeyStorage {
 
         // Log all available identities for debugging
         {
-            let identities = self.identities.lock().await;
+            let identities = self.identities.read().await;
             debug!("Available identities: {}", identities.len());
             for (idx, id) in identities.iter().enumerate() {
                 debug!(
@@ -272,6 +300,16 @@ impl Session for KeyStorage {
         }
 
         if let Some(identity) = self.identity_from_pubkey(&pubkey).await {
+            // Enforce the identity's lifetime constraint.
+            if !identity.is_usable(Instant::now()) {
+                warn!(
+                    "Refusing to sign with identity {} (fingerprint {}): lifetime constraint expired",
+                    identity.comment,
+                    pubkey.fingerprint(HashAlg::Sha256)
+                );
+                return Err(AgentError::Failure);
+            }
+
             debug!("Found matching identity: {}", identity.comment);
 
             // Decrypt the private key on-demand
@@ -386,72 +424,27 @@ impl Session for KeyStorage {
     }
 
     async fn add_identity(&mut self, identity: AddIdentity) -> Result<(), AgentError> {
-        match identity.credential {
-            PrivateCredential::Key { privkey, comment } => {
-                let privkey = SshPrivateKey::try_from(privkey).map_err(AgentError::other)?;
-                let identity =
-                    SshIdentity::new(privkey, comment, IdentitySource::User).map_err(|e| {
-                        std::io::Error::other(format!("Failed to create identity: {}", e))
-                    })?;
-                self.identity_add(identity).await;
-                Ok(())
-            }
-            PrivateCredential::Cert {
-                algorithm,
-                certificate,
-                comment,
-                ..
-            } => {
-                info!(
-                    "Adding certificate: [key_id={}] [certificate comment={}] [comment={}] [algorithm={}]",
-                    certificate.key_id(),
-                    certificate.comment(),
-                    comment,
-                    algorithm.as_str()
-                );
-
-                // Get the public key from the certificate
-                let cert_public_key = ssh_key::PublicKey::from(certificate.public_key().clone());
-
-                // Find the existing identity with this public key
-                let mut identities = self.identities.lock().await;
-                if let Some(identity) = identities
-                    .iter_mut()
-                    .find(|id| id.public_key.key_data() == cert_public_key.key_data())
-                {
-                    // Update the existing identity with the certificate
-                    // The pubkey_data will be dynamically generated in request_identities
-                    let cert_key_id = certificate.key_id().to_string();
-                    identity.certificate = Some(*certificate);
-
-                    info!(
-                        "Certificate {} associated with existing key {}",
-                        cert_key_id, identity.comment
-                    );
-                } else {
-                    warn!(
-                        "Certificate added but no matching key found (key needs to be added after certificate)"
-                    );
-                }
-
-                Ok(())
-            }
-        }
+        self.refuse_if_locked("adding an identity").await?;
+        self.add_identity_inner(identity, None).await
     }
 
     async fn add_identity_constrained(
         &mut self,
         identity: AddIdentityConstrained,
     ) -> Result<(), AgentError> {
-        let AddIdentityConstrained {
-            identity,
-            constraints,
-        } = identity;
-        info!("Would use these constraints: {constraints:#?}");
-        self.add_identity(identity).await
+        self.refuse_if_locked("adding a constrained identity")
+            .await?;
+        info!(
+            "Adding identity with constraints: {:#?}",
+            identity.constraints
+        );
+        let constraints = Self::parse_constraints(&identity.constraints)?;
+        self.add_identity_inner(identity.identity, Some(constraints))
+            .await
     }
 
     async fn remove_identity(&mut self, identity: RemoveIdentity) -> Result<(), AgentError> {
+        self.refuse_if_locked("removing an identity").await?;
         let pubkey: SshPublicKey = identity.credential.key_data().clone().into();
         info!(
             "Received a remove_identity request for pubkey: {}",
@@ -462,35 +455,38 @@ impl Session for KeyStorage {
     }
 
     async fn remove_all_identities(&mut self) -> Result<(), AgentError> {
+        self.refuse_if_locked("removing all identities").await?;
         info!("Received a remove_all_identities request");
         self.replace_all_identities(Vec::new()).await;
         Ok(())
     }
 
-    async fn add_smartcard_key(&mut self, key: SmartcardKey) -> Result<(), AgentError> {
-        info!("Adding smartcard key: {key:?}");
-        Ok(())
+    async fn add_smartcard_key(&mut self, _key: SmartcardKey) -> Result<(), AgentError> {
+        info!("Refusing to add smartcard key: not supported by this agent");
+        Err(AgentError::Failure)
     }
 
     async fn add_smartcard_key_constrained(
         &mut self,
-        key: AddSmartcardKeyConstrained,
+        _key: AddSmartcardKeyConstrained,
     ) -> Result<(), AgentError> {
-        info!("Adding smartcard key with constraints: {key:?}");
-        Ok(())
+        info!("Refusing to add constrained smartcard key: not supported by this agent");
+        Err(AgentError::Failure)
     }
 
-    async fn lock(&mut self, _pwd: String) -> Result<(), AgentError> {
-        info!("Locked with password");
-        Ok(())
+    async fn lock(&mut self, pwd: String) -> Result<(), AgentError> {
+        info!("Agent locked (identity listing and signing disabled until unlock)");
+        self.lock_agent(pwd).await
     }
 
-    async fn unlock(&mut self, _pwd: String) -> Result<(), AgentError> {
-        info!("Unlocked with password");
+    async fn unlock(&mut self, pwd: String) -> Result<(), AgentError> {
+        self.unlock_agent(pwd).await?;
+        info!("Agent unlocked");
         Ok(())
     }
 
     async fn extension(&mut self, extension: Extension) -> Result<Option<Extension>, AgentError> {
+        self.refuse_if_locked("processing an extension").await?;
         info!("Extension request: {}", extension.name);
 
         match extension.name.as_str() {
@@ -516,11 +512,131 @@ impl Session for KeyStorage {
                     }
                 }
             }
+            "session-unbind@openssh.com" => {
+                info!("Refusing session-unbind@openssh.com: session bindings are not tracked");
+                Err(AgentError::Failure)
+            }
             _ => {
                 info!("Unsupported extension: {}", extension.name);
                 Err(AgentError::Failure)
             }
         }
+    }
+}
+
+impl KeyStorage {
+    async fn refuse_if_locked(&self, operation: &str) -> Result<(), AgentError> {
+        if self.is_locked().await {
+            warn!("Refusing {operation}: agent is locked");
+            return Err(AgentError::Failure);
+        }
+        Ok(())
+    }
+
+    async fn add_identity_inner(
+        &mut self,
+        identity: AddIdentity,
+        constraints: Option<IdentityConstraints>,
+    ) -> Result<(), AgentError> {
+        match identity.credential {
+            PrivateCredential::Key { privkey, comment } => {
+                let privkey = SshPrivateKey::try_from(privkey).map_err(AgentError::other)?;
+                let identity = SshIdentity::new_with_constraints(
+                    privkey,
+                    comment,
+                    IdentitySource::User,
+                    constraints,
+                )
+                .map_err(|e| std::io::Error::other(format!("Failed to create identity: {}", e)))?;
+                self.identity_add(identity).await;
+                Ok(())
+            }
+            PrivateCredential::Cert {
+                algorithm,
+                certificate,
+                comment,
+                ..
+            } => {
+                info!(
+                    "Adding certificate: [key_id={}] [certificate comment={}] [comment={}] [algorithm={}]",
+                    certificate.key_id(),
+                    certificate.comment(),
+                    comment,
+                    algorithm.as_str()
+                );
+
+                // Get the public key from the certificate
+                let cert_public_key = ssh_key::PublicKey::from(certificate.public_key().clone());
+
+                // Find the existing identity with this public key
+                let mut identities = self.identities.write().await;
+                if let Some(identity) = identities
+                    .iter_mut()
+                    .find(|id| id.public_key.key_data() == cert_public_key.key_data())
+                {
+                    // Update the existing identity with the certificate
+                    // The pubkey_data will be dynamically generated in request_identities
+                    let cert_key_id = certificate.key_id().to_string();
+                    identity.certificate = Some(*certificate);
+
+                    info!(
+                        "Certificate {} associated with existing key {}",
+                        cert_key_id, identity.comment
+                    );
+                } else {
+                    warn!(
+                        "Certificate added but no matching key found (key needs to be added after certificate)"
+                    );
+                }
+
+                Ok(())
+            }
+        }
+    }
+
+    fn parse_constraints(
+        constraints: &[ssh_agent_lib::proto::KeyConstraint],
+    ) -> Result<IdentityConstraints, AgentError> {
+        let mut parsed = IdentityConstraints::default();
+        for constraint in constraints {
+            match constraint {
+                ssh_agent_lib::proto::KeyConstraint::Lifetime(seconds) => {
+                    let lifetime = Duration::from_secs(u64::from(*seconds));
+                    if lifetime.is_zero() || lifetime > MAX_KEY_LIFETIME {
+                        warn!(
+                            "Rejecting key with lifetime constraint of {}s (accepted range is 1-{}s)",
+                            lifetime.as_secs(),
+                            MAX_KEY_LIFETIME.as_secs()
+                        );
+                        return Err(AgentError::Failure);
+                    }
+                    parsed.expires_at = Some(Instant::now() + lifetime);
+                }
+                ssh_agent_lib::proto::KeyConstraint::Confirm => {
+                    // We cannot prompt the user for confirmation.
+                    warn!(
+                        "Rejecting key with confirmation constraint (not supported by this agent)"
+                    );
+                    return Err(AgentError::Failure);
+                }
+                ssh_agent_lib::proto::KeyConstraint::Extension(extension) => {
+                    if extension.name.as_str() == RESTRICT_DESTINATION_EXTENSION_NAME {
+                        // We cannot enforce destination restrictions.
+                        // Reject instead of adding the key unrestricted.
+                        warn!(
+                            "Rejecting key with destination restriction constraint (not supported by this agent)"
+                        );
+                        return Err(AgentError::Failure);
+                    }
+                    warn!(
+                        "Rejecting key with unknown constraint extension: {}",
+                        extension.name
+                    );
+                    return Err(AgentError::Failure);
+                }
+            }
+        }
+        Ok(parsed)
     }
 }
 
@@ -617,5 +733,274 @@ hKEN721g/PpYfJsPyXshiefFhXEkcIfwYB0o9FfWmg5YzaLyddb9lf7ckdd6WCnvAC7O3F
             "Fixed construction should succeed: {:?}",
             fixed_result.err()
         );
+    }
+
+    mod security {
+        use super::*;
+        use crate::commands::ssh_agent::key_storage::{
+            IdentityConstraints, IdentitySource, KeyStorage, SshIdentity,
+        };
+        use pass_domain::password_hash::PasswordHasher;
+        use ssh_agent_lib::agent::Session;
+        use std::time::{Duration, Instant};
+
+        fn make_storage() -> KeyStorage {
+            let (sender, receiver) = tokio::sync::mpsc::unbounded_channel();
+
+            // Drop it so the sender channel cannot be used, as we're not testing it
+            drop(receiver);
+            KeyStorage::new_with_password_hasher(sender, PasswordHasher::new(64, 1, 1).unwrap())
+        }
+
+        async fn add_ed25519_identity(
+            storage: &KeyStorage,
+            constraints: Option<IdentityConstraints>,
+        ) -> ssh_key::public::PublicKey {
+            let private_key =
+                SshPrivateKey::random(&mut rand::rngs::OsRng, ssh_key::Algorithm::Ed25519).unwrap();
+            let public_key = ssh_key::public::PublicKey::from(&private_key);
+            let identity = SshIdentity::new_with_constraints(
+                private_key,
+                "test-key".to_string(),
+                IdentitySource::User,
+                constraints,
+            )
+            .unwrap();
+            storage.identity_add(identity).await;
+            public_key
+        }
+
+        fn sign_request(
+            public_key: &ssh_key::public::PublicKey,
+        ) -> ssh_agent_lib::proto::SignRequest {
+            ssh_agent_lib::proto::SignRequest {
+                credential: public_key.key_data().clone().into(),
+                data: b"data-to-sign".to_vec(),
+                flags: 0,
+            }
+        }
+
+        #[tokio::test]
+        async fn signing_is_refused_while_agent_is_locked() {
+            let mut storage = make_storage();
+            let public_key = add_ed25519_identity(&storage, None).await;
+
+            storage
+                .lock_agent("secret lock password".to_string())
+                .await
+                .unwrap();
+            assert!(storage.is_locked().await);
+            assert!(
+                storage.sign(sign_request(&public_key)).await.is_err(),
+                "agent must refuse to sign while locked"
+            );
+            assert!(
+                storage.request_identities().await.unwrap().is_empty(),
+                "locked agent must return an empty identity list (OpenSSH compat)"
+            );
+
+            // Every mutating request must be refused while locked.
+            let other_key =
+                SshPrivateKey::random(&mut rand::rngs::OsRng, ssh_key::Algorithm::Ed25519).unwrap();
+            assert!(
+                storage
+                    .add_identity(ssh_agent_lib::proto::AddIdentity {
+                        credential: ssh_agent_lib::proto::PrivateCredential::Key {
+                            privkey: other_key.key_data().clone(),
+                            comment: "attacker-key".to_string(),
+                        },
+                    })
+                    .await
+                    .is_err(),
+                "locked agent must refuse to add identities"
+            );
+            assert!(
+                storage
+                    .remove_identity(ssh_agent_lib::proto::RemoveIdentity {
+                        credential: public_key.key_data().clone().into(),
+                    })
+                    .await
+                    .is_err(),
+                "locked agent must refuse to remove identities"
+            );
+            assert!(
+                storage.remove_all_identities().await.is_err(),
+                "locked agent must refuse to remove all identities"
+            );
+            assert_eq!(
+                storage.identities.read().await.len(),
+                1,
+                "locked agent must not be mutated"
+            );
+
+            // Locking an already locked agent must fail, otherwise the lock
+            // password could be overwritten and the lock bypassed.
+            assert!(
+                storage
+                    .lock_agent("attacker password".to_string())
+                    .await
+                    .is_err(),
+                "lock must fail when the agent is already locked"
+            );
+
+            // Unlocking with the wrong password must fail and keep the agent locked.
+            assert!(
+                storage
+                    .unlock_agent("wrong password".to_string())
+                    .await
+                    .is_err(),
+                "unlock with wrong password must fail"
+            );
+            assert!(
+                storage.sign(sign_request(&public_key)).await.is_err(),
+                "agent must refuse to sign after a failed unlock attempt"
+            );
+
+            storage
+                .unlock_agent("secret lock password".to_string())
+                .await
+                .unwrap();
+            assert!(!storage.is_locked().await);
+            assert!(
+                storage.sign(sign_request(&public_key)).await.is_ok(),
+                "agent must sign again after unlock"
+            );
+            assert_eq!(
+                storage.identities.read().await.len(),
+                1,
+                "original identity must survive the lock/unlock cycle"
+            );
+        }
+
+        #[tokio::test]
+        async fn unlock_is_refused_when_agent_is_not_locked() {
+            let storage = make_storage();
+            assert!(
+                storage.unlock_agent("unused".to_string()).await.is_err(),
+                "unlock must fail when the agent is not locked"
+            );
+        }
+
+        #[tokio::test]
+        async fn lifetime_constraint_expires_signing() {
+            let mut storage = make_storage();
+            let constraints = IdentityConstraints {
+                expires_at: Some(Instant::now() + Duration::from_millis(100)),
+                ..Default::default()
+            };
+            let public_key = add_ed25519_identity(&storage, Some(constraints)).await;
+
+            // Works right after being added...
+            assert!(storage.sign(sign_request(&public_key)).await.is_ok());
+
+            // ...but must fail once the lifetime expired.
+            tokio::time::sleep(Duration::from_millis(200)).await;
+            assert!(
+                storage.sign(sign_request(&public_key)).await.is_err(),
+                "agent must refuse to sign with an identity whose lifetime expired"
+            );
+            assert!(
+                storage.request_identities().await.unwrap().is_empty(),
+                "expired identity must be removed from the identity list"
+            );
+        }
+
+        #[tokio::test]
+        async fn confirmation_constraint_is_rejected_at_add_time() {
+            use ssh_agent_lib::proto::KeyConstraint;
+
+            let mut storage = make_storage();
+            let private_key =
+                SshPrivateKey::random(&mut rand::rngs::OsRng, ssh_key::Algorithm::Ed25519).unwrap();
+            let identity = ssh_agent_lib::proto::AddIdentity {
+                credential: ssh_agent_lib::proto::PrivateCredential::Key {
+                    privkey: private_key.key_data().clone(),
+                    comment: "confirm-key".to_string(),
+                },
+            };
+            let result = storage
+                .add_identity_constrained(ssh_agent_lib::proto::AddIdentityConstrained {
+                    identity,
+                    constraints: vec![KeyConstraint::Confirm],
+                })
+                .await;
+
+            assert!(
+                result.is_err(),
+                "keys with confirmation constraints must be rejected, not silently added"
+            );
+            assert!(
+                storage.identities.read().await.is_empty(),
+                "rejected key must not be added to the agent"
+            );
+        }
+
+        #[tokio::test]
+        async fn destination_restriction_constraint_is_rejected_at_add_time() {
+            use ssh_agent_lib::proto::KeyConstraint;
+
+            let mut storage = make_storage();
+            let private_key =
+                SshPrivateKey::random(&mut rand::rngs::OsRng, ssh_key::Algorithm::Ed25519).unwrap();
+            let identity = ssh_agent_lib::proto::AddIdentity {
+                credential: ssh_agent_lib::proto::PrivateCredential::Key {
+                    privkey: private_key.key_data().clone(),
+                    comment: "restricted-key".to_string(),
+                },
+            };
+            let result = storage
+                .add_identity_constrained(ssh_agent_lib::proto::AddIdentityConstrained {
+                    identity,
+                    constraints: vec![KeyConstraint::Extension(ssh_agent_lib::proto::Extension {
+                        name: "restrict-destination-v00@openssh.com".to_string(),
+                        details: ssh_agent_lib::proto::Unparsed::from(vec![0u8; 4]),
+                    })],
+                })
+                .await;
+
+            assert!(
+                result.is_err(),
+                "keys with destination restrictions must be rejected, not silently added"
+            );
+            assert!(
+                storage.identities.read().await.is_empty(),
+                "rejected key must not be added to the agent"
+            );
+        }
+
+        #[tokio::test]
+        async fn lifetime_constraint_is_stored_and_enforced_via_constrained_add() {
+            use ssh_agent_lib::proto::KeyConstraint;
+
+            let mut storage = make_storage();
+            let private_key =
+                SshPrivateKey::random(&mut rand::rngs::OsRng, ssh_key::Algorithm::Ed25519).unwrap();
+            let public_key = ssh_key::public::PublicKey::from(&private_key);
+            let identity = ssh_agent_lib::proto::AddIdentity {
+                credential: ssh_agent_lib::proto::PrivateCredential::Key {
+                    privkey: private_key.key_data().clone(),
+                    comment: "lifetime-key".to_string(),
+                },
+            };
+
+            storage
+                .add_identity_constrained(ssh_agent_lib::proto::AddIdentityConstrained {
+                    identity,
+                    constraints: vec![KeyConstraint::Lifetime(1)],
+                })
+                .await
+                .expect("a lifetime-constrained add must succeed");
+            assert_eq!(storage.identities.read().await.len(), 1);
+
+            // Signing must succeed within the lifetime...
+            assert!(storage.sign(sign_request(&public_key)).await.is_ok());
+
+            // ...and must fail after expiry.
+            tokio::time::sleep(Duration::from_millis(1100)).await;
+            assert!(
+                storage.sign(sign_request(&public_key)).await.is_err(),
+                "agent must refuse to sign with an expired constrained identity"
+            );
+        }
     }
 }

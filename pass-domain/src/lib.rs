@@ -27,6 +27,7 @@ pub mod features;
 pub mod headers;
 pub mod models;
 pub mod os_info;
+pub mod password_hash;
 pub mod protos;
 pub mod telemetry;
 pub mod types;
