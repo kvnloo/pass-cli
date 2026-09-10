@@ -72,6 +72,8 @@ pub struct Item {
     pub modify_time: jiff::civil::DateTime,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub folder_id: Option<FolderId>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub alias_email: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
