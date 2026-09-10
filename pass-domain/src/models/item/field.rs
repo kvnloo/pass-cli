@@ -566,6 +566,7 @@ mod tests {
                 .to_zoned(jiff::tz::TimeZone::UTC)
                 .datetime(),
             folder_id: None,
+            alias_email: None,
         }
     }
 

@@ -18,6 +18,9 @@ uuid.workspace = true
 zeroize.workspace = true
 
 aes-gcm = "0.10.3"
+argon2 = { version = "0.5.3", default-features = false, features = ["alloc"] }
+base64 = { workspace = true }
+hex = "0.4.3"
 strum = { version = "0.28", features = ["derive"] }
 sysinfo = "0.39.6"
 

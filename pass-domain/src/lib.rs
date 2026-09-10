@@ -20,6 +20,7 @@
 #[macro_use]
 mod macros;
 
+pub mod archive;
 pub mod crypto;
 pub mod feature_flag;
 pub mod features;

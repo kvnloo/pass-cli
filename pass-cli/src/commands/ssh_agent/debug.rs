@@ -347,6 +347,7 @@ mod tests {
             create_time: jiff::civil::DateTime::default(),
             modify_time: jiff::civil::DateTime::default(),
             folder_id: None,
+            alias_email: None,
         }
     }
 
