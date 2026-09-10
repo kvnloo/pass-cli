@@ -27,6 +27,7 @@ use crate::storage::{
 use crate::telemetry::SqliteTelemetryHandler;
 use anyhow::{Context, Result};
 use pass_db::DatabaseManager;
+use pass_domain::crypto::KEY_LENGTH;
 use pass_domain::{
     AccountCrypto, ClientFeatures, DataStorage, FsStorage, LocalKey, LocalKeyProvider,
     TelemetryHandler,
@@ -177,10 +178,32 @@ impl FsLocalKeyProvider {
     pub async fn get_local_key(&self) -> Result<Vec<u8>> {
         let key_path = self.local_key_path()?;
 
-        if key_path.exists() && key_path.is_file() {
-            return tokio::fs::read(&key_path)
-                .await
-                .context("Error reading local key file");
+        match std::fs::symlink_metadata(&key_path) {
+            Ok(meta) if meta.file_type().is_symlink() => {
+                anyhow::bail!(
+                    "Local key file is a symlink, refusing to use it: {}",
+                    key_path.display()
+                );
+            }
+            Ok(meta) if !meta.is_file() => {
+                anyhow::bail!(
+                    "Local key file is not a regular file, refusing to use it: {}",
+                    key_path.display()
+                );
+            }
+            Ok(_) => {
+                let key = tokio::fs::read(&key_path)
+                    .await
+                    .context("Error reading local key file")?;
+                if key.len() != KEY_LENGTH {
+                    anyhow::bail!(
+                        "Local key file has an invalid length, refusing to use it: {}",
+                        key_path.display()
+                    );
+                }
+                return Ok(key);
+            }
+            Err(_) => {}
         }
 
         info!("Couldn't find local key file, generating one");
@@ -228,10 +251,19 @@ impl LocalKeyProvider for FsLocalKeyProvider {
 
     async fn remove_key(&self) -> Result<()> {
         let key_path = self.local_key_path()?;
-        if key_path.exists() {
-            tokio::fs::remove_file(&key_path)
-                .await
-                .context("Error removing local key file")?;
+        match std::fs::symlink_metadata(&key_path) {
+            Ok(meta) if meta.file_type().is_symlink() => {
+                anyhow::bail!(
+                    "Local key file is a symlink, refusing to remove it: {}",
+                    key_path.display()
+                );
+            }
+            Ok(meta) if meta.is_file() => {
+                tokio::fs::remove_file(&key_path)
+                    .await
+                    .context("Error removing local key file")?;
+            }
+            _ => {}
         }
         Ok(())
     }
