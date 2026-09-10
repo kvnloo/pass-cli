@@ -24,15 +24,7 @@ use pass_domain::{EventAction, ItemId, ShareId};
 
 const REASON_ENV_VAR: &str = "PROTON_PASS_AGENT_REASON";
 
-fn validate_reason() -> Result<String> {
-    let reason = std::env::var(REASON_ENV_VAR).map_err(|_| {
-        anyhow!(
-            "Agent sessions must set the {REASON_ENV_VAR} environment variable before running \
-             item commands.\n\
-             Example: {REASON_ENV_VAR}=\"Retrieving database credentials for deployment\" pass-cli item view --share-id {{YourShareId}} --item-id {{YourItemId}}"
-        )
-    })?;
-
+fn validate_reason_string(reason: String) -> Result<String> {
     if reason.trim().is_empty() {
         return Err(anyhow!(
             "{REASON_ENV_VAR} is set but empty. Provide a non-empty reason describing why \
@@ -49,6 +41,18 @@ fn validate_reason() -> Result<String> {
     }
 
     Ok(reason)
+}
+
+fn validate_reason() -> Result<String> {
+    let reason = std::env::var(REASON_ENV_VAR).map_err(|_| {
+        anyhow!(
+            "Agent sessions must set the {REASON_ENV_VAR} environment variable before running \
+             commands.\n\
+             Example: {REASON_ENV_VAR}=\"Retrieving database credentials for deployment\" pass-cli item view --share-id {{YourShareId}} --item-id {{YourItemId}}"
+        )
+    })?;
+
+    validate_reason_string(reason)
 }
 
 // For agent sessions, validates that the reason env var is set and valid before an operation.
@@ -97,4 +101,49 @@ pub async fn send_reason_if_agent_with_name(
     client
         .send_monitor_action_with_name(action, share_id, item_id, item_name, &reason)
         .await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_reason_is_rejected() {
+        let err =
+            validate_reason_string("".to_string()).expect_err("empty reason must be rejected");
+        assert!(err.to_string().contains("set but empty"));
+    }
+
+    #[test]
+    fn whitespace_only_reason_is_rejected() {
+        let err = validate_reason_string("   \t\n ".to_string())
+            .expect_err("whitespace-only reason must be rejected");
+        assert!(err.to_string().contains("set but empty"));
+    }
+
+    #[test]
+    fn overlong_reason_is_rejected() {
+        let long_reason = "a".repeat(MAX_REASON_LENGTH + 1);
+        let err =
+            validate_reason_string(long_reason).expect_err("overlong reason must be rejected");
+        assert!(err.to_string().contains("too long"));
+    }
+
+    #[test]
+    fn max_length_reason_is_accepted() {
+        let reason = "a".repeat(MAX_REASON_LENGTH);
+        assert_eq!(
+            validate_reason_string(reason.to_string()).expect("max-length reason must be accepted"),
+            reason
+        );
+    }
+
+    #[test]
+    fn valid_reason_is_returned_verbatim() {
+        let reason = "Rotating credentials before deployment".to_string();
+        assert_eq!(
+            validate_reason_string(reason.clone()).expect("valid reason must be accepted"),
+            reason
+        );
+    }
 }

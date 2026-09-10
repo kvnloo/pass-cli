@@ -18,7 +18,7 @@
  */
 
 use super::common::{ItemQuery, ShareQuery};
-use crate::commands::item::agent_monitor::send_reason_if_agent;
+use crate::commands::item::agent_monitor::{ensure_reason_if_agent, send_reason_if_agent};
 use crate::helpers::CliPassClient as PassClient;
 use anyhow::{Context, Result, anyhow};
 use pass_domain::{EventAction, UpdateFieldResult};
@@ -53,6 +53,8 @@ pub async fn run(
             "No fields to update. Use --field to specify at least one field to update"
         ));
     }
+
+    ensure_reason_if_agent(&client)?;
 
     let share_id = share_query.share_id(&client).await?;
     let item_id = item_query.item_id(&share_id, &client).await?;
