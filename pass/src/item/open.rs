@@ -224,6 +224,7 @@ impl<C: PassClientContext> PassClient<C> {
                 create_time: timestamp_to_naive_datetime(item.create_time),
                 modify_time: timestamp_to_naive_datetime(item.modify_time),
                 folder_id: folder_id.map(FolderId::new),
+                alias_email: item.alias_email,
             },
             item_key,
         }])
@@ -305,6 +306,7 @@ impl<C: PassClientContext> PassClient<C> {
                                 create_time: timestamp_to_naive_datetime(item.create_time),
                                 modify_time: timestamp_to_naive_datetime(item.modify_time),
                                 folder_id: item.folder_id.clone().map(FolderId::new),
+                                alias_email: item.alias_email.clone(),
                             },
                             item_key,
                         },
