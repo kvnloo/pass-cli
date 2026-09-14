@@ -352,7 +352,7 @@ mod tests {
     }
 
     fn generate_pkcs8_rsa_private_key() -> String {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand_core::OsRng;
         let private_key =
             rsa::RsaPrivateKey::new(&mut rng, 2048).expect("Should generate test RSA key");
         private_key

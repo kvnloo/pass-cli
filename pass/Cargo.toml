@@ -23,8 +23,8 @@ serde_json.workspace = true
 tracing.workspace = true
 zeroize.workspace = true
 
-async-lock = "3.4.0"
-serde_repr = "0.1.20"
+async-lock = "3.4.2"
+serde_repr = "0.1.21"
 
 [dev-dependencies]
 pass-fs = {path = "../pass-fs"}

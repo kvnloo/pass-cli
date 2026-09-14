@@ -368,8 +368,7 @@ mod tests {
     use ssh_key::Algorithm;
 
     fn make_identity(share_id: &str, item_id: &str, comment: &str) -> SshIdentity {
-        let private_key =
-            SshPrivateKey::random(&mut rand::rngs::OsRng, Algorithm::Ed25519).unwrap();
+        let private_key = SshPrivateKey::random(&mut rand_core::OsRng, Algorithm::Ed25519).unwrap();
         SshIdentity::new(
             private_key,
             comment.to_string(),
