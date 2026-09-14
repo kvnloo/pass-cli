@@ -7,7 +7,7 @@ edition = "2024"
 pass = { path = "../pass" }
 pass-domain = { path = "../pass-domain" }
 
-aes = "0.8.4"
+aes = "0.9"
 async-compat = "0.2"
 rand_chacha = { version = "0.9", features = ["os_rng"] }
 urlencoding = "2.1"
