@@ -173,12 +173,23 @@ impl<R: SecretResolver> TemplateProcessor<R> {
         // This regex ensures we only match URIs that are within {{ }} blocks
         let pass_ref_re = compile_pass_uri_regex()?;
 
-        let mut result = template.to_string();
         let mut cache = self.secrets_cache.lock().await;
 
+        let mut result = String::with_capacity(template.len());
+        let mut last_end = 0;
+
         for captures in pass_ref_re.captures_iter(template) {
-            let full_match = captures.get(0).unwrap().as_str();
-            let uri = captures.get(1).unwrap().as_str().trim();
+            let whole_match = captures
+                .get(0)
+                .ok_or_else(|| anyhow!("Failed to extract match span for pass URI in template"))?;
+            result.push_str(&template[last_end..whole_match.start()]);
+            last_end = whole_match.end();
+
+            let uri = captures
+                .get(1)
+                .ok_or_else(|| anyhow!("Failed to extract pass URI from template expression"))?
+                .as_str()
+                .trim();
 
             // Parse the URI
             let secret_ref = SecretReference::parse(uri)
@@ -212,9 +223,10 @@ impl<R: SecretResolver> TemplateProcessor<R> {
                 value
             };
 
-            // Replace the entire handlebars expression with the secret value
-            result = result.replace(full_match, &secret_value);
+            result.push_str(&secret_value);
         }
+
+        result.push_str(&template[last_end..]);
 
         Ok(result)
     }
@@ -789,6 +801,81 @@ code: {{ pass://vault/item/otp?totp=code }}
 
         assert!(result.contains("uri: otpauth://uri"));
         assert!(result.contains("code: 123456"));
+    }
+
+    #[tokio::test]
+    async fn second_order_substitution_does_not_leak_private_secret() {
+        let attacker_value =
+            "http://127.0.0.1:9/collect?value={{{{ pass://private/database/password }}}}"
+                .to_string();
+        let resolver = StaticSecretResolver::new()
+            .with_secret("shared", "endpoint", "value", attacker_value.as_str())
+            .with_secret("private", "database", "password", "PRIVATE_DATABASE_SECRET");
+        let processor = TemplateProcessor::new(resolver);
+        let template = concat!(
+            "CALLBACK={{ pass://shared/endpoint/value }}\n",
+            "DATABASE_PASSWORD={{ pass://private/database/password }}\n",
+        );
+
+        let generated = processor.process_template(template).await.unwrap();
+
+        let callback = generated
+            .lines()
+            .next()
+            .unwrap()
+            .strip_prefix("CALLBACK=")
+            .unwrap();
+        assert_eq!(callback, attacker_value);
+        assert!(!generated.lines().nth(1).unwrap().ends_with("CALLBACK"));
+        assert_eq!(
+            generated.lines().nth(1).unwrap(),
+            "DATABASE_PASSWORD=PRIVATE_DATABASE_SECRET"
+        );
+        // The private secret appears exactly once: in its own field.
+        assert_eq!(generated.matches("PRIVATE_DATABASE_SECRET").count(), 1);
+    }
+
+    #[tokio::test]
+    async fn secret_value_containing_template_reference_is_never_evaluated() {
+        let resolver = StaticSecretResolver::new()
+            .with_secret(
+                "shared",
+                "a",
+                "value",
+                "{{ pass://private/database/password }}",
+            )
+            .with_secret(
+                "shared",
+                "b",
+                "value",
+                "{{pass://private/database/password}}",
+            )
+            .with_secret(
+                "shared",
+                "c",
+                "value",
+                "nested {{ pass://shared/a/value }} here",
+            )
+            .with_secret("private", "database", "password", "PRIVATE_DATABASE_SECRET");
+        let processor = TemplateProcessor::new(resolver);
+        let template = concat!(
+            "BEFORE={{ pass://shared/a/value }}\n",
+            "AFTER={{ pass://shared/b/value }}\n",
+            "DATABASE_PASSWORD={{ pass://private/database/password }}\n",
+            "NESTED={{ pass://shared/c/value }}\n",
+        );
+
+        let generated = processor.process_template(template).await.unwrap();
+
+        assert_eq!(
+            generated,
+            concat!(
+                "BEFORE={{ pass://private/database/password }}\n",
+                "AFTER={{pass://private/database/password}}\n",
+                "DATABASE_PASSWORD=PRIVATE_DATABASE_SECRET\n",
+                "NESTED=nested {{ pass://shared/a/value }} here\n",
+            )
+        );
     }
 
     #[test]
