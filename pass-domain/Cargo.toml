@@ -17,8 +17,8 @@ serde_json.workspace = true
 uuid.workspace = true
 zeroize.workspace = true
 
-aes-gcm = "0.10.3"
-argon2 = { version = "0.5.3", default-features = false, features = ["alloc"] }
+aes-gcm.workspace = true
+argon2 = { version = "0.6", default-features = false, features = ["alloc", "password-hash"] }
 base64 = { workspace = true }
 hex = "0.4.3"
 strum = { version = "0.28", features = ["derive"] }

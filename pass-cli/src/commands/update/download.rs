@@ -66,7 +66,7 @@ async fn download_and_verify(url: &str, expected_hash: &str, extension: &str) ->
         file.sync_all().await.context("Failed to sync temp file")?;
 
         // Verify hash after download completes
-        let computed_hash = format!("{:x}", hasher.finalize());
+        let computed_hash = hex::encode(hasher.finalize());
         if computed_hash != expected_hash {
             return Err(anyhow::anyhow!(
                 "Downloaded file failed verification. Expected hash: {expected_hash}, got: {computed_hash}",

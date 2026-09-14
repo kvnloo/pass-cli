@@ -17,8 +17,7 @@
  *
  */
 
-use argon2::password_hash::{PasswordHash, PasswordHasher as _, PasswordVerifier, SaltString};
-use argon2::{Algorithm, Argon2, Params, Version};
+use argon2::{Algorithm, Argon2, Params, PasswordHasher as _, PasswordVerifier, Version};
 
 use crate::crypto;
 
@@ -62,22 +61,17 @@ impl PasswordHasher {
     }
 
     pub fn hash_password(&self, password: &str) -> anyhow::Result<String> {
-        let salt_bytes = crypto::random_bytes(SALT_LEN);
-        let salt = SaltString::encode_b64(&salt_bytes)
-            .map_err(|e| anyhow::anyhow!("Failed to generate salt: {e}"))?;
+        let salt = crypto::random_bytes(SALT_LEN);
         let hash = self
             .argon2()?
-            .hash_password(password.as_bytes(), &salt)
+            .hash_password_with_salt(password.as_bytes(), &salt)
             .map_err(|e| anyhow::anyhow!("Failed to hash password: {e}"))?;
         Ok(hash.to_string())
     }
 
     pub fn verify_password(&self, password: &str, hash: &str) -> bool {
-        let Ok(parsed) = PasswordHash::new(hash) else {
-            return false;
-        };
         Argon2::default()
-            .verify_password(password.as_bytes(), &parsed)
+            .verify_password(password.as_bytes(), hash)
             .is_ok()
     }
 }
