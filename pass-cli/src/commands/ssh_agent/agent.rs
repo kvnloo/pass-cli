@@ -337,7 +337,7 @@ impl Session for KeyStorage {
                         ],
                     )
                     .map_err(AgentError::other)?;
-                    let mut rng = rand::thread_rng();
+                    let mut rng = rand_core::OsRng;
                     let data = &sign_request.data;
 
                     let signature = if sign_request.flags
@@ -379,31 +379,34 @@ impl Session for KeyStorage {
                     let (algorithm, signature_bytes) = match keypair.curve() {
                         EcdsaCurve::NistP256 => {
                             use p256::ecdsa::{SigningKey, signature::Signer};
-                            use p256::elliptic_curve::generic_array::GenericArray;
+                            use p256::elliptic_curve::FieldBytes;
                             let private_bytes = keypair.private_key_bytes();
-                            let key_array = GenericArray::from_slice(private_bytes);
+                            let key_array = <FieldBytes<p256::NistP256>>::try_from(private_bytes)
+                                .map_err(AgentError::other)?;
                             let signing_key =
-                                SigningKey::from_bytes(key_array).map_err(AgentError::other)?;
+                                SigningKey::from_bytes(&key_array).map_err(AgentError::other)?;
                             let sig: p256::ecdsa::Signature = signing_key.sign(&sign_request.data);
                             ("ecdsa-sha2-nistp256", sig.to_bytes().to_vec())
                         }
                         EcdsaCurve::NistP384 => {
                             use p384::ecdsa::{SigningKey, signature::Signer};
-                            use p384::elliptic_curve::generic_array::GenericArray;
+                            use p384::elliptic_curve::FieldBytes;
                             let private_bytes = keypair.private_key_bytes();
-                            let key_array = GenericArray::from_slice(private_bytes);
+                            let key_array = <FieldBytes<p384::NistP384>>::try_from(private_bytes)
+                                .map_err(AgentError::other)?;
                             let signing_key =
-                                SigningKey::from_bytes(key_array).map_err(AgentError::other)?;
+                                SigningKey::from_bytes(&key_array).map_err(AgentError::other)?;
                             let sig: p384::ecdsa::Signature = signing_key.sign(&sign_request.data);
                             ("ecdsa-sha2-nistp384", sig.to_bytes().to_vec())
                         }
                         EcdsaCurve::NistP521 => {
                             use p521::ecdsa::{SigningKey, signature::Signer};
-                            use p521::elliptic_curve::generic_array::GenericArray;
+                            use p521::elliptic_curve::FieldBytes;
                             let private_bytes = keypair.private_key_bytes();
-                            let key_array = GenericArray::from_slice(private_bytes);
+                            let key_array = <FieldBytes<p521::NistP521>>::try_from(private_bytes)
+                                .map_err(AgentError::other)?;
                             let signing_key =
-                                SigningKey::from_bytes(key_array).map_err(AgentError::other)?;
+                                SigningKey::from_bytes(&key_array).map_err(AgentError::other)?;
                             let sig: p521::ecdsa::Signature = signing_key.sign(&sign_request.data);
                             ("ecdsa-sha2-nistp521", sig.to_bytes().to_vec())
                         }
@@ -757,7 +760,7 @@ hKEN721g/PpYfJsPyXshiefFhXEkcIfwYB0o9FfWmg5YzaLyddb9lf7ckdd6WCnvAC7O3F
             constraints: Option<IdentityConstraints>,
         ) -> ssh_key::public::PublicKey {
             let private_key =
-                SshPrivateKey::random(&mut rand::rngs::OsRng, ssh_key::Algorithm::Ed25519).unwrap();
+                SshPrivateKey::random(&mut rand_core::OsRng, ssh_key::Algorithm::Ed25519).unwrap();
             let public_key = ssh_key::public::PublicKey::from(&private_key);
             let identity = SshIdentity::new_with_constraints(
                 private_key,
@@ -801,7 +804,7 @@ hKEN721g/PpYfJsPyXshiefFhXEkcIfwYB0o9FfWmg5YzaLyddb9lf7ckdd6WCnvAC7O3F
 
             // Every mutating request must be refused while locked.
             let other_key =
-                SshPrivateKey::random(&mut rand::rngs::OsRng, ssh_key::Algorithm::Ed25519).unwrap();
+                SshPrivateKey::random(&mut rand_core::OsRng, ssh_key::Algorithm::Ed25519).unwrap();
             assert!(
                 storage
                     .add_identity(ssh_agent_lib::proto::AddIdentity {
@@ -911,7 +914,7 @@ hKEN721g/PpYfJsPyXshiefFhXEkcIfwYB0o9FfWmg5YzaLyddb9lf7ckdd6WCnvAC7O3F
 
             let mut storage = make_storage();
             let private_key =
-                SshPrivateKey::random(&mut rand::rngs::OsRng, ssh_key::Algorithm::Ed25519).unwrap();
+                SshPrivateKey::random(&mut rand_core::OsRng, ssh_key::Algorithm::Ed25519).unwrap();
             let identity = ssh_agent_lib::proto::AddIdentity {
                 credential: ssh_agent_lib::proto::PrivateCredential::Key {
                     privkey: private_key.key_data().clone(),
@@ -941,7 +944,7 @@ hKEN721g/PpYfJsPyXshiefFhXEkcIfwYB0o9FfWmg5YzaLyddb9lf7ckdd6WCnvAC7O3F
 
             let mut storage = make_storage();
             let private_key =
-                SshPrivateKey::random(&mut rand::rngs::OsRng, ssh_key::Algorithm::Ed25519).unwrap();
+                SshPrivateKey::random(&mut rand_core::OsRng, ssh_key::Algorithm::Ed25519).unwrap();
             let identity = ssh_agent_lib::proto::AddIdentity {
                 credential: ssh_agent_lib::proto::PrivateCredential::Key {
                     privkey: private_key.key_data().clone(),
@@ -974,7 +977,7 @@ hKEN721g/PpYfJsPyXshiefFhXEkcIfwYB0o9FfWmg5YzaLyddb9lf7ckdd6WCnvAC7O3F
 
             let mut storage = make_storage();
             let private_key =
-                SshPrivateKey::random(&mut rand::rngs::OsRng, ssh_key::Algorithm::Ed25519).unwrap();
+                SshPrivateKey::random(&mut rand_core::OsRng, ssh_key::Algorithm::Ed25519).unwrap();
             let public_key = ssh_key::public::PublicKey::from(&private_key);
             let identity = ssh_agent_lib::proto::AddIdentity {
                 credential: ssh_agent_lib::proto::PrivateCredential::Key {

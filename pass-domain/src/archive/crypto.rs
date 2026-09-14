@@ -85,13 +85,14 @@ pub fn derive_key(password: &str, salt: &[u8], params: &ArchiveKdfParams) -> Res
 pub fn encrypt_blob(plaintext: &[u8], key: &[u8; KEY_LEN]) -> Result<Vec<u8>> {
     let cipher = Aes256Gcm::new(key.into());
     let nonce_bytes = crypto::random_bytes(NONCE_LEN);
-    let nonce = Nonce::from_slice(&nonce_bytes);
+    let nonce = Nonce::try_from(&nonce_bytes[..])
+        .map_err(|_| anyhow!("Failed to build encryption nonce"))?;
     let payload = Payload {
         msg: plaintext,
         aad: ARCHIVE_AAD,
     };
     let ciphertext = cipher
-        .encrypt(nonce, payload)
+        .encrypt(&nonce, payload)
         .map_err(|_| anyhow!("Error encrypting archive blob"))?;
     let mut result = nonce_bytes;
     result.extend_from_slice(&ciphertext);
@@ -110,7 +111,11 @@ pub fn decrypt_blob(blob: &[u8], key: &[u8; KEY_LEN]) -> Result<Vec<u8>> {
         aad: ARCHIVE_AAD,
     };
     cipher
-        .decrypt(Nonce::from_slice(nonce_bytes), payload)
+        .decrypt(
+            &Nonce::try_from(nonce_bytes)
+                .map_err(|_| anyhow!("Failed to build decryption nonce"))?,
+            payload,
+        )
         .map_err(|_| anyhow!("Wrong password or corrupted archive"))
 }
 

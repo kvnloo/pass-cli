@@ -31,9 +31,8 @@ use muon::env::{Env, Environment};
 use muon::{GET, Session};
 use parking_lot::RwLock;
 use pass_domain::aes_gcm::aead::consts::U16;
-use pass_domain::aes_gcm::aead::generic_array::GenericArray;
 use pass_domain::aes_gcm::aead::{Aead, Payload};
-use pass_domain::aes_gcm::{AesGcm, KeyInit};
+use pass_domain::aes_gcm::{AesGcm, Key, KeyInit, Nonce};
 use std::str::FromStr;
 use std::sync::Arc;
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
@@ -125,15 +124,18 @@ fn decrypt_payload(encryption_key: &[u8], payload: &str) -> Result<SessionPayloa
 
     // Use AES-256-GCM with a 16-byte nonce
     type Aes256GcmWith16ByteNonce = AesGcm<Aes256, U16>;
-    let cipher = Aes256GcmWith16ByteNonce::new(GenericArray::from_slice(encryption_key));
-    let nonce = GenericArray::<u8, U16>::from_slice(nonce_bytes);
+    let key = Key::<Aes256GcmWith16ByteNonce>::try_from(encryption_key)
+        .map_err(|_| anyhow!("Invalid encryption key length"))?;
+    let cipher = Aes256GcmWith16ByteNonce::new(&key);
+    let nonce = Nonce::<U16>::try_from(nonce_bytes)
+        .map_err(|_| anyhow!("Invalid nonce length in payload"))?;
 
     let payload = Payload {
         msg: cipherdata,
         aad: &[],
     };
     let decrypted = cipher
-        .decrypt(nonce, payload)
+        .decrypt(&nonce, payload)
         .map_err(|e| anyhow!("Error decrypting payload: {e}"))?;
     let decrypted_zeroizing = Zeroizing::new(decrypted);
     let parsed: SessionPayload =
