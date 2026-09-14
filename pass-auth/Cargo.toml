@@ -9,7 +9,8 @@ pass-domain = { path = "../pass-domain" }
 
 aes = "0.9"
 async-compat = "0.2"
-rand_chacha = { version = "0.9", features = ["os_rng"] }
+rand_chacha = "0.10"
+rand.workspace = true
 urlencoding = "2.1"
 
 anyhow.workspace = true
