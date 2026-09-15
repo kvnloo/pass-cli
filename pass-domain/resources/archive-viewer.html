@@ -55,6 +55,11 @@
   --interaction-default-hover: rgba(194, 194, 194, 0.2);
   --interaction-default-active: rgba(194, 194, 194, 0.4);
   --navigation-current-item-background-color: #ffffff;
+  --field-background: #ffffff;
+  --focus-outline: #4612a7;
+  --focus-ring: #ded1f6;
+  --search-focus-bg: #ffffff;
+  --vault-heliotrope: #8849ff;
   --border-norm: #9994d1;
   --border-weak: #e3dffa;
   --danger: #cc2d4f;
@@ -95,6 +100,11 @@ html[data-theme="dark"] {
   --interaction-default-hover: rgba(255, 255, 255, 0.04);
   --interaction-default-active: rgba(255, 255, 255, 0.08);
   --navigation-current-item-background-color: #302d45;
+  --field-background: #1c1c2c;
+  --focus-outline: #c5c5ff;
+  --focus-ring: #5b5b80;
+  --search-focus-bg: #0e0e0e;
+  --vault-heliotrope: #8849ff;
   --border-norm: #7a7aad;
   --border-weak: #38384c;
   --danger: #f08fa4;
@@ -194,38 +204,63 @@ body {
   border-radius: 4px; padding: 1px 6px;
   margin-left: auto;
 }
-.search-box { position: relative; margin: 4px 12px 10px; flex-shrink: 0; }
-.search-box .icon {
-  position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
-  color: var(--text-weak); width: 16px; height: 16px;
-  display: inline-flex;
+/* Search bar: mirrors the web app's .pass-searchbar — rounded input sitting in the
+   main header, magnifier prefix, clear (×) suffix, purple focus ring. */
+.top-search {
+  position: relative; flex: 1; min-width: 0;
+  display: flex; align-items: center;
 }
-.search-box input {
-  width: 100%; padding: 7px 10px 7px 32px;
-  background: var(--background-strong); color: var(--text-norm);
-  border: 1px solid var(--border-weak); border-radius: var(--radius-sm);
-  font: inherit; font-size: 14px; outline: none;
-  transition: border-color .15s;
+.top-search .input-shell {
+  display: flex; align-items: stretch; flex: 1; min-width: 0;
+  background: var(--background-strong);
+  border: 1px solid var(--border-weak);
+  border-radius: var(--radius-sm);
+  transition: background .15s var(--ease), border-color .15s var(--ease), box-shadow .15s var(--ease);
 }
-.search-box input::placeholder { color: var(--text-hint); }
-.search-box input:focus { background: var(--background-weak); border-color: var(--interaction-norm); }
-.filters { flex: 1; overflow-y: auto; padding: 0 8px 12px; }
+.top-search .input-shell:focus-within {
+  background: var(--search-focus-bg);
+  border-color: var(--focus-outline);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+.top-search .prefix-icon {
+  display: inline-flex; align-items: center; flex-shrink: 0;
+  padding-left: 12px; color: var(--text-norm);
+}
+.top-search .prefix-icon svg { width: 16px; height: 16px; }
+.top-search input {
+  flex: 1; min-width: 0;
+  background: transparent; border: none; outline: none;
+  padding: 6px 8px;
+  font: inherit; font-size: 14px; color: var(--text-norm);
+  text-overflow: ellipsis;
+}
+.top-search input::placeholder { color: var(--text-weak); }
+.search-clear {
+  display: none; align-items: center; justify-content: center; flex-shrink: 0;
+  background: transparent; border: none; cursor: pointer;
+  padding: 0 10px; color: var(--text-norm);
+}
+.search-clear svg { width: 16px; height: 16px; }
+.top-search.has-text .search-clear { display: inline-flex; }
+.filters { flex: 1; overflow-y: auto; padding: 0 12px 12px; }
 .filters-title {
-  font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em;
-  color: var(--text-hint);
-  padding: 14px 10px 6px;
+  display: flex; align-items: center;
+  font-size: 14px; font-weight: 400;
+  color: var(--text-weak);
+  padding: 16px 10px 6px;
 }
+.filters-title.accent { color: var(--interaction-norm); }
 .filter, .vault-item {
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: center; gap: 8px;
   width: 100%; text-align: left;
-  padding: 6px 10px;
+  padding: 8px;
   background: transparent; color: var(--text-norm);
   border: none; border-radius: var(--radius-sm);
   font: inherit; font-size: 14px; cursor: pointer;
   transition: background .15s;
 }
 .filter:hover { background: var(--interaction-default-hover); }
-.filter.active { background: var(--navigation-current-item-background-color); font-weight: var(--font-weight-bold); }
+.filter.active { background: var(--navigation-current-item-background-color); }
 .filter-icon { display: inline-flex; width: 16px; height: 16px; color: var(--text-weak); flex-shrink: 0; }
 .filter-icon svg { width: 16px; height: 16px; display: block; }
 
@@ -235,10 +270,45 @@ svg { fill: currentColor; }
 
 .filter.active .filter-icon { color: var(--interaction-norm); }
 .count { margin-left: auto; font-size: 12px; color: var(--text-hint); font-weight: 400; }
-.vault-dot {
-  width: 8px; height: 8px; border-radius: 50%;
+/* Sidebar rows: two lines (name + "N items") with a 32px tinted icon chip,
+   mirroring the web app's vault submenu entries. */
+.filter.has-chip { min-height: 54px; padding: 8px; gap: 10px; align-items: center; }
+.filter.has-chip .filter-icon { display: none; }
+.row-chip {
+  width: 32px; height: 32px; min-width: 32px;
+  border-radius: 14px;
+  display: inline-flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
+.row-chip svg { width: 16px; height: 16px; display: block; }
+/* Type-tinted chips for the sidebar (same palette as the list item icons) */
+.row-chip.ui-violet { background: #ecdffa; color: #8849ff; }
+.row-chip.ui-gray   { background: #ececec; color: #666666; }
+.row-chip.ui-orange { background: #f0ebdb; color: #a07830; }
+.row-chip.ui-teal   { background: #dbf0ed; color: #007d68; }
+.row-chip.ui-red    { background: #fadfdf; color: #cc2d4f; }
+.row-chip.ui-blue   { background: #ddeefa; color: #0072b8; }
+.row-chip.ui-green  { background: #ddf5e8; color: #007b58; }
+html[data-theme="dark"] .row-chip.ui-violet { background: #37305c; color: #d3adf7; }
+html[data-theme="dark"] .row-chip.ui-gray   { background: #3d3d52; color: #c8c8d4; }
+html[data-theme="dark"] .row-chip.ui-orange { background: #4d4033; color: #e8c890; }
+html[data-theme="dark"] .row-chip.ui-teal   { background: #254944; color: #7fd4c4; }
+html[data-theme="dark"] .row-chip.ui-red    { background: #502a38; color: #f09aae; }
+html[data-theme="dark"] .row-chip.ui-blue   { background: #28425c; color: #90c4ec; }
+html[data-theme="dark"] .row-chip.ui-green  { background: #245140; color: #8fdcbb; }
+/* Vault chips: --chip holds the vault color as an "r,g,b" triple; color-mix
+   keeps the tint correct in both themes without recomputing on toggle. */
+.row-chip.vault {
+  background: color-mix(in srgb, rgb(var(--chip, 136 73 255)) 18%, var(--background-norm));
+  color: color-mix(in srgb, rgb(var(--chip, 136 73 255)) 80%, var(--text-norm));
+}
+html[data-theme="dark"] .row-chip.vault {
+  background: color-mix(in srgb, rgb(var(--chip, 136 73 255)) 30%, var(--background-norm));
+  color: color-mix(in srgb, rgb(var(--chip, 136 73 255)) 60%, #ffffff);
+}
+.nav-labels { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.nav-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nav-sub { color: var(--text-weak); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .folder-rows .filter { height: 36px; }
 .folder-chevron {
   display: inline-flex; width: 16px; height: 16px;
@@ -265,6 +335,37 @@ svg { fill: currentColor; }
 }
 .item-list-header h2 { font-size: 16px; font-weight: 600; }
 .list-count { color: var(--text-hint); font-size: 12px; }
+/* Toolbar above the item list (web app layout): scope title + type-filter pills.
+   Lives inside .list-col so it never pushes the detail pane down. */
+.list-col {
+  display: flex; flex-direction: column;
+  width: var(--list-w); min-width: 280px; min-height: 0;
+  border-right: 1px solid var(--border-weak);
+  background: var(--background-norm);
+  flex-shrink: 0;
+}
+.list-toolbar {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid var(--border-weak);
+  flex-shrink: 0;
+}
+.toolbar-top { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.toolbar-top h2 { font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.type-pills { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+.type-pills::-webkit-scrollbar { display: none; }
+.type-pills button {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 32px; flex-shrink: 0;
+  padding: 6px 8px;
+  background: var(--interaction-weak);
+  color: var(--interaction-norm);
+  border: none; border-radius: 8px;
+  font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+  transition: background .15s;
+}
+.type-pills button:hover { background: var(--interaction-weak-hover); }
+.type-pills button svg { width: 16px; height: 16px; }
 .icon-btn {
   background: transparent; color: var(--text-norm);
   border: none; cursor: pointer; padding: 8px;
@@ -275,8 +376,7 @@ svg { fill: currentColor; }
 .body-row { flex: 1; display: flex; min-height: 0; }
 
 .item-list {
-  width: var(--list-w); min-width: 280px;
-  border-right: 1px solid var(--border-weak);
+  flex: 1; min-height: 0; min-width: 0;
   overflow-y: auto;
   padding: 4px 0 12px;
   background: var(--background-norm);
@@ -356,12 +456,13 @@ html[data-theme="dark"] .item-icon.ui-green { background: #245140; }
   display: inline-flex; align-items: center; gap: 5px;
   color: var(--text-weak);
   font-size: 12px;
-  max-width: 100%;
+  min-width: 0;
   overflow: hidden;
   white-space: nowrap;
 }
-.detail-crumb { color: var(--text-weak); }
-.detail-crumb-sep { color: var(--text-hint); }
+.detail-crumb { color: var(--text-weak); min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.detail-crumb:last-child { flex-shrink: 0; }
+.detail-crumb-sep { color: var(--text-hint); flex-shrink: 0; }
 .detail-crumb-icon {
   display: inline-flex; width: 13px; height: 13px;
   color: var(--folder-icon);
@@ -484,8 +585,8 @@ html[data-theme="dark"] .item-icon.ui-green { background: #245140; }
   .sidebar.open { transform: translateX(0); box-shadow: 0 0 40px var(--shadow-color); }
   .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 45; }
   .sidebar-overlay.open { display: block; }
-  .item-list { width: 100%; min-width: 0; }
-  .body-row.has-detail .item-list { display: none; }
+  .list-col { width: 100%; min-width: 0; border-right: none; }
+  .body-row.has-detail .list-col { display: none; }
   .body-row.has-detail .detail-pane { position: absolute; inset: 0; z-index: 40; }
   .detail-content { padding: 12px 14px 60px; }
   #menu-toggle { display: inline-flex; }
@@ -535,15 +636,12 @@ html[data-theme="dark"] .item-icon.ui-green { background: #245140; }
 <div id="app" class="app hidden">
   <aside class="sidebar" id="sidebar">
     <div class="brand"><svg width="24" height="24" viewBox="0 0 512 512" aria-hidden="true"><use href="#pp-logo"></use></svg><span>Proton Pass</span><span class="brand-tag">archive</span></div>
-    <div class="search-box">
-      <svg viewBox="0 0 16 16" class="icon" aria-hidden="true"><use href="#ic-magnifier"></use></svg>
-      <input id="search" type="text" placeholder="Search" autocomplete="off">
-    </div>
     <nav class="filters">
-      <button class="filter active" data-filter="all"><span class="filter-icon"><svg viewBox="0 0 16 16" width="16" height="16"><use href="#ic-squares"></use></svg></span>All items<span class="count" id="count-all"></span></button>
-      <div class="filters-title">Types</div>
-      <div id="type-filters"></div>
-      <div class="filters-title">Vaults &amp; folders</div>
+      <button class="filter has-chip active" data-filter="all">
+        <span class="row-chip vault" style="--chip:136 73 255"><svg viewBox="0 0 16 16" aria-hidden="true"><use href="#ic-pass-all-vaults"></use></svg></span>
+        <span class="nav-labels"><span class="nav-name">All items</span><span class="nav-sub" id="count-all"></span></span>
+      </button>
+      <div class="filters-title accent" id="vaults-title">Vaults &amp; folders</div>
       <div id="vault-list"></div>
     </nav>
     <div class="sidebar-footer">
@@ -554,15 +652,29 @@ html[data-theme="dark"] .item-icon.ui-green { background: #245140; }
     <header class="item-list-header">
       <button id="menu-toggle" class="icon-btn" title="Toggle sidebar"><svg viewBox="0 0 16 16" width="16" height="16"><use href="#ic-hamburger"></use></svg></button>
       <button id="mobile-back" class="icon-btn" title="Back to list" style="display:none"><svg viewBox="0 0 16 16" width="16" height="16"><use href="#ic-chevron-left"></use></svg></button>
-      <h2 id="list-title">All items</h2>
-      <span class="list-count" id="list-count"></span>
+      <div class="top-search" id="top-search">
+        <div class="input-shell">
+          <span class="prefix-icon"><svg viewBox="0 0 16 16" aria-hidden="true"><use href="#ic-magnifier"></use></svg></span>
+          <input id="search" type="text" placeholder="Search all items" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
+          <button id="search-clear" class="search-clear" type="button" title="Clear search" aria-label="Clear search"><svg viewBox="0 0 16 16" aria-hidden="true"><use href="#ic-cross-small"></use></svg></button>
+        </div>
+      </div>
       <div class="spacer"></div>
       <button id="theme-toggle" class="icon-btn" title="Toggle light/dark theme" aria-label="Toggle theme">
         <svg viewBox="0 0 16 16" width="16" height="16"><use id="theme-icon" href="#ic-moon"></use></svg>
       </button>
     </header>
     <div class="body-row">
-      <section class="item-list" id="item-list"></section>
+      <div class="list-col">
+        <div class="list-toolbar" id="list-toolbar">
+          <div class="toolbar-top">
+            <h2 id="list-title">All items</h2>
+            <span class="list-count" id="list-count"></span>
+          </div>
+          <div class="type-pills" id="type-pills"></div>
+        </div>
+        <section class="item-list" id="item-list"></section>
+      </div>
       <section class="detail-pane" id="detail-pane">
         <div class="empty-state" id="empty-state">
           <svg width="56" height="56" viewBox="0 0 512 512" aria-hidden="true"><use href="#pp-logo"></use></svg>
@@ -648,6 +760,12 @@ async function copyText(text, btn) {
 }
 function iconSvg(id, cls) {
   return `<svg viewBox="0 0 16 16"${cls ? ` class="${cls}"` : ""} aria-hidden="true"><use href="#${id}"></use></svg>`;
+}
+function hexToRgb(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
+  if (!m) return [136, 73, 255];
+  const n = parseInt(m[1], 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 function domainOf(url) {
   try {
@@ -804,27 +922,45 @@ function startApp() {
 }
 
 /* ---------------- sidebar ---------------- */
-function buildSidebar() {
-  // type filters
+function buildTypePills() {
   const counts = {};
   for (const item of DATA.items) counts[item.item_type] = (counts[item.item_type] || 0) + 1;
-  const typeEl = $("#type-filters");
-  typeEl.innerHTML = "";
+  const el = $("#type-pills");
+  el.innerHTML = "";
   Object.entries(TYPE_META).forEach(([type, meta]) => {
     if (!counts[type]) return;
     const btn = document.createElement("button");
-    btn.className = "filter";
+    btn.type = "button";
     btn.dataset.type = type;
-    btn.innerHTML = `<span class="filter-icon">${iconSvg(meta.icon)}</span>${meta.label}<span class="count">${counts[type]}</span>`;
+    btn.innerHTML = `${iconSvg(meta.icon)}${meta.label}`;
+    btn.title = `${meta.label} (${counts[type]})`;
     btn.addEventListener("click", () => {
       state.typeFilter = state.typeFilter === type ? null : type;
       state.filter = "types";
       state.vaultFilter = null;
+      state.folderFilter = null;
       updateSidebarActive();
       renderList();
     });
-    typeEl.appendChild(btn);
+    el.appendChild(btn);
   });
+}
+function syncSearchContext() {
+  const input = $("#search");
+  if (!input) return;
+  let scope = null;
+  if (state.filter === "vault" && state.vaultFilter) scope = vaultById(state.vaultFilter)?.name;
+  else if (state.filter === "folder" && state.folderFilter) {
+    const path = folderPathIds(state.folderFilter);
+    if (path.length) scope = path[path.length - 1].name;
+  }
+  input.placeholder = scope ? `Search in ${scope}\u2026` : "Search all items";
+  $("#top-search").classList.toggle("has-text", !!input.value);
+}
+
+function buildSidebar() {
+  // type-filter pills (above the item list, like the web app)
+  buildTypePills();
 
   // vault + folder tree
   buildSidebarVaults();
@@ -834,12 +970,14 @@ function buildSidebar() {
       state.filter = btn.dataset.filter;
       state.typeFilter = null;
       state.vaultFilter = null;
+      state.folderFilter = null;
       updateSidebarActive();
       renderList();
     });
   });
 
-  $("#count-all").textContent = DATA.items.length;
+  $("#count-all").textContent = DATA.items.length + " items";
+  $("#vaults-title").textContent = (DATA.folders || []).length ? "Vaults \u0026 folders" : "Vaults";
   const folderCount = (DATA.folders || []).length;
   $("#export-info").innerHTML =
     `Exported ${formatDate(META.exported_at)}<br>${DATA.items.length} items \u00b7 ${DATA.vaults.length} vaults`
@@ -850,6 +988,9 @@ function buildSidebar() {
 function buildSidebarVaults() {
   const vaultEl = $("#vault-list");
   vaultEl.innerHTML = "";
+  // With no folders anywhere there are no chevrons to align against, so skip
+  // the invisible chevron spacer and let the chip sit flush left.
+  const anyFolders = (DATA.folders || []).length > 0;
   DATA.vaults.forEach((vault, idx) => {
     const rootFolders = childFolders(vault.share_id, null);
     const expandable = rootFolders.length > 0;
@@ -857,14 +998,17 @@ function buildSidebarVaults() {
     const vaultOpen = expandable && !!state.expandedFolders[vaultKey];
 
     const row = document.createElement("button");
-    row.className = "filter vault";
+    row.className = "filter vault has-chip";
     row.dataset.vault = vault.id;
+    const vcount = DATA.items.filter((i) => i.vault_id === vault.id).length;
     row.innerHTML =
       (expandable
         ? `<span class="folder-chevron ${vaultOpen ? "expanded" : "collapsed"}" data-chev-vault="${escapeHtml(vault.id)}">${iconSvg(vaultOpen ? "ic-chevron-down-filled" : "ic-chevron-right-filled")}</span>`
-        : `<span class="folder-chevron" style="visibility:hidden">${iconSvg("ic-chevron-right-filled")}</span>`)
-      + `<span class="vault-dot" style="background:${vaultColor(vault, idx)}"></span>${escapeHtml(vault.name)}`
-      + `<span class="count">${DATA.items.filter((i) => i.vault_id === vault.id).length}</span>`;
+        : anyFolders
+          ? `<span class="folder-chevron" style="visibility:hidden">${iconSvg("ic-chevron-right-filled")}</span>`
+          : "")
+      + `<span class="row-chip vault" style="--chip:${hexToRgb(vaultColor(vault, idx)).join(' ')}">${iconSvg("ic-pass-home")}</span>`
+      + `<span class="nav-labels"><span class="nav-name">${escapeHtml(vault.name)}</span><span class="nav-sub">${vcount} item${vcount === 1 ? "" : "s"}</span></span>`;
     row.title = escapeHtml(vault.description || vault.name);
     row.addEventListener("click", () => {
       state.folderFilter = null;
@@ -879,6 +1023,7 @@ function buildSidebarVaults() {
     if (expandable) {
       row.querySelector(".folder-chevron").addEventListener("click", (ev) => {
         ev.stopPropagation();
+
         state.expandedFolders[vaultKey] = !state.expandedFolders[vaultKey];
         renderVaultTree();
       });
@@ -958,11 +1103,14 @@ function updateSidebarActive() {
   document.querySelectorAll(".filter").forEach((el) => {
     const isActive =
       (el.dataset.filter === state.filter && !el.dataset.type && !el.dataset.vault && !el.dataset.folder) ||
-      (el.dataset.type && state.filter === "types" && el.dataset.type === state.typeFilter) ||
       (el.dataset.vault && state.filter === "vault" && el.dataset.vault === state.vaultFilter) ||
       (el.dataset.folder && state.filter === "folder" && el.dataset.folder === state.folderFilter);
     el.classList.toggle("active", !!isActive);
   });
+  document.querySelectorAll("#type-pills button").forEach((el) => {
+    el.classList.toggle("active", state.filter === "types" && el.dataset.type === state.typeFilter);
+  });
+  syncSearchContext();
 }
 
 /* ---------------- filtering ---------------- */
@@ -1020,6 +1168,7 @@ function renderList() {
   const titleEl = $("#list-title");
   titleEl.innerHTML = crumbHtml ? `<span class="crumbs">${crumbHtml}</span>` : escapeHtml(title);
   titleEl.title = crumbHtml ? "" : title;
+  syncSearchContext();
 
   items.forEach((item) => {
     const meta = TYPE_META[item.item_type] || TYPE_META.custom;
@@ -1089,11 +1238,8 @@ function renderDetail(item) {
   content.classList.remove("hidden");
 
   const folderCrumb = item.folder_id ? folderPathIds(item.folder_id) : [];
-  const folderLine = folderCrumb.length
-    ? `<div class="detail-location" title="${escapeHtml(folderCrumb.map((f) => f.name).join(" › "))}">
-        <span class="detail-crumb-icon">${iconSvg("ic-folder-closed")}</span>
-        ${folderCrumb.map((f) => `<span class="detail-crumb">${escapeHtml(f.name)}</span>`).join('<span class="detail-crumb-sep">›</span>')}
-      </div>`
+  const folderLoc = folderCrumb.length
+    ? `<span class="detail-location" title="${escapeHtml(folderCrumb.map((f) => f.name).join(" › "))}">${folderCrumb.map((f) => `<span class="detail-crumb">${escapeHtml(f.name)}</span>`).join('<span class="detail-crumb-sep">›</span>')}</span>`
     : "";
   let html = `
     <div class="detail-header">
@@ -1102,8 +1248,7 @@ function renderDetail(item) {
         <h2>${escapeHtml(item.title || meta.singular)}</h2>
         <div class="detail-meta">
           <span class="vault-tag">${iconSvg("ic-pass-home")}${escapeHtml(vault ? vault.name : "Unknown vault")}</span>
-          ${folderCrumb.length ? `<span class="detail-location">${folderCrumb.map((f) => `<span class="detail-crumb">${escapeHtml(f.name)}</span>`).join('<span class="detail-crumb-sep">›</span>')}</span>` : ""}
-          <span>·</span>
+          ${folderLoc ? folderLoc + "<span>·</span>" : ""}
           <span>${escapeHtml(meta.singular)}</span>
           ${isSharedItem(item) ? "<span>· shared with you</span>" : ""}
         </div>
@@ -1299,9 +1444,32 @@ function totpRowHtml(uri, label) {
 
 /* ---------------- search ---------------- */
 function bindSearch() {
-  $("#search").addEventListener("input", (ev) => {
-    state.search = ev.target.value;
+  const input = $("#search");
+  const wrap = $("#top-search");
+  const doSearch = () => {
+    state.search = input.value;
+    wrap.classList.toggle("has-text", !!input.value);
     renderList();
+  };
+  input.addEventListener("input", doSearch);
+  input.addEventListener("keydown", (ev) => {
+    if (ev.key === "Escape") {
+      if (input.value) { input.value = ""; doSearch(); }
+      else input.blur();
+      ev.stopPropagation();
+    }
+  });
+  $("#search-clear").addEventListener("click", () => {
+    input.value = "";
+    doSearch();
+    input.focus();
+  });
+  document.addEventListener("keydown", (ev) => {
+    if ((ev.metaKey || ev.ctrlKey) && ev.key.toLowerCase() === "f" && !$("#app").classList.contains("hidden")) {
+      ev.preventDefault();
+      input.focus();
+      input.select();
+    }
   });
 }
 
