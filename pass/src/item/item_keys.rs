@@ -146,8 +146,8 @@ impl<C: PassClientContext> PassClient<C> {
             .context("Error getting share")?;
 
         match share.share_type {
-            // If share is of type vault, we request the item keys
-            ShareType::Vault { .. } => {
+            // If share is of type vault or folder, we request the item keys
+            ShareType::Vault { .. } | ShareType::Folder { .. } => {
                 let res = self
                     .send(GET!("/pass/v1/share/{share_id}/item/{item_id}/key"))
                     .await
@@ -193,7 +193,7 @@ impl<C: PassClientContext> PassClient<C> {
             .context("Error getting share")?;
 
         match share.share_type {
-            ShareType::Vault { .. } => self
+            ShareType::Vault { .. } | ShareType::Folder { .. } => self
                 .open_item_keys_with_vault_share(share_id, item_keys)
                 .await
                 .context("Error opening item keys with vault share"),

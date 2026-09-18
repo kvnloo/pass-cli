@@ -22,4 +22,5 @@ pub mod delete;
 pub mod list;
 pub mod move_folder;
 pub mod open;
+pub mod share;
 pub mod update;
