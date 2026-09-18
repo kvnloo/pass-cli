@@ -60,7 +60,7 @@ impl<C: PassClientContext> PassClient<C> {
                 .open_items_with_item_share(share.id, vault_id, item_id, items)
                 .await
                 .context("Error opening items with item_share"),
-            ShareType::Vault { vault_id } => self
+            ShareType::Vault { vault_id } | ShareType::Folder { vault_id, .. } => self
                 .open_items_with_vault_share(share.id, vault_id, items)
                 .await
                 .context("Error opening items with vault_share"),
@@ -417,6 +417,38 @@ mod tests {
         });
     }
 
+    // Helper function to setup folder share (target_type: Folder)
+    fn setup_folder_share(server: &ProtonAPI, share_id: &str, folder_id: &str, vault_id: &str) {
+        let share_response = ShareResponse {
+            share_id: share_id.to_string(),
+            address_id: TEST_ADDRESS_ID.to_string(),
+            vault_id: vault_id.to_string(),
+            target_type: TargetType::Folder.value(),
+            target_id: folder_id.to_string(),
+            owner: false,
+            permission: 0,
+            share_role_id: "1".to_string(),
+            content: None,
+            content_key_rotation: None,
+            content_format_version: None,
+            expiration_time: None,
+            create_time: 0,
+            group_id: None,
+        };
+        let share_response_clone = share_response.clone();
+        server.handler_with_method(
+            Method::GET,
+            format!("/pass/v1/share/{}", share_id),
+            move |_| success(share_response_clone.clone()),
+        );
+        let share_response_clone2 = share_response.clone();
+        server.handler_with_method(Method::GET, "/pass/v1/share", move |_| {
+            success(crate::share::list::GetSharesResponse {
+                shares: vec![share_response_clone2.clone()],
+            })
+        });
+    }
+
     // Helper function to setup vault share with group
     fn setup_vault_share_with_group(server: &ProtonAPI, share_id: &str, group_id: &str) {
         let share_response = ShareResponse {
@@ -689,6 +721,101 @@ mod tests {
         // Verify item key is the share key itself
         assert_eq!(1, opened_item.item_key.key_rotation);
         assert_eq!(TEST_SHARE_KEY.as_slice(), opened_item.item_key.key.as_ref());
+    }
+
+    #[muon_test::test]
+    async fn test_open_items_folder_share_single_item(server: muon_test::Server) {
+        use crate::folder::list::{FolderResponse, FoldersWrapper, ListFoldersResponse};
+
+        let (raw_client, api) = server.client::<()>();
+        const SHARE_ID: &str = "FOLDER_SHARE_ID";
+        const FOLDER_ID: &str = "SHARED_FOLDER_ID";
+        const ITEM_ID: &str = "FOLDER_ITEM_ID";
+        const ITEM_TITLE: &str = "Test Folder Share Item";
+        const ITEM_NOTE: &str = "Test folder share item note";
+
+        let client = make_test_pass_client_with_setup(raw_client, &api, PlanType::Free).await;
+        setup_folder_share(&api, SHARE_ID, FOLDER_ID, TEST_VAULT_ID);
+
+        // The folder's ShareKey IS its own (unwrapped) key, delivered via the invite/accept flow
+        let folder_key_raw = crypto::generate_encryption_key();
+        let encrypted_share_key = client.encrypt_for_user_key(folder_key_raw.clone()).await;
+        api.handler_with_method(
+            Method::GET,
+            format!("/pass/v1/share/{}/key", SHARE_ID),
+            move |_| {
+                success(GetShareKeysResponse {
+                    keys: ShareKeyList {
+                        keys: vec![ShareKeyResponse {
+                            key_rotation: 1,
+                            key: crate::utils::b64_encode(&encrypted_share_key),
+                            create_time: 123456789,
+                        }],
+                        total: 1,
+                    },
+                })
+            },
+        );
+
+        api.handler_with_method(
+            Method::GET,
+            format!("/pass/v1/share/{}/folder", SHARE_ID),
+            move |_| {
+                success(ListFoldersResponse {
+                    folders: FoldersWrapper {
+                        folders: vec![FolderResponse {
+                            vault_id: TEST_VAULT_ID.to_string(),
+                            folder_id: FOLDER_ID.to_string(),
+                            parent_folder_id: None,
+                            key_rotation: 1,
+                            folder_key: crate::utils::b64_encode(crypto::generate_encryption_key()),
+                            content_format_version: 1,
+                            content: "".to_string(),
+                        }],
+                        last_token: None,
+                    },
+                })
+            },
+        );
+
+        // Create test item data, living directly in the shared folder
+        let item_data = create_test_item_data(ITEM_TITLE, ITEM_NOTE);
+        let serialized = item_data.serialize().expect("serialize data failed");
+        let item_key = crypto::generate_encryption_key();
+        let encrypted_content =
+            crypto::encrypt(&serialized, &item_key, crypto::EncryptionTag::ItemContent)
+                .expect("Error encrypting item content");
+        let encrypted_item_key =
+            crypto::encrypt(&item_key, &folder_key_raw, crypto::EncryptionTag::ItemKey)
+                .expect("Error encrypting item key");
+
+        let item_revision = ItemRevisionBuilder::new(ITEM_ID.to_string())
+            .with_content(crate::utils::b64_encode(&encrypted_content))
+            .with_item_key(Some(crate::utils::b64_encode(&encrypted_item_key)))
+            .with_state(ItemState::Active as u8)
+            .with_folder_id(Some(FOLDER_ID.to_string()))
+            .build();
+
+        let result = client
+            .open_items(&share_id!(SHARE_ID), vec![item_revision])
+            .await
+            .expect("Should open item in a folder share");
+
+        assert_eq!(1, result.len(), "Should return one item");
+        let opened_item = &result[0];
+
+        assert_eq!(ITEM_ID, opened_item.item.id.value());
+        assert_eq!(SHARE_ID, opened_item.item.share_id.value());
+        assert_eq!(TEST_VAULT_ID, opened_item.item.vault_id.value());
+        assert_eq!(
+            FOLDER_ID,
+            opened_item.item.folder_id.as_ref().unwrap().value()
+        );
+        assert_eq!(ITEM_TITLE, opened_item.item.content.title);
+        assert_eq!(ITEM_NOTE, opened_item.item.content.note);
+
+        assert_eq!(1, opened_item.item_key.key_rotation);
+        assert_eq!(item_key.as_slice(), opened_item.item_key.key.as_ref());
     }
 
     #[muon_test::test]

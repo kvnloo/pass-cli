@@ -28,7 +28,7 @@ const PAGE_SIZE: usize = 100;
 struct FoldersForShareCacheType;
 type FoldersForShareCache = HashMap<ShareId, Vec<FolderResponse>>;
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub(crate) struct FolderResponse {
     #[serde(rename = "VaultID")]
     #[allow(dead_code)]
@@ -48,18 +48,18 @@ pub(crate) struct FolderResponse {
     pub content: String,
 }
 
-#[derive(Debug, serde::Deserialize)]
-struct FoldersWrapper {
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub(crate) struct FoldersWrapper {
     #[serde(rename = "Folders")]
-    folders: Vec<FolderResponse>,
+    pub folders: Vec<FolderResponse>,
     #[serde(rename = "LastToken")]
-    last_token: Option<String>,
+    pub last_token: Option<String>,
 }
 
-#[derive(Debug, serde::Deserialize)]
-struct ListFoldersResponse {
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub(crate) struct ListFoldersResponse {
     #[serde(rename = "Folders")]
-    folders: FoldersWrapper,
+    pub folders: FoldersWrapper,
 }
 
 #[derive(Debug, serde::Deserialize)]
