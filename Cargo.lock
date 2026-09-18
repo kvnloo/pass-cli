@@ -1648,7 +1648,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -1903,7 +1903,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -2228,9 +2228,9 @@ checksum = "e4eba85ea1d0a966a983acd07deee566e67395d2d96b6fb39e62b5a833f1eb0b"
 
 [[package]]
 name = "gopenpgp-sys"
-version = "0.3.7"
+version = "0.3.8"
 source = "sparse+https://rust-registry.proton.me/index/"
-checksum = "b7b5cc13d44c7e3187ab354735d01d8cf091673f8b6405c71b1a02ef3c86e25c"
+checksum = "7a1e94b9ed82cf988223e08e7cccae165a8676048ff97b94a9a7e7330a9d65cb"
 dependencies = [
  "base64 0.22.1",
  "bindgen",
@@ -3541,7 +3541,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -4753,9 +4753,9 @@ checksum = "95067976aca6421a523e491fce939a3e65249bac4b977adee0ee9771568e8aa3"
 
 [[package]]
 name = "proton-crypto"
-version = "0.13.2"
+version = "0.14.0"
 source = "sparse+https://rust-registry.proton.me/index/"
-checksum = "ffabef1f787e619c537b64973d08dc8237a967c77751970e20103990cf2087be"
+checksum = "df1ce2629e8f7278cf681edb2c92179e68d1c44ce6d37eef61cfb01886ddf058"
 dependencies = [
  "gopenpgp-sys",
  "hex",
@@ -4771,9 +4771,9 @@ dependencies = [
 
 [[package]]
 name = "proton-crypto-account"
-version = "0.19.2"
+version = "0.20.0"
 source = "sparse+https://rust-registry.proton.me/index/"
-checksum = "44da3c028bdac38410c5ed802d3aa673395ae1782a62a3faf8808ff579744a45"
+checksum = "0125930e771b27303fa6cdf862cd0b85b5c345ed897eabce9794b0013ba95cfc"
 dependencies = [
  "base64 0.22.1",
  "derive_more 2.1.1",
@@ -4858,9 +4858,9 @@ dependencies = [
 
 [[package]]
 name = "proton-rpgp"
-version = "0.5.0"
+version = "0.6.0"
 source = "sparse+https://rust-registry.proton.me/index/"
-checksum = "eb0879ce30dfddf4fbd8fd444059854b49f1dc5f420069be57a65649ead4999a"
+checksum = "6e4b8a64d41b39e5b5575a8c9f2b0bfb731dc7b8851efdc954d943699ccfe85c"
 dependencies = [
  "hex",
  "kem",
@@ -5004,7 +5004,7 @@ dependencies = [
  "once_cell",
  "socket2",
  "tracing",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -5473,7 +5473,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.12.1",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -6380,7 +6380,7 @@ dependencies = [
  "getrandom 0.4.3",
  "once_cell",
  "rustix 1.1.4",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -7004,7 +7004,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]

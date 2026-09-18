@@ -42,7 +42,7 @@ impl<C: PassClientContext> PassClient<C> {
         self.action_guard(PermissionAction::ShareVault).await?;
 
         let request = self
-            .create_invites_request(share_id, email, role, None)
+            .create_invites_request(share_id, email, role, None, None)
             .await
             .context("Error creating invite to vault request")?;
 

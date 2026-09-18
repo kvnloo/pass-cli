@@ -20,26 +20,26 @@
 use crate::permission::PermissionAction;
 use crate::{PassClient, PassClientContext};
 use anyhow::Context;
-use pass_domain::{ItemId, ShareId, ShareRole};
+use pass_domain::{FolderId, ShareId, ShareRole};
 
 impl<C: PassClientContext> PassClient<C> {
-    pub async fn share_item(
+    pub async fn share_folder(
         &self,
         share_id: &ShareId,
-        item_id: &ItemId,
+        folder_id: &FolderId,
         email: &str,
         role: &ShareRole,
     ) -> anyhow::Result<()> {
         self.action_guard(PermissionAction::ShareVault).await?;
 
         let request = self
-            .create_invites_request(share_id, email, role, Some(item_id.clone()), None)
+            .create_invites_request(share_id, email, role, None, Some(folder_id.clone()))
             .await
-            .context("Error creating invite to vault request")?;
+            .context("Error creating invite to folder request")?;
 
         self.send_invite(share_id, request)
             .await
-            .context("Error sending invite to item request")?;
+            .context("Error sending invite to folder request")?;
 
         Ok(())
     }

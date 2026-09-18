@@ -117,6 +117,13 @@ async fn adapt_shares(client: PassClient, shares: Vec<Share>) -> Result<Vec<Shar
                     .context("Error opening item")?;
                 (item.item.content.title, TargetType::Item)
             }
+            ShareType::Folder { folder_id, .. } => {
+                let name = client
+                    .get_folder_name(&share.id, &folder_id)
+                    .await
+                    .context("Error opening folder")?;
+                (name, TargetType::Folder)
+            }
         };
 
         res.push(ShareEntry {
