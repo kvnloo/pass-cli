@@ -5,6 +5,12 @@
 ### Other
 -->
 
+## 2.4.1 (2026-09-21)
+
+### Other
+
+- Upgraded dependencies.
+
 ## 2.4.0 (2026-09-21)
 
 ### Features :tada:
