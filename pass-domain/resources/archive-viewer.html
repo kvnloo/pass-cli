@@ -550,13 +550,7 @@ html[data-theme="dark"] .item-icon.ui-green { background: #245140; }
 .link { color: var(--interaction-norm); text-decoration: none; }
 .link:hover { text-decoration: underline; }
 .url-list a { display: block; margin-bottom: 4px; word-break: break-all; }
-.passkey-row {
-  background: var(--background-weak); border: 1px solid var(--border-weak);
-  border-radius: var(--radius-md); padding: 12px 14px; margin-bottom: 8px;
-}
-.passkey-row .pk-domain { font-weight: 600; display: flex; align-items: center; gap: 8px; }
-.passkey-row .pk-domain svg { width: 16px; height: 16px; color: var(--interaction-norm); }
-.passkey-row .pk-user { color: var(--text-weak); font-size: 12px; margin-top: 2px; }
+
 .attach-row {
   display: flex; align-items: center; gap: 10px;
   padding: 10px 14px;
@@ -1280,8 +1274,9 @@ function renderDetail(item) {
       }</div></div></div></div>`, "fields");
     }
     if (c.totp_uri) pushRow(totpRowHtml(c.totp_uri), "fields");
-    for (const pk of c.passkeys || []) {
-      pushRow(`<div class="field-row"><div class="field-box"><span class="field-glyph">${iconSvg("ic-key")}</span><div class="field-main"><div class="field-value plain no-copy"><div class="passkey-row" style="border:none;background:transparent;padding:0"><div class="pk-domain">${iconSvg("ic-key")}${escapeHtml(pk.rp_name || pk.domain)}</div><div class="pk-user">${escapeHtml(pk.user_name || pk.user_display_name)}</div></div></div></div></div></div>`, "fields");
+    const pkCount = (c.passkeys || []).length;
+    if (pkCount) {
+      pushRow(fieldRow("Passkeys", `${pkCount} passkey${pkCount > 1 ? "s" : ""}`, { rawValue: "", glyphIcon: "ic-key", copy: false }), "fields");
     }
   } else if (c.kind === "credit_card") {
     if (c.cardholder_name) pushRow(fieldRow("Cardholder", escapeHtml(c.cardholder_name), { rawValue: c.cardholder_name, plain: true, glyphIcon: "ic-user" }), "fields");
