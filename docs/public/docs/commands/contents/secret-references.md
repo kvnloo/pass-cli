@@ -270,5 +270,5 @@ If a reference cannot be resolved:
 
 - **[run](run.md)** - Execute commands with secrets injected from references
 - **[inject](inject.md)** - Process template files with secret references
-- **[item view](item.md#view)** - View item details to see available fields
-- **[vault list](vault.md#list)** - List vaults to find Share IDs
+- **[item view](../item.md#view-aliases-get-show)** - View item details to see available fields
+- **[vault list](../vault.md#list)** - List vaults to find Share IDs

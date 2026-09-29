@@ -18,12 +18,15 @@
  */
 
 use crate::crypto::encrypt_invite_keys::{EncryptInviteKeysFlow, InviteKeyToPrepare};
+use crate::folder::list::FolderResponse;
 use crate::item::item_keys::OpenedItemKeys;
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result};
 use pass_domain::{
-    Address, DecryptedShareKey, ItemId, PublicKey, ShareId, ShareRole, ShareType, TargetType,
+    Address, DecryptedFolderKey, DecryptedShareKey, FolderId, ItemId, PublicKey, ShareId,
+    ShareRole, ShareType, TargetType,
 };
+use std::collections::HashMap;
 
 pub(crate) enum InviteRequest {
     ExistingUser(CreateInvitesRequest),
@@ -48,6 +51,8 @@ pub(crate) struct NewUserInviteRequest {
     share_role_id: String,
     #[serde(rename = "ItemID")]
     item_id: Option<String>,
+    #[serde(rename = "FolderID")]
+    folder_id: Option<String>,
     #[serde(rename = "ExpirationTime")]
     expiration_time: Option<u64>,
 }
@@ -72,6 +77,8 @@ pub(crate) struct CreateInviteRequest {
     data: Option<String>,
     #[serde(rename = "ItemID")]
     item_id: Option<String>,
+    #[serde(rename = "FolderID")]
+    folder_id: Option<String>,
     #[serde(rename = "ExpirationTime")]
     expiration_time: Option<u64>,
 }
@@ -97,13 +104,24 @@ enum InviteTarget {
         item_id: ItemId,
         item_keys: OpenedItemKeys,
     },
+    Folder {
+        folder_id: FolderId,
+        folder_key: DecryptedFolderKey,
+    },
 }
 
 impl InviteTarget {
     pub fn item_id(&self) -> Option<ItemId> {
         match self {
-            Self::Vault { .. } => None,
+            Self::Vault { .. } | Self::Folder { .. } => None,
             Self::Item { item_id, .. } => Some(item_id.clone()),
+        }
+    }
+
+    pub fn folder_id(&self) -> Option<FolderId> {
+        match self {
+            Self::Vault { .. } | Self::Item { .. } => None,
+            Self::Folder { folder_id, .. } => Some(folder_id.clone()),
         }
     }
 
@@ -111,17 +129,89 @@ impl InviteTarget {
         match self {
             Self::Vault { .. } => TargetType::Vault,
             Self::Item { .. } => TargetType::Item,
+            Self::Folder { .. } => TargetType::Folder,
         }
     }
 }
 
 impl<C: PassClientContext> PassClient<C> {
+    /// Ensure that the given folder is `share_root_folder_id` itself or one of its descendants.
+    async fn ensure_folder_in_folder_tree(
+        &self,
+        share_id: &ShareId,
+        folder_id: &FolderId,
+        share_root_folder_id: &FolderId,
+    ) -> Result<()> {
+        let revisions = self
+            .list_all_folder_revisions(share_id)
+            .await
+            .context("Error listing folders")?;
+        let revision_map: HashMap<&str, &FolderResponse> = revisions
+            .iter()
+            .map(|r| (r.folder_id.as_str(), r))
+            .collect();
+
+        let mut current_id = Some(folder_id.value().to_string());
+        while let Some(id) = current_id {
+            if id == share_root_folder_id.value() {
+                return Ok(());
+            }
+            // If a parent is not in the share's folder listing, we cannot prove containment.
+            let rev = revision_map.get(id.as_str()).ok_or_else(|| {
+                anyhow::anyhow!(
+                    "Trying to share a folder with a share that does not grant access to that folder"
+                )
+            })?;
+            current_id = rev.parent_folder_id.clone();
+        }
+
+        Err(anyhow::anyhow!(
+            "Trying to share a folder with a share that does not grant access to that folder"
+        ))
+    }
+
+    /// Ensure that the given item lives inside the folder tree rooted at `share_root_folder_id`.
+    async fn ensure_item_in_folder_tree(
+        &self,
+        share_id: &ShareId,
+        item_id: &ItemId,
+        share_root_folder_id: &FolderId,
+    ) -> Result<()> {
+        let revisions = self
+            .get_item_revisions(share_id, item_id)
+            .await
+            .context("Error getting item revisions")?;
+        let latest = revisions
+            .iter()
+            .max_by_key(|r| r.revision)
+            .ok_or_else(|| anyhow::anyhow!("Item {} has no revisions", item_id))?;
+
+        let item_folder_id = latest.folder_id.as_ref().ok_or_else(|| {
+            anyhow::anyhow!(
+                "Trying to share an item with a share that does not grant access to that item"
+            )
+        })?;
+
+        self.ensure_folder_in_folder_tree(
+            share_id,
+            &FolderId::new(item_folder_id.clone()),
+            share_root_folder_id,
+        )
+        .await
+        .map_err(|_| {
+            anyhow::anyhow!(
+                "Trying to share an item with a share that does not grant access to that item"
+            )
+        })
+    }
+
     pub(crate) async fn create_invites_request(
         &self,
         share_id: &ShareId,
         address_to_invite: &str,
         role: &ShareRole,
         item_id: Option<ItemId>,
+        folder_id: Option<FolderId>,
     ) -> Result<InviteRequest> {
         let share = self
             .get_share(share_id)
@@ -149,8 +239,13 @@ impl<C: PassClientContext> PassClient<C> {
         );
         debug!("[create_invite] address_to_invite: {address_to_invite}");
 
-        let invite_target = match item_id {
-            None => match &share.share_type {
+        let invite_target = match (item_id, folder_id) {
+            (Some(_), Some(_)) => {
+                return Err(anyhow::anyhow!(
+                    "Cannot invite to an item and a folder at the same time"
+                ));
+            }
+            (None, None) => match &share.share_type {
                 ShareType::Vault { .. } => {
                     // User with vault access is sharing vault access
                     let share_keys = self
@@ -159,14 +254,14 @@ impl<C: PassClientContext> PassClient<C> {
                         .context("Error getting opened share keys")?;
                     InviteTarget::Vault { share_keys }
                 }
-                ShareType::Item { .. } => {
-                    // User with item access is trying to share a vault
+                ShareType::Item { .. } | ShareType::Folder { .. } => {
+                    // User with item or folder access is trying to share a vault
                     return Err(anyhow::anyhow!(
-                        "Share of type item is not allowed to share a vault"
+                        "Share of type item or folder is not allowed to share a vault"
                     ));
                 }
             },
-            Some(id) => match share.share_type {
+            (Some(id), None) => match share.share_type {
                 ShareType::Vault { .. } => {
                     // User with vault access is sharing a single item
                     let keys = self
@@ -201,6 +296,64 @@ impl<C: PassClientContext> PassClient<C> {
                         item_keys: OpenedItemKeys::new(vec![key]),
                     }
                 }
+                ShareType::Folder {
+                    folder_id: share_folder_id,
+                    ..
+                } => {
+                    self.ensure_item_in_folder_tree(share_id, &id, &share_folder_id)
+                        .await?;
+                    let key = self
+                        .get_item_key_by_ids(share_id, &id)
+                        .await
+                        .context("Error getting item key")?;
+                    InviteTarget::Item {
+                        item_id: id,
+                        item_keys: OpenedItemKeys::new(vec![key]),
+                    }
+                }
+            },
+            (None, Some(id)) => match share.share_type {
+                ShareType::Vault { .. } => {
+                    let folder_rev = self
+                        .get_folder_data(share_id, &id)
+                        .await
+                        .context("Error getting folder")?;
+
+                    let folder_key = self
+                        .get_opened_folder_key(share_id, &id, folder_rev.key_rotation)
+                        .await
+                        .context("Error opening folder key")?;
+
+                    InviteTarget::Folder {
+                        folder_id: id,
+                        folder_key,
+                    }
+                }
+                ShareType::Folder { ref folder_id, .. } => {
+                    if !id.eq(folder_id) {
+                        self.ensure_folder_in_folder_tree(share_id, &id, folder_id)
+                            .await?;
+                    }
+                    let folder_rev = self
+                        .get_folder_data(share_id, &id)
+                        .await
+                        .context("Error getting folder")?;
+
+                    let folder_key = self
+                        .get_opened_folder_key(share_id, &id, folder_rev.key_rotation)
+                        .await
+                        .context("Error opening folder key")?;
+
+                    InviteTarget::Folder {
+                        folder_id: id,
+                        folder_key,
+                    }
+                }
+                ShareType::Item { .. } => {
+                    return Err(anyhow::anyhow!(
+                        "Share of type item is not allowed to share a folder"
+                    ));
+                }
             },
         };
 
@@ -232,6 +385,7 @@ impl<C: PassClientContext> PassClient<C> {
     ) -> Result<InviteRequest> {
         let target_type = invite_target.target_type().value();
         let item_id = invite_target.item_id().map(|i| i.value().to_string());
+        let folder_id = invite_target.folder_id().map(|i| i.value().to_string());
         let encrypted_keys = self
             .encrypt_share_keys_for_user(user_address, invite_target, invited_keys)
             .await
@@ -244,6 +398,7 @@ impl<C: PassClientContext> PassClient<C> {
                 expiration_time: None,
                 data: None,
                 item_id,
+                folder_id,
                 target_type,
             }],
         }))
@@ -258,6 +413,7 @@ impl<C: PassClientContext> PassClient<C> {
     ) -> Result<InviteRequest> {
         let target_type = invite_target.target_type().value();
         let item_id = invite_target.item_id().map(|i| i.value().to_string());
+        let folder_id = invite_target.folder_id().map(|i| i.value().to_string());
         let key_to_encrypt = match &invite_target {
             InviteTarget::Vault { share_keys, .. } => {
                 // Get the latest key (highest rotation)
@@ -273,6 +429,7 @@ impl<C: PassClientContext> PassClient<C> {
                     .context("Error getting latest item key")?;
                 latest.key.clone().value()
             }
+            InviteTarget::Folder { folder_key, .. } => folder_key.value(),
         };
 
         let signature_body = proton_pass_common::invite::create_signature_body(
@@ -300,6 +457,7 @@ impl<C: PassClientContext> PassClient<C> {
                 expiration_time: None,
                 target_type,
                 item_id,
+                folder_id,
             }],
         }))
     }
@@ -374,6 +532,10 @@ impl<C: PassClientContext> PassClient<C> {
                     key_rotation: k.key_rotation,
                 })
                 .collect()),
+            InviteTarget::Folder { folder_key, .. } => Ok(vec![InviteKeyToPrepare {
+                decrypted_key: folder_key.value(),
+                key_rotation: folder_key.key_rotation,
+            }]),
         }
     }
 }

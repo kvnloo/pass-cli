@@ -90,6 +90,22 @@ pub async fn run(
                             }
                             println!("{msg}");
                         }
+                        PersonalAccessTokenAccess::Folder {
+                            share_id,
+                            role,
+                            expire_time,
+                            folder_name,
+                            folder_id: _,
+                        } => {
+                            let mut msg =
+                                format!("- [{share_id}] {folder_name} | Type=Folder | Role={role}");
+
+                            if let Some(expire_time) = expire_time {
+                                let expires = format_timestamp(&current_tz, expire_time);
+                                msg.push_str(&format!(" | Expires: {expires}"));
+                            }
+                            println!("{msg}");
+                        }
                     }
                 }
             }

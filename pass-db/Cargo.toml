@@ -1,6 +1,6 @@
 [package]
 name = "pass-db"
-version = "2.3.3"
+version = "2.4.1"
 edition = "2024"
 
 [lib]
@@ -10,7 +10,7 @@ doctest = false
 pass-domain = { path = "../pass-domain" }
 
 deadpool = "0.13"
-rusqlite = { version = "0.40.0", features = ["bundled-sqlcipher-vendored-openssl"] }
+rusqlite = { version = "0.40.2", features = ["bundled-sqlcipher-vendored-openssl"] }
 
 anyhow.workspace = true
 jiff.workspace = true

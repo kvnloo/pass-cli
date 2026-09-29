@@ -5,6 +5,33 @@
 ### Other
 -->
 
+## 2.4.1 (2026-09-21)
+
+### Other
+
+- Upgraded dependencies.
+
+## 2.4.0 (2026-09-21)
+
+### Features :tada:
+
+- Add `user generate-report` command to generate a report on users in a B2B organization.
+- Allow to lock `ssh-agent` with a password with `ssh-add -X` and `ssh-add -x`.
+
+### Fixes :bug:
+
+- Return the right status code for unknown/unhandled SSH commands on ssh-agent.
+- Other fixes for the SSH agent.
+- Add missing preflight checks for operations running with an `agent` token.
+- Bug that could cause multiple replacements on `pass-cli inject` templates.
+
+### Other
+
+- Upgraded dependencies.
+- Upgraded network dependency to `muon 3`.
+- Adapted code to rust 1.98.
+- Improved handling of symlink paths.
+
 ## 2.3.3 (2026-08-25)
 
 ### Fixes :bug:

@@ -18,8 +18,8 @@
  */
 
 use aes_gcm::aead::{Aead, Payload};
-use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
-use rand::Rng;
+use aes_gcm::{Aes256Gcm, Key, KeyInit, Nonce};
+use rand::{Rng, RngExt};
 
 #[derive(Clone, Debug)]
 pub enum EncryptionTag {
@@ -68,10 +68,10 @@ impl EncryptionTag {
     }
 }
 
-const KEY_LENGTH: usize = 32;
+pub const KEY_LENGTH: usize = 32;
 
 pub fn generate_random_byte() -> u8 {
-    rand::rng().next_u32() as u8
+    rand::rng().random::<u8>()
 }
 
 pub fn generate_encryption_key() -> Vec<u8> {
@@ -80,11 +80,13 @@ pub fn generate_encryption_key() -> Vec<u8> {
 
 pub fn encrypt(data: &[u8], key: &[u8], tag: EncryptionTag) -> Result<Vec<u8>, aes_gcm::Error> {
     // Initialize cipher from the 32-byte key.
-    let cipher = Aes256Gcm::new(key.into());
+    let key = Key::<Aes256Gcm>::try_from(key).map_err(|_| aes_gcm::Error)?;
+    let cipher = Aes256Gcm::new(&key);
 
     // Generate a random 12-byte nonce.
-    let nonce_bytes = random_bytes(12);
-    let nonce = Nonce::from_slice(&nonce_bytes);
+    let mut nonce_bytes = [0u8; 12];
+    rand::rng().fill(&mut nonce_bytes);
+    let nonce = Nonce::from(nonce_bytes);
 
     // Encrypt the data with the given AAD (or empty slice if None).
     let aad = tag.aad();
@@ -92,7 +94,7 @@ pub fn encrypt(data: &[u8], key: &[u8], tag: EncryptionTag) -> Result<Vec<u8>, a
         msg: data,
         aad: &aad,
     };
-    let ciphertext = cipher.encrypt(nonce, payload)?;
+    let ciphertext = cipher.encrypt(&nonce, payload)?;
 
     // Prepend nonce to the ciphertext.
     let mut result = nonce_bytes.to_vec();
@@ -112,22 +114,21 @@ pub fn decrypt(
 
     // Extract nonce and actual ciphertext.
     let (nonce_bytes, cipherdata) = ciphertext.split_at(12);
-    let cipher = Aes256Gcm::new(key.into());
-    let nonce = Nonce::from_slice(nonce_bytes);
+    let key = Key::<Aes256Gcm>::try_from(key).map_err(|_| aes_gcm::Error)?;
+    let cipher = Aes256Gcm::new(&key);
+    let nonce = Nonce::try_from(nonce_bytes).map_err(|_| aes_gcm::Error)?;
     let aad = tag.aad();
     let payload = Payload {
         msg: cipherdata,
         aad: &aad,
     };
-    cipher.decrypt(nonce, payload)
+    cipher.decrypt(&nonce, payload)
 }
 
 pub fn random_bytes(count: usize) -> Vec<u8> {
     let mut random_bytes = vec![0; count];
-    //let mut rng = StdRng::from_os_rng(); // uncomment when rand=0.9
-    let mut rng = rand::rng();
-    rng.fill_bytes(&mut random_bytes);
-    random_bytes.to_vec()
+    rand::rng().fill_bytes(&mut random_bytes);
+    random_bytes
 }
 
 #[cfg(test)]

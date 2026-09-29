@@ -11,27 +11,28 @@ members = [
 resolver = "2"
 
 [workspace.dependencies]
-muon = { version = "2.6.1", registry = "proton", features = ["transport-hyper", "full-base", "unsealed", "other-platform"] }
-muon-test = { version = "1.1.0", registry = "proton" }
-proton-crypto = { version = "0.13.0", registry = "proton", default-features = false, features = ["rustpgp"] }
-proton-crypto-account = { version = "0.19.0", registry = "proton", default-features = false, features = ["rustpgp"] }
+muon = { version = "3.0.0", registry = "proton", features = ["transport-hyper", "full-base", "unsealed", "other-platform"] }
+muon-test = { version = "3.0.0", registry = "proton" }
+proton-crypto = { version = "0.14.0", registry = "proton", default-features = false, features = ["rustpgp"] }
+proton-crypto-account = { version = "0.20.0", registry = "proton", default-features = false, features = ["rustpgp"] }
 
-proton-pass-common = {  git = "https://github.com/protonpass/proton-pass-common.git", tag = "1.7.3" }
+proton-pass-common = {  git = "https://github.com/protonpass/proton-pass-common.git", tag = "2.1.0" }
 
+aes-gcm = "0.11"
 anyhow = "1.0"
 async-trait = "0.1"
 base64 = "0.23.1"
-bytes = "1.10.1"
+bytes = "1.12.1"
 futures = "0.3"
-jiff = { version = "0.2.18", features = ["serde"] }
+jiff = { version = "0.2.37", features = ["serde"] }
 parking_lot = "0.12"
 protobuf = "3.7.2"
 protobuf-codegen = "3.7.2"
 rand = "0.10"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tempfile = "3.8"
+tempfile = "3.27"
 tracing = "0.1"
 tokio = { version = "1.52.3", features = ["full"] }
-uuid = { version = "1.18", features = ["v4", "js"] }
-zeroize = { version = "1.8", features = ["derive"] }
+uuid = { version = "1.26", features = ["v4", "js"] }
+zeroize = { version = "1.9", features = ["derive"] }

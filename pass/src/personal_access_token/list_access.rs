@@ -21,7 +21,7 @@ use crate::pagination::SincePagination;
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result, anyhow};
 use muon::GET;
-use pass_domain::{ItemId, PersonalAccessTokenId, ShareId, ShareRole, TargetType};
+use pass_domain::{FolderId, ItemId, PersonalAccessTokenId, ShareId, ShareRole, TargetType};
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
@@ -40,6 +40,14 @@ pub enum PersonalAccessTokenAccess {
         expire_time: Option<i64>,
         item_title: String,
         item_id: ItemId,
+    },
+    Folder {
+        share_id: ShareId,
+        role: ShareRole,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        expire_time: Option<i64>,
+        folder_name: String,
+        folder_id: FolderId,
     },
 }
 
@@ -141,6 +149,25 @@ impl<C: PassClientContext> PassClient<C> {
                     item_id,
                     expire_time: response.expire_time,
                     item_title: item.content.title.clone(),
+                })
+            }
+            TargetType::Folder => {
+                let folder_id_str = response
+                    .target_id
+                    .ok_or_else(|| anyhow!("Folder ID not provided for folder target"))?;
+                let folder_id = FolderId::new(folder_id_str);
+
+                let folder_name = self
+                    .get_folder_name(&parent_share_id, &folder_id)
+                    .await
+                    .context("Failed to get folder name")?;
+
+                Ok(PersonalAccessTokenAccess::Folder {
+                    share_id,
+                    role,
+                    folder_id,
+                    expire_time: response.expire_time,
+                    folder_name,
                 })
             }
         }

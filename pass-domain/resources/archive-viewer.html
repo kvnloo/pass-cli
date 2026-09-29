@@ -1,0 +1,1537 @@
+<!DOCTYPE html>
+<!--
+  Proton Pass - offline archive viewer template.
+
+  This file is the sole source of the viewer HTML/CSS/JS. It is embedded at
+  compile time by pass-cli (include_str!) and filled in by
+  pass-domain/src/archive/viewer.rs.
+
+  Iterating on the viewer: edit this file, then rebuild pass-cli (or run
+  `cargo test -p pass-cli archive`). No HTML tooling required.
+
+  Placeholders replaced at export time (do not rename; matched verbatim):
+    <!--{{META_JSON}}-->    JSON metadata object (comment is replaced by the JSON in a <script> tag)
+    <!--{{PAYLOAD_JSON}}--> archive payload JSON, or the encrypted envelope JSON
+    <!--{{KDF_JS}}-->       inlined pure-JS Argon2id bundle
+
+  Styling mirrors the Proton Pass web app (design tokens extracted from
+  pass.proton.black, light and dark themes). All icons come from the inline SVG sprite defined in
+  <body> (referenced via <use href="#ic-...">) — the file is fully
+  self-contained with no external URLs.
+
+  To preview locally, replace the placeholders by hand with:
+    META_JSON    = {"encrypted":false,"exported_at":"2026-01-01T00:00:00Z",
+                    "has_attachments":false,"item_count":1,"vault_count":1}
+    PAYLOAD_JSON = a valid archive payload (ArchiveData in model.rs)
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Proton Pass - Offline Archive</title>
+<script>
+// Apply theme before first paint: stored preference, else system preference.
+(function () {
+  var pref = null;
+  try { pref = localStorage.getItem("pp-archive-theme"); } catch (e) {}
+  var dark = pref === "dark" || (pref !== "light" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  if (dark) document.documentElement.setAttribute("data-theme", "dark");
+})();
+</script>
+<style>
+:root {
+  /* Proton Pass light theme tokens (default) */
+  --text-norm: #2b2442;
+  --text-weak: #52527a;
+  --text-hint: #999999;
+  --background-norm: #fbf9fe;
+  --background-weak: #ffffff;
+  --background-strong: #f4f0fe;
+  --interaction-norm: #5817d1;
+  --interaction-norm-hover: #6a2fd9;
+  --interaction-norm-minor-2: #eee8fa;
+  --interaction-weak: #ece5ff;
+  --interaction-weak-hover: #e0daf2;
+  --interaction-default-hover: rgba(194, 194, 194, 0.2);
+  --interaction-default-active: rgba(194, 194, 194, 0.4);
+  --navigation-current-item-background-color: #ffffff;
+  --field-background: #ffffff;
+  --focus-outline: #4612a7;
+  --focus-ring: #ded1f6;
+  --search-focus-bg: #ffffff;
+  --vault-heliotrope: #8849ff;
+  --border-norm: #9994d1;
+  --border-weak: #e3dffa;
+  --danger: #cc2d4f;
+  --warning: #e65200;
+  --success: #007b58;
+  --primary: #8a6eff;
+  --fieldset-icon: #6d4aff;
+  --folder-icon: #e9a944;
+  --shadow-color: rgba(43, 36, 66, 0.16);
+  --hover-weak: rgba(0, 0, 0, 0.04);
+  --hover-strong: rgba(0, 0, 0, 0.06);
+  --on-interaction-norm: #ffffff;
+  --crumb-bg: #f8ecd2;
+  --crumb-fg: #8a6100;
+  --font-weight-bold: 700;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 14px;
+  --sidebar-w: clamp(240px, 22vw, 320px);
+  --list-w: clamp(300px, 34vw, 454px);
+  color-scheme: light;
+}
+
+/* Proton Pass dark theme tokens (extracted from pass.proton.black dark mode) */
+html[data-theme="dark"] {
+  --text-norm: #ffffff;
+  --text-weak: #bfb9d8;
+  --text-hint: #9a97b2;
+  --background-norm: #1f1f31;
+  --background-weak: #282839;
+  --background-strong: #191926;
+  --interaction-norm: #b6b6ff;
+  --interaction-norm-hover: #bdbdff;
+  --interaction-norm-minor-2: #37374d;
+  --interaction-weak: #302d45;
+  --interaction-weak-hover: #454258;
+  --interaction-default-hover: rgba(255, 255, 255, 0.04);
+  --interaction-default-active: rgba(255, 255, 255, 0.08);
+  --navigation-current-item-background-color: #302d45;
+  --field-background: #1c1c2c;
+  --focus-outline: #c5c5ff;
+  --focus-ring: #5b5b80;
+  --search-focus-bg: #0e0e0e;
+  --vault-heliotrope: #8849ff;
+  --border-norm: #7a7aad;
+  --border-weak: #38384c;
+  --danger: #f08fa4;
+  --warning: #ffb84d;
+  --success: #4ab89a;
+  --primary: #7777f8;
+  --fieldset-icon: #b6b6ff;
+  --shadow-color: rgba(0, 0, 0, 0.45);
+  --hover-weak: rgba(255, 255, 255, 0.04);
+  --hover-strong: rgba(255, 255, 255, 0.08);
+  --on-interaction-norm: #000000;
+  --crumb-bg: rgba(233, 169, 68, 0.16);
+  --crumb-fg: #ffcf87;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: "Inter", "InterVariable", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: var(--background-norm);
+  color: var(--text-norm);
+  font-size: 14px;
+  line-height: 20px;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+.hidden { display: none !important; }
+.ico-16 { width: 16px; height: 16px; flex-shrink: 0; }
+.ico-20 { width: 20px; height: 20px; flex-shrink: 0; }
+.color-weak { color: var(--text-weak); }
+
+/* ---------- buttons (Proton pill style) ---------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  border: none; cursor: pointer;
+  border-radius: 24px;
+  font: inherit; font-size: 14px; font-weight: 600;
+  height: 36px; padding: 0 16px;
+  transition: background .15s cubic-bezier(.42,0,.58,1), color .15s cubic-bezier(.42,0,.58,1);
+  white-space: nowrap;
+}
+.btn-solid { background: var(--interaction-norm); color: var(--on-interaction-norm); }
+.btn-solid:hover { background: var(--interaction-norm-hover); }
+.btn-solid-weak { background: var(--interaction-weak); color: var(--interaction-norm); }
+.btn-solid-weak:hover { background: var(--interaction-weak-hover); }
+.btn-ghost { background: transparent; color: var(--text-norm); }
+.btn-ghost:hover { background: var(--hover-strong); }
+.btn-icon { width: 36px; padding: 0; }
+
+/* ---------- lock screen ---------- */
+.lock-screen {
+  position: fixed; inset: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(180deg, var(--background-strong) 0%, var(--background-norm) 100%);
+}
+.lock-card {
+  width: 380px; max-width: calc(100vw - 40px);
+  background: var(--background-weak);
+  border: 1px solid var(--border-weak);
+  border-radius: var(--radius-lg);
+  padding: 40px 32px;
+  text-align: center;
+  box-shadow: 0 12px 40px var(--shadow-color);
+}
+.lock-logo { display: flex; justify-content: center; margin-bottom: 18px; }
+.lock-card h1 { font-size: 24px; font-weight: 700; margin-bottom: 6px; }
+.lock-sub { color: var(--text-weak); margin-bottom: 24px; line-height: 1.5; }
+.lock-card input {
+  width: 100%; padding: 10px 12px;
+  background: var(--background-weak); color: var(--text-norm);
+  border: 1px solid var(--border-weak); border-radius: var(--radius-sm);
+  font: inherit; font-size: 14px; outline: none; margin-bottom: 14px;
+  transition: border-color .15s;
+}
+.lock-card input:focus { border-color: var(--interaction-norm); box-shadow: 0 0 0 1px var(--interaction-norm); }
+.lock-error { color: var(--danger); margin-top: 14px; font-size: 14px; }
+.lock-card .btn { width: 100%; }
+
+/* ---------- app layout ---------- */
+.app { display: flex; height: 100vh; }
+.sidebar {
+  width: var(--sidebar-w); min-width: var(--sidebar-w);
+  background: var(--background-strong);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.brand {
+  display: flex; align-items: center; gap: 10px;
+  height: 60px; flex-shrink: 0;
+  padding: 0 16px;
+  font-weight: 700; font-size: 16px;
+}
+.brand-tag {
+  font-size: 11px; font-weight: 600;
+  color: var(--interaction-norm);
+  background: var(--interaction-weak);
+  border-radius: 4px; padding: 1px 6px;
+  margin-left: auto;
+}
+/* Search bar: mirrors the web app's .pass-searchbar — rounded input sitting in the
+   main header, magnifier prefix, clear (×) suffix, purple focus ring. */
+.top-search {
+  position: relative; flex: 1; min-width: 0;
+  display: flex; align-items: center;
+}
+.top-search .input-shell {
+  display: flex; align-items: stretch; flex: 1; min-width: 0;
+  background: var(--background-strong);
+  border: 1px solid var(--border-weak);
+  border-radius: var(--radius-sm);
+  transition: background .15s var(--ease), border-color .15s var(--ease), box-shadow .15s var(--ease);
+}
+.top-search .input-shell:focus-within {
+  background: var(--search-focus-bg);
+  border-color: var(--focus-outline);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+.top-search .prefix-icon {
+  display: inline-flex; align-items: center; flex-shrink: 0;
+  padding-left: 12px; color: var(--text-norm);
+}
+.top-search .prefix-icon svg { width: 16px; height: 16px; }
+.top-search input {
+  flex: 1; min-width: 0;
+  background: transparent; border: none; outline: none;
+  padding: 6px 8px;
+  font: inherit; font-size: 14px; color: var(--text-norm);
+  text-overflow: ellipsis;
+}
+.top-search input::placeholder { color: var(--text-weak); }
+.search-clear {
+  display: none; align-items: center; justify-content: center; flex-shrink: 0;
+  background: transparent; border: none; cursor: pointer;
+  padding: 0 10px; color: var(--text-norm);
+}
+.search-clear svg { width: 16px; height: 16px; }
+.top-search.has-text .search-clear { display: inline-flex; }
+.filters { flex: 1; overflow-y: auto; padding: 0 12px 12px; }
+.filters-title {
+  display: flex; align-items: center;
+  font-size: 14px; font-weight: 400;
+  color: var(--text-weak);
+  padding: 16px 10px 6px;
+}
+.filters-title.accent { color: var(--interaction-norm); }
+.filter, .vault-item {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; text-align: left;
+  padding: 8px;
+  background: transparent; color: var(--text-norm);
+  border: none; border-radius: var(--radius-sm);
+  font: inherit; font-size: 14px; cursor: pointer;
+  transition: background .15s;
+}
+.filter:hover { background: var(--interaction-default-hover); }
+.filter.active { background: var(--navigation-current-item-background-color); }
+.filter-icon { display: inline-flex; width: 16px; height: 16px; color: var(--text-weak); flex-shrink: 0; }
+.filter-icon svg { width: 16px; height: 16px; display: block; }
+
+/* Icons inherit color from the surrounding element (like Proton's design system).
+   Without this, sprite paths paint solid black and vanish on the dark background. */
+svg { fill: currentColor; }
+
+.filter.active .filter-icon { color: var(--interaction-norm); }
+.count { margin-left: auto; font-size: 12px; color: var(--text-hint); font-weight: 400; }
+/* Sidebar rows: two lines (name + "N items") with a 32px tinted icon chip,
+   mirroring the web app's vault submenu entries. */
+.filter.has-chip { min-height: 54px; padding: 8px; gap: 10px; align-items: center; }
+.filter.has-chip .filter-icon { display: none; }
+.row-chip {
+  width: 32px; height: 32px; min-width: 32px;
+  border-radius: 14px;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.row-chip svg { width: 16px; height: 16px; display: block; }
+/* Type-tinted chips for the sidebar (same palette as the list item icons) */
+.row-chip.ui-violet { background: #ecdffa; color: #8849ff; }
+.row-chip.ui-gray   { background: #ececec; color: #666666; }
+.row-chip.ui-orange { background: #f0ebdb; color: #a07830; }
+.row-chip.ui-teal   { background: #dbf0ed; color: #007d68; }
+.row-chip.ui-red    { background: #fadfdf; color: #cc2d4f; }
+.row-chip.ui-blue   { background: #ddeefa; color: #0072b8; }
+.row-chip.ui-green  { background: #ddf5e8; color: #007b58; }
+html[data-theme="dark"] .row-chip.ui-violet { background: #37305c; color: #d3adf7; }
+html[data-theme="dark"] .row-chip.ui-gray   { background: #3d3d52; color: #c8c8d4; }
+html[data-theme="dark"] .row-chip.ui-orange { background: #4d4033; color: #e8c890; }
+html[data-theme="dark"] .row-chip.ui-teal   { background: #254944; color: #7fd4c4; }
+html[data-theme="dark"] .row-chip.ui-red    { background: #502a38; color: #f09aae; }
+html[data-theme="dark"] .row-chip.ui-blue   { background: #28425c; color: #90c4ec; }
+html[data-theme="dark"] .row-chip.ui-green  { background: #245140; color: #8fdcbb; }
+/* Vault chips: --chip holds the vault color as an "r,g,b" triple; color-mix
+   keeps the tint correct in both themes without recomputing on toggle. */
+.row-chip.vault {
+  background: color-mix(in srgb, rgb(var(--chip, 136 73 255)) 18%, var(--background-norm));
+  color: color-mix(in srgb, rgb(var(--chip, 136 73 255)) 80%, var(--text-norm));
+}
+html[data-theme="dark"] .row-chip.vault {
+  background: color-mix(in srgb, rgb(var(--chip, 136 73 255)) 30%, var(--background-norm));
+  color: color-mix(in srgb, rgb(var(--chip, 136 73 255)) 60%, #ffffff);
+}
+.nav-labels { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.nav-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nav-sub { color: var(--text-weak); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.folder-rows .filter { height: 36px; }
+.folder-chevron {
+  display: inline-flex; width: 16px; height: 16px;
+  color: var(--text-weak);
+  flex-shrink: 0;
+}
+.folder-chevron svg { width: 16px; height: 16px; display: block; }
+.folder-icon { display: inline-flex; width: 16px; height: 16px; color: var(--folder-icon); flex-shrink: 0; }
+.folder-icon svg { width: 16px; height: 16px; display: block; }
+.folder-children { margin-top: 2px; }
+.sidebar-footer {
+  padding: 12px 16px; border-top: 1px solid var(--border-weak);
+  font-size: 12px; color: var(--text-hint); line-height: 1.6;
+  flex-shrink: 0;
+}
+
+/* ---------- main ---------- */
+.main { flex: 1; display: flex; flex-direction: column; min-width: 0; background: var(--background-norm); }
+.item-list-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-weak);
+  min-height: 51px;
+}
+.item-list-header h2 { font-size: 16px; font-weight: 600; }
+.list-count { color: var(--text-hint); font-size: 12px; }
+/* Toolbar above the item list (web app layout): scope title + type-filter pills.
+   Lives inside .list-col so it never pushes the detail pane down. */
+.list-col {
+  display: flex; flex-direction: column;
+  width: var(--list-w); min-width: 280px; min-height: 0;
+  border-right: 1px solid var(--border-weak);
+  background: var(--background-norm);
+  flex-shrink: 0;
+}
+.list-toolbar {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid var(--border-weak);
+  flex-shrink: 0;
+}
+.toolbar-top { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.toolbar-top h2 { font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.type-pills { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+.type-pills::-webkit-scrollbar { display: none; }
+.type-pills button {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 32px; flex-shrink: 0;
+  padding: 6px 8px;
+  background: var(--interaction-weak);
+  color: var(--interaction-norm);
+  border: none; border-radius: 8px;
+  font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+  transition: background .15s;
+}
+.type-pills button:hover { background: var(--interaction-weak-hover); }
+.type-pills button svg { width: 16px; height: 16px; }
+.icon-btn {
+  background: transparent; color: var(--text-norm);
+  border: none; cursor: pointer; padding: 8px;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+}
+.icon-btn:hover { background: var(--hover-strong); }
+.body-row { flex: 1; display: flex; min-height: 0; }
+
+.item-list {
+  flex: 1; min-height: 0; min-width: 0;
+  overflow-y: auto;
+  padding: 4px 0 12px;
+  background: var(--background-norm);
+}
+.item-card {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  user-select: none;
+  transition: background .15s;
+}
+.item-card:hover { background: var(--hover-weak); }
+.item-card.active { background: var(--interaction-weak); }
+.item-icon {
+  width: 36px; height: 36px; min-width: 36px;
+  border-radius: var(--radius-md);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--interaction-norm);
+}
+.item-icon svg { width: 20px; height: 20px; }
+.item-icon.ui-violet { background: #ecdffa; }
+.item-icon.ui-gray { background: #ececec; }
+.item-icon.ui-orange { background: #f0ebdb; }
+.item-icon.ui-teal { background: #dbf0ed; }
+.item-icon.ui-red { background: #fadfdf; }
+.item-icon.ui-blue { background: #ddeefa; }
+.item-icon.ui-green { background: #ddf5e8; }
+
+/* Dark mode: dark-tinted icon chips with light glyphs for readability */
+html[data-theme="dark"] .item-icon { color: #ffffff; }
+html[data-theme="dark"] .item-icon.ui-violet { background: #37305c; }
+html[data-theme="dark"] .item-icon.ui-gray { background: #3d3d52; }
+html[data-theme="dark"] .item-icon.ui-orange { background: #4d4033; }
+html[data-theme="dark"] .item-icon.ui-teal { background: #254944; }
+html[data-theme="dark"] .item-icon.ui-red { background: #502a38; }
+html[data-theme="dark"] .item-icon.ui-blue { background: #28425c; }
+html[data-theme="dark"] .item-icon.ui-green { background: #245140; }
+.item-card .titles { flex: 1; min-width: 0; }
+.item-card .title {
+  font-weight: 600; font-size: 14px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.item-card .subtitle {
+  color: var(--text-weak); font-size: 12px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.item-card .badges { display: flex; gap: 4px; align-items: center; flex-shrink: 0; color: var(--text-hint); }
+.badge-shared {
+  font-size: 11px; font-weight: 600;
+  color: var(--interaction-norm); background: var(--interaction-weak);
+  padding: 1px 6px; border-radius: 4px;
+}
+
+.detail-pane { flex: 1; overflow-y: auto; min-width: 0; position: relative; background: var(--background-norm); }
+.empty-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  height: 100%; color: var(--text-hint); gap: 14px;
+  position: absolute; inset: 0;
+}
+.detail-content { padding: 16px 20px 60px; max-width: 820px; }
+.detail-header {
+  display: flex; align-items: flex-start; gap: 14px;
+  margin-bottom: 18px;
+}
+.detail-header .item-icon { width: 44px; height: 44px; min-width: 44px; }
+.detail-header .item-icon svg { width: 24px; height: 24px; }
+.detail-header h2 { font-size: 20px; font-weight: 700; line-height: 24px; word-break: break-word; margin-bottom: 2px; }
+.detail-meta { display: flex; align-items: center; gap: 6px; color: var(--text-weak); font-size: 12px; }
+.vault-tag { display: inline-flex; align-items: center; gap: 4px; color: #8849ff; font-weight: 600; }
+.vault-tag svg { width: 12px; height: 12px; }
+.detail-header .spacer { flex: 1; }
+.detail-header .actions { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
+.crumb { display: inline-flex; align-items: center; gap: 4px; color: var(--text-weak); }
+.crumb-sep { color: var(--text-hint); }
+.detail-location {
+  display: inline-flex; align-items: center; gap: 5px;
+  color: var(--text-weak);
+  font-size: 12px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.detail-crumb { color: var(--text-weak); min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.detail-crumb:last-child { flex-shrink: 0; }
+.detail-crumb-sep { color: var(--text-hint); flex-shrink: 0; }
+.detail-crumb-icon {
+  display: inline-flex; width: 13px; height: 13px;
+  color: var(--folder-icon);
+  flex-shrink: 0;
+  vertical-align: -2px;
+}
+.detail-crumb-icon svg { width: 13px; height: 13px; display: block; }
+
+/* field cluster: stacked white rows with dividers, like pass-fieldset-cluster */
+.field-cluster { border-radius: var(--radius-md); margin-bottom: 12px; overflow: hidden; }
+.field-row {
+  display: flex; align-items: stretch;
+  background: var(--background-weak);
+  border-bottom: 1px solid var(--border-weak);
+}
+.field-cluster .field-row:last-child { border-bottom: none; }
+.field-cluster .field-row:first-child { border-radius: var(--radius-md) var(--radius-md) 0 0; }
+.field-cluster .field-row:last-child { border-radius: 0 0 var(--radius-md) var(--radius-md); }
+.field-cluster .field-row:only-child { border-radius: var(--radius-md); }
+.field-box { display: flex; flex: 1; min-width: 0; padding: 12px 16px; gap: 0; align-items: flex-start; }
+.field-glyph {
+  display: flex; justify-content: center; align-items: flex-start;
+  padding-right: 14px; margin-top: 3px;
+  color: var(--fieldset-icon); flex-shrink: 0;
+}
+.field-glyph svg { width: 16px; height: 16px; }
+.field-main { flex: 1; min-width: 0; }
+.field-label { color: var(--text-weak); font-size: 12px; margin-bottom: 1px; }
+.field-value {
+  font-size: 14px; color: var(--text-norm);
+  word-break: break-word;
+  display: flex; align-items: center; gap: 8px;
+  cursor: pointer;
+}
+.field-value.no-copy { cursor: default; }
+.field-value.plain { font-family: inherit; }
+.field-value.mono, .field-value.mono .field-display {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+}
+.field-value.masked-value .field-display { letter-spacing: .18em; }
+.field-note { white-space: pre-wrap; font-family: inherit; display: block; cursor: auto; }
+.field-actions { display: flex; align-items: center; padding: 2px 4px 2px 8px; gap: 2px; flex-shrink: 0; }
+.field-btn {
+  background: transparent; color: var(--text-weak);
+  border: none; cursor: pointer; padding: 7px;
+  border-radius: var(--radius-sm);
+  display: inline-flex; align-items: center; gap: 4px;
+  font: inherit; font-size: 12px;
+  transition: background .15s, color .15s;
+}
+.field-btn:hover { background: var(--hover-strong); color: var(--text-norm); }
+.field-btn.copied { color: var(--success); }
+.field-btn svg { width: 16px; height: 16px; display: block; }
+.masked-value { letter-spacing: .2em; }
+
+/* meta card (last modified / created) */
+.meta-card {
+  display: flex; flex-direction: column; gap: 12px;
+  border: 1px solid var(--border-weak);
+  border-radius: var(--radius-lg);
+  padding: 12px 16px;
+  margin-bottom: 12px;
+}
+.meta-row { display: flex; align-items: center; gap: 14px; font-size: 12px; }
+.meta-row svg { width: 16px; height: 16px; color: var(--text-weak); flex-shrink: 0; }
+.meta-row .meta-titles { display: flex; flex-direction: column; min-width: 0; }
+.meta-row .meta-title { color: var(--text-norm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.meta-row .meta-sub { color: var(--text-weak); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.detail-section-title {
+  font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--text-hint);
+  padding: 14px 0 8px;
+}
+.note-block {
+  background: var(--background-weak);
+  border-bottom: 1px solid var(--border-weak);
+  padding: 12px 16px;
+  white-space: pre-wrap; word-break: break-word;
+  line-height: 1.6; font-size: 14px;
+}
+.section-block { margin-bottom: 12px; }
+.section-block h4 { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+.link { color: var(--interaction-norm); text-decoration: none; }
+.link:hover { text-decoration: underline; }
+.url-list a { display: block; margin-bottom: 4px; word-break: break-all; }
+.passkey-row {
+  background: var(--background-weak); border: 1px solid var(--border-weak);
+  border-radius: var(--radius-md); padding: 12px 14px; margin-bottom: 8px;
+}
+.passkey-row .pk-domain { font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.passkey-row .pk-domain svg { width: 16px; height: 16px; color: var(--interaction-norm); }
+.passkey-row .pk-user { color: var(--text-weak); font-size: 12px; margin-top: 2px; }
+.attach-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px;
+  background: var(--background-weak);
+  border-bottom: 1px solid var(--border-weak);
+}
+.attach-row:first-child { border-radius: var(--radius-md) var(--radius-md) 0 0; }
+.attach-row:last-child { border-bottom: none; border-radius: 0 0 var(--radius-md) var(--radius-md); }
+.attach-row:only-child { border-radius: var(--radius-md); }
+.attach-icon { display: inline-flex; color: var(--fieldset-icon); }
+.attach-icon svg { width: 20px; height: 20px; }
+.attach-name { flex: 1; word-break: break-all; font-weight: 600; }
+.attach-size { color: var(--text-weak); font-size: 12px; white-space: nowrap; }
+
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: var(--text-norm); border: none;
+  color: var(--background-norm); border-radius: var(--radius-sm);
+  padding: 10px 18px; font-size: 14px;
+  box-shadow: 0 8px 30px var(--shadow-color);
+  z-index: 200; transition: opacity .25s;
+}
+
+@media (max-width: 900px) {
+  .sidebar { position: fixed; left: 0; top: 0; bottom: 0; z-index: 50; transform: translateX(-100%); transition: transform .2s; }
+  .sidebar.open { transform: translateX(0); box-shadow: 0 0 40px var(--shadow-color); }
+  .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 45; }
+  .sidebar-overlay.open { display: block; }
+  .list-col { width: 100%; min-width: 0; border-right: none; }
+  .body-row.has-detail .list-col { display: none; }
+  .body-row.has-detail .detail-pane { position: absolute; inset: 0; z-index: 40; }
+  .detail-content { padding: 12px 14px 60px; }
+  #menu-toggle { display: inline-flex; }
+}
+
+/* Narrow desktop: hide the sidebar behind the hamburger, list fills rest */
+@media (min-width: 901px) and (max-width: 1160px) {
+  #sidebar:not(.force-show) { display: none !important; }
+  #menu-toggle { display: inline-flex; }
+}
+
+@media (min-width: 1161px) {
+  #sidebar.force-show { display: flex; }
+}
+
+/* Detail header stacks gracefully on narrow panes */
+@media (max-width: 700px) {
+  .detail-meta { flex-wrap: wrap; row-gap: 4px; }
+  .detail-header { flex-wrap: wrap; }
+  .detail-header h2 { font-size: 18px; }
+}
+
+/* Short viewports: compress header heights slightly */
+@media (max-height: 600px) {
+  .brand { height: 48px; }
+  .item-list-header { min-height: 44px; }
+}
+</style>
+</head>
+<body>
+
+<!-- Inline icon sprite (subset of Proton Pass design-system icons) -->
+<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden"><defs><g id="ic-user"><path fill-rule="evenodd" d="M10 5a2 2 0 1 1-4 0 2 2 0 0 1 4 0Zm1 0a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm-7.145 5.98A2.092 2.092 0 0 1 5.641 10h4.718c.74 0 1.416.38 1.786.98l.782 1.272c.182.296-.01.748-.467.748H3.54c-.457 0-.649-.452-.467-.748l.782-1.272Zm-.851-.524A3.092 3.092 0 0 1 5.64 9h4.718c1.08 0 2.082.553 2.637 1.457l.782 1.271c.615 1-.123 2.272-1.318 2.272H3.54c-1.195 0-1.933-1.272-1.319-2.272l.783-1.271Z"/></g><g id="ic-key"><path fill-rule="evenodd" d="M7.348 3.146a3.893 3.893 0 1 1 1.51 6.443l-.296-.1-.22.22-.521.522H6.647a.503.503 0 0 0-.503.503v.879h-.878a.503.503 0 0 0-.503.503v.878H3.006v-2.052L6.29 7.658l.22-.22-.099-.296a3.893 3.893 0 0 1 .938-3.996Zm6.217-.711a4.899 4.899 0 0 0-8.199 4.724L2.29 10.235a.991.991 0 0 0-.29.701v2.561a.503.503 0 0 0 .503.503h2.275a.991.991 0 0 0 .991-.991v-.39h.878a.503.503 0 0 0 .503-.503v-.879h.879a.503.503 0 0 0 .356-.147l.456-.457a4.899 4.899 0 0 0 4.724-8.199ZM11.11 5.903a1.012 1.012 0 1 0 0-2.025 1.012 1.012 0 0 0 0 2.025Z"/></g><g id="ic-file-lines"><path fill-rule="evenodd" d="M13 6h-2.5A1.5 1.5 0 0 1 9 4.5V2H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V6Zm-3-3.586L12.586 5H10.5a.5.5 0 0 1-.5-.5V2.414ZM4 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V5.828a2 2 0 0 0-.586-1.414l-2.828-2.828A2 2 0 0 0 9.172 1H4Zm1 6a.5.5 0 0 0 0 1h5.5a.5.5 0 0 0 0-1H5Zm-.5 2.5A.5.5 0 0 1 5 9h3.5a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5ZM5 11a.5.5 0 0 0 0 1h5.5a.5.5 0 0 0 0-1H5Z"/></g><g id="ic-alias"><path fill-rule="evenodd" d="M3.588 3.087a2 2 0 0 1 2.728-1.353l1.093.469a1.5 1.5 0 0 0 1.182 0l1.093-.469a2 2 0 0 1 2.728 1.353L13.39 7h1.11a.5.5 0 0 1 0 1h-13a.5.5 0 0 1 0-1h1.11l.978-3.913Zm2.334-.434a1 1 0 0 0-1.364.677L3.64 7h8.72l-.918-3.67a1 1 0 0 0-1.364-.677l-1.093.469a2.5 2.5 0 0 1-1.97 0l-1.093-.469Z"/><path fill-rule="evenodd" d="M6.572 10.1A2.5 2.5 0 1 0 7 11.5a1 1 0 1 1 2 0 2.5 2.5 0 1 0 .428-1.4C9.065 9.73 8.56 9.5 8 9.5c-.56 0-1.065.23-1.428.6ZM6 11.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Zm4 0a1.5 1.5 0 1 0 3 0 1.5 1.5 0 0 0-3 0Z"/></g><g id="ic-filing-cabinet"><path fill-rule="evenodd" d="M4 2h8a1 1 0 0 1 1 1v4.5H3V3a1 1 0 0 1 1-1ZM2 8V3a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8Zm11 .5V13a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8.5h10ZM11 5a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-.5a.5.5 0 0 1 1 0V5h4v-.5a.5.5 0 0 1 1 0V5Zm-1 7a1 1 0 0 0 1-1v-.5a.5.5 0 0 0-1 0v.5H6v-.5a.5.5 0 0 0-1 0v.5a1 1 0 0 0 1 1h4Z"/></g><g id="ic-wrench"><path fill-rule="evenodd" d="M7.16 2.345a4.594 4.594 0 0 1 5.04-.982.51.51 0 0 1 .163.831L10.24 4.317l.24 1.203 1.203.24 2.123-2.123a.51.51 0 0 1 .83.162 4.594 4.594 0 0 1-5.125 6.298l-4.155 4.156a2.551 2.551 0 1 1-3.609-3.609L5.903 6.49A4.588 4.588 0 0 1 7.16 2.345Zm3.877-.269a3.568 3.568 0 0 0-3.155.99 3.57 3.57 0 0 0-.925 3.452.51.51 0 0 1-.132.492l-4.356 4.356a1.53 1.53 0 1 0 2.165 2.165L8.99 9.175a.51.51 0 0 1 .492-.132 3.57 3.57 0 0 0 3.451-.925 3.568 3.568 0 0 0 .991-3.155l-1.713 1.712a.51.51 0 0 1-.46.14l-1.805-.361a.51.51 0 0 1-.4-.4l-.36-1.805a.51.51 0 0 1 .139-.46l1.712-1.713Z"/></g><g id="ic-pass-all-vaults"><path fill-rule="evenodd" clip-rule="evenodd" d="M13.5756 6.97095L9.02537 2.42072C8.45911 1.85446 7.54102 1.85446 6.97475 2.42072L11.64 7.1C12.13 7.59 12.13 8.4 11.64 8.89L6.97476 13.5718C7.54102 14.1381 8.45911 14.1381 9.02537 13.5718L13.5756 9.02156C14.1419 8.4553 14.1419 7.53721 13.5756 6.97095ZM9.73247 1.71361C8.77569 0.756828 7.22443 0.75683 6.26765 1.71361L1.71742 6.26384C0.760633 7.22063 0.760634 8.77188 1.71742 9.72867L6.26765 14.2789C7.22443 15.2357 8.77569 15.2357 9.73247 14.2789L14.2827 9.72867C15.2395 8.77188 15.2395 7.22063 14.2827 6.26384L9.73247 1.71361Z"/></g><g id="ic-pass-trash"><path fill-rule="evenodd" clip-rule="evenodd" d="M6.5 1C6.31061 1 6.13748 1.107 6.05279 1.27639L5.19098 3H2C1.72386 3 1.5 3.22386 1.5 3.5C1.5 3.77614 1.72386 4 2 4H3.02221L3.45713 13.5681C3.49354 14.3692 4.15364 15 4.95558 15H11.0444C11.8464 15 12.5065 14.3692 12.5429 13.5681L12.9778 4H14C14.2761 4 14.5 3.77614 14.5 3.5C14.5 3.22386 14.2761 3 14 3H10.809L9.94721 1.27639C9.86252 1.107 9.68939 1 9.5 1H6.5ZM9.69098 3L9.19098 2H6.80902L6.30902 3H9.69098ZM4.02324 4H11.9768L11.5439 13.5227C11.5318 13.7897 11.3117 14 11.0444 14H4.95558C4.68826 14 4.46823 13.7897 4.45609 13.5227L4.02324 4ZM7 6C7 5.72386 6.77614 5.5 6.5 5.5C6.22386 5.5 6 5.72386 6 6V12C6 12.2761 6.22386 12.5 6.5 12.5C6.77614 12.5 7 12.2761 7 12V6ZM10 6C10 5.72386 9.77614 5.5 9.5 5.5C9.22386 5.5 9 5.72386 9 6V12C9 12.2761 9.22386 12.5 9.5 12.5C9.77614 12.5 10 12.2761 10 12V6Z"/></g><g id="ic-users"><path fill-rule="evenodd" d="M5.5 7a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Zm0 1a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Zm1.876 2a.98.98 0 0 1 .832.467l.76 1.224c.042.069.042.141.005.209a.178.178 0 0 1-.165.1H2.192a.178.178 0 0 1-.165-.1.197.197 0 0 1 .006-.21l.759-1.223A.98.98 0 0 1 3.624 10h3.752Zm-5.434-.06A1.98 1.98 0 0 1 3.624 9h3.752c.684 0 1.32.355 1.682.94l.76 1.224c.495.8-.075 1.836-1.01 1.836H2.192c-.935 0-1.505-1.037-1.01-1.836l.76-1.224ZM12.022 9H10v1h2.021c.43 0 .84.194 1.118.536l.79.968c.172.21.009.496-.214.496H10.98v1h2.735c1.106 0 1.668-1.296.99-2.128l-.791-.969A2.443 2.443 0 0 0 12.02 9ZM12 6a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm1 0a2 2 0 1 1-4 0 2 2 0 0 1 4 0Z"/></g><g id="ic-star"><path fill-rule="evenodd" d="m8 2.943-1.475 2.63c-.23.411-.633.69-1.087.773l-2.973.541 2.06 2.119c.328.337.488.806.425 1.28l-.39 2.924 2.777-1.282c.42-.194.906-.194 1.326 0l2.777 1.282-.39-2.925a1.543 1.543 0 0 1 .425-1.28l2.06-2.118-2.973-.541a1.567 1.567 0 0 1-1.087-.773L8 2.943Zm.498-1.155a.576.576 0 0 0-.996 0l-1.85 3.296a.567.567 0 0 1-.393.278l-3.795.69a.548.548 0 0 0-.308.923l2.652 2.728c.117.12.173.286.15.45l-.496 3.723c-.058.433.4.757.806.57l3.489-1.61a.582.582 0 0 1 .486 0l3.489 1.61c.406.187.864-.137.806-.57l-.497-3.723a.542.542 0 0 1 .15-.45l2.653-2.728a.548.548 0 0 0-.308-.922l-3.795-.691a.567.567 0 0 1-.394-.278L8.498 1.788Z"/></g><g id="ic-pass-shield-monitoring-ok"><path d="M7.83874 1.16282C8.08997 1.27744 8.20073 1.57402 8.08611 1.82525L7.30347 3.54078C7.18886 3.79201 6.89228 3.90276 6.64104 3.78815C6.38981 3.67353 6.27906 3.37695 6.39368 3.12572L6.6753 2.50841L6.44684 2.59372L6.44933 2.59678L6.04289 2.74457L5.30796 3.01902C5.28022 3.02938 5.25214 3.03711 5.22399 3.04235L3 3.85108V9.12633C3 10.4071 3.6996 11.5857 4.82402 12.199L7.02203 13.3979C6.82755 13.7283 6.74602 14.0799 6.77746 14.4036L4.34517 13.0769C2.89949 12.2883 2 10.7731 2 9.12633V3.50086C2 3.29061 2.13153 3.10282 2.32913 3.03097L5.69712 1.80624L6.32546 1.5716L5.70816 1.28998C5.45692 1.17537 5.34617 0.878787 5.46079 0.627554C5.5754 0.376321 5.87198 0.26557 6.12321 0.380185L7.83874 1.16282Z"/><path d="M9.96924 1.68492C9.90867 2.02673 9.76128 2.33855 9.55067 2.59678L13 3.85108V9.12633C13 10.4071 12.3004 11.5857 11.176 12.199L10.7988 12.4047C10.7775 12.4129 10.7565 12.4228 10.7359 12.4342L10.2424 12.7082L9.82433 12.9362L9.82715 12.9388L9.45987 13.1427L9.64643 12.4903C9.72235 12.2248 9.56867 11.9481 9.30317 11.8721C9.03767 11.7962 8.76089 11.9499 8.68497 12.2154L8.16652 14.0283C8.09059 14.2938 8.24428 14.5706 8.50977 14.6465L10.3227 15.165C10.5882 15.2409 10.865 15.0872 10.9409 14.8217C11.0168 14.5562 10.8632 14.2794 10.5977 14.2035L9.94531 14.017L10.7246 13.5843L11.6548 13.0769C13.1005 12.2883 14 10.7731 14 9.12633V3.50086C14 3.29061 13.8685 3.10282 13.6709 3.03097L9.96924 1.68492Z"/><path d="M10.7494 5.61071C10.9025 5.38094 10.8404 5.07051 10.6107 4.91733C10.3809 4.76416 10.0705 4.82624 9.91731 5.05601L7.58895 8.54854L6.35355 7.31314C6.15829 7.11788 5.84171 7.11788 5.64645 7.31314C5.45118 7.5084 5.45118 7.82498 5.64645 8.02024L7.31311 9.68691C7.41904 9.79283 7.56687 9.84569 7.71594 9.83092C7.865 9.81616 7.9996 9.73535 8.08269 9.61071L10.7494 5.61071Z"/></g><g id="ic-lock"><path fill-rule="evenodd" d="M5 5h6a3 3 0 0 0-6 0ZM4 5v.02c-.392.023-.67.077-.908.198a2 2 0 0 0-.874.874C2 6.52 2 7.08 2 8.2v3.6c0 1.12 0 1.68.218 2.108a2 2 0 0 0 .874.874C3.52 15 4.08 15 5.2 15h5.6c1.12 0 1.68 0 2.108-.218a2 2 0 0 0 .874-.874C14 13.48 14 12.92 14 11.8V8.2c0-1.12 0-1.68-.218-2.108a2 2 0 0 0-.874-.874c-.237-.121-.516-.175-.908-.199V5a4 4 0 0 0-8 0Zm-.032 1.024C4.25 6 4.623 6 5.2 6h5.6c.577 0 .949 0 1.232.024.272.022.373.06.422.085a1 1 0 0 1 .437.437c.025.05.063.15.085.422C13 7.25 13 7.623 13 8.2v3.6c0 .577 0 .949-.024 1.232-.022.272-.06.373-.085.422a1 1 0 0 1-.437.437c-.05.025-.15.063-.422.085C11.75 14 11.377 14 10.8 14H5.2c-.577 0-.949 0-1.232-.024-.272-.022-.373-.06-.422-.085a1 1 0 0 1-.437-.437c-.025-.05-.063-.15-.085-.422C3 12.75 3 12.377 3 11.8V8.2c0-.577 0-.949.024-1.232.022-.272.06-.373.085-.422a1 1 0 0 1 .437-.437c.05-.025.15-.063.422-.085ZM9 9a1 1 0 0 1-.53.883l.437 1.744a.3.3 0 0 1-.291.373H7.384a.3.3 0 0 1-.29-.373l.435-1.744A1 1 0 1 1 9 9Z"/></g><g id="ic-three-dots-vertical"><path d="M8 12a1 1 0 1 1 0 2 1 1 0 0 1 0-2Z"/><path d="M8 7a1 1 0 1 1 0 2 1 1 0 0 1 0-2Z"/><path d="M8 2a1 1 0 1 1 0 2 1 1 0 0 1 0-2Z"/></g><g id="ic-squares"><path fill-rule="evenodd" d="M6.818 1A1.818 1.818 0 0 0 5 2.818V4h1V2.818C6 2.366 6.366 2 6.818 2H13a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-1v1h1a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2H6.818ZM2 7a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7ZM1 7a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7Z"/></g><g id="ic-arrow-rotate-right"><path fill-rule="evenodd" d="M6.646.646a.5.5 0 0 1 .708 0L8.677 1.97a.75.75 0 0 1 0 1.06L7.354 4.354a.5.5 0 1 1-.708-.708l.589-.588a5.001 5.001 0 1 0 4.957 2.215.5.5 0 1 1 .838-.546 6 6 0 1 1-5.7-2.69l-.684-.683a.5.5 0 0 1 0-.708Z"/></g><g id="ic-magic-wand"><path fill-rule="evenodd" d="m7.29.142-.268.67a.377.377 0 0 1-.21.21l-.67.268a.226.226 0 0 0 0 .42l.67.268a.377.377 0 0 1 .21.21l.268.67c.076.19.344.19.42 0l.268-.67a.377.377 0 0 1 .21-.21l.67-.268a.226.226 0 0 0 0-.42l-.67-.268a.377.377 0 0 1-.21-.21L7.71.142a.226.226 0 0 0-.42 0ZM11.793 1.5a1 1 0 0 1 1.414 0l1.414 1.414a1 1 0 0 1 0 1.414l-9.9 9.9a1 1 0 0 1-1.413 0l-1.415-1.414a1 1 0 0 1 0-1.415l9.9-9.899Zm.707.707-1.817 1.817 1.435 1.393 1.796-1.796L12.5 2.207Zm-9.9 9.9L9.977 4.73l1.435 1.394-7.396 7.396L2.6 12.107Zm.84-8.073-1.177.504a.668.668 0 0 1-.526 0L.56 4.034a.4.4 0 0 0-.526.526l.504 1.177a.668.668 0 0 1 0 .526L.034 7.44a.4.4 0 0 0 .526.526l1.177-.504a.668.668 0 0 1 .526 0l1.177.504a.4.4 0 0 0 .526-.526l-.504-1.177a.668.668 0 0 1 0-.526l.504-1.177a.4.4 0 0 0-.526-.526Zm8.264 7.32.446-1.117a.376.376 0 0 1 .7 0l.447 1.117c.063.16.19.286.349.35l1.117.446a.376.376 0 0 1 0 .7l-1.117.447a.627.627 0 0 0-.35.349l-.446 1.117a.376.376 0 0 1-.7 0l-.447-1.117a.627.627 0 0 0-.349-.35l-1.117-.446a.376.376 0 0 1 0-.7l1.117-.447a.627.627 0 0 0 .35-.349Z"/></g><g id="ic-pass-star"><path fill-rule="evenodd" clip-rule="evenodd" d="M8.00003 0.23999C8.21863 0.23999 8.41188 0.381991 8.47719 0.590602L10.0984 5.76899H15.5C15.7152 5.76899 15.9062 5.90659 15.9743 6.11064C16.0424 6.3147 15.9724 6.53945 15.8004 6.6687L11.5019 9.89914L13.1936 15.1055C13.2605 15.3115 13.1872 15.5372 13.0119 15.6645C12.8367 15.7918 12.5994 15.7918 12.4241 15.6645L8.00003 12.45L3.57593 15.6645C3.40069 15.7918 3.16339 15.7918 2.98814 15.6645C2.8129 15.5372 2.73957 15.3115 2.8065 15.1055L4.49814 9.89914L0.199642 6.6687C0.0276674 6.53945 -0.0423605 6.3147 0.0257677 6.11064C0.0938959 5.90659 0.284907 5.76899 0.500032 5.76899H5.90164L7.52287 0.590602C7.58818 0.381991 7.78144 0.23999 8.00003 0.23999ZM8.00003 2.41348L6.74619 6.41838C6.68088 6.62699 6.48763 6.76899 6.26903 6.76899H1.99759L5.38442 9.31428C5.55521 9.44263 5.62558 9.66532 5.55956 9.8685L4.23311 13.9509L7.70613 11.4275C7.88138 11.3002 8.11869 11.3002 8.29393 11.4275L11.767 13.9509L10.4405 9.8685C10.3745 9.66532 10.4449 9.44263 10.6156 9.31428L14.0025 6.76899H9.73103C9.51244 6.76899 9.31918 6.62699 9.25387 6.41838L8.00003 2.41348Z"/></g><g id="ic-pass-home"><path d="M8.34116 0.134472C8.14906 -0.0448241 7.85095 -0.0448241 7.65884 0.134472L0.158843 7.13447C-0.0430326 7.32289 -0.0539428 7.63928 0.134474 7.84116C0.322891 8.04303 0.639286 8.05394 0.841161 7.86553L8 1.18394L15.1588 7.86553C15.3607 8.05394 15.6771 8.04303 15.8655 7.84116C16.0539 7.63928 16.043 7.32289 15.8412 7.13447L8.34116 0.134472Z"/><path d="M3 8.5C3 8.22386 2.77614 8 2.5 8C2.22386 8 2 8.22386 2 8.5V15.5C2 15.7761 2.22386 16 2.5 16H6.5C6.77614 16 7 15.7761 7 15.5V12H9V15.5C9 15.7761 9.22386 16 9.5 16H13.5C13.7761 16 14 15.7761 14 15.5V8.5C14 8.22386 13.7761 8 13.5 8C13.2239 8 13 8.22386 13 8.5V15H10V11.5C10 11.2239 9.77614 11 9.5 11H6.5C6.22386 11 6 11.2239 6 11.5V15H3V8.5Z"/></g><g id="ic-cog-wheel"><path fill-rule="evenodd" d="m1.28 9.377 1.117.354a.706.706 0 0 1 .432.407c.08.193.08.411-.017.596l-.543 1.044a.4.4 0 0 0 .072.467l1.412 1.413a.4.4 0 0 0 .467.072l1.043-.543a.703.703 0 0 1 .596-.017c.19.08.343.234.406.431l.354 1.12a.4.4 0 0 0 .382.279h1.99a.4.4 0 0 0 .38-.28l.355-1.119a.704.704 0 0 1 .406-.43c.193-.081.411-.08.596.016l1.043.543a.4.4 0 0 0 .468-.072l1.411-1.412a.4.4 0 0 0 .072-.468l-.544-1.046a.699.699 0 0 1-.016-.592.7.7 0 0 1 .432-.405l1.124-.348A.4.4 0 0 0 15 9.005V7.013a.4.4 0 0 0-.28-.381l-1.117-.355a.706.706 0 0 1-.432-.406.704.704 0 0 1 .017-.596l.543-1.044a.4.4 0 0 0-.072-.468l-1.412-1.412a.4.4 0 0 0-.467-.072l-1.044.543a.701.701 0 0 1-.595.017.703.703 0 0 1-.405-.432L9.381 1.28A.4.4 0 0 0 8.999 1H7.01a.4.4 0 0 0-.38.28l-.355 1.119a.704.704 0 0 1-.406.43.703.703 0 0 1-.596-.016L4.229 2.27a.4.4 0 0 0-.467.071l-1.42 1.412a.4.4 0 0 0-.073.469l.543 1.044a.704.704 0 0 1 .017.596.706.706 0 0 1-.432.407l-1.118.354A.4.4 0 0 0 1 7.005v1.99a.4.4 0 0 0 .28.382ZM14 7.452l-.7-.221a1.705 1.705 0 0 1-1.052-.975 1.704 1.704 0 0 1 .053-1.443l.34-.654-.79-.79-.653.34a1.701 1.701 0 0 1-1.442.052 1.703 1.703 0 0 1-.974-1.053L8.56 2H7.45l-.222.7c-.16.507-.54.871-.973 1.052-.438.183-.97.195-1.444-.052l-.654-.34-.796.792.34.652c.246.475.234 1.006.051 1.443a1.705 1.705 0 0 1-1.052.975L2 7.444v1.112l.7.222c.506.16.87.541 1.051.975.183.437.195.968-.052 1.443l-.34.654.79.79.652-.34a1.702 1.702 0 0 1 1.444-.053c.433.182.813.546.973 1.052L7.44 14h1.111l.222-.7c.16-.507.54-.871.973-1.053.438-.182.97-.194 1.444.053l.652.34.79-.79-.341-.656a1.698 1.698 0 0 1-.052-1.44 1.7 1.7 0 0 1 1.06-.974L14 8.563v-1.11Z"/><path fill-rule="evenodd" d="M8 6a2 2 0 1 0 0 4 2 2 0 0 0 0-4ZM5 8a3 3 0 1 1 6 0 3 3 0 0 1-6 0Z"/></g><g id="ic-key-history"><path fill-rule="evenodd" clip-rule="evenodd" d="M9.51138 6.35966C10.6516 5.21948 12.5002 5.21948 13.6403 6.35966C14.7805 7.49984 14.7805 9.34844 13.6403 10.4886C12.8301 11.2988 11.6618 11.5338 10.6432 11.1916L10.4216 11.1171L10.2563 11.2824L9.86543 11.6733H8.98559C8.88553 11.6733 8.78957 11.713 8.71882 11.7838C8.64807 11.8545 8.60833 11.9505 8.60833 12.0505L8.60833 12.7094H7.94948C7.74112 12.7094 7.57222 12.8783 7.57222 13.0866V13.7455L6.25452 13.7455V12.2068L8.71759 9.74371L8.88291 9.5784L8.80844 9.35678C8.46616 8.33822 8.70118 7.16986 9.51138 6.35966ZM14.1739 5.82613C12.739 4.39129 10.4127 4.39129 8.97785 5.82613C8.01743 6.78655 7.70035 8.146 8.02485 9.36941L5.71779 11.6765C5.57834 11.8159 5.5 12.005 5.5 12.2023V14.1227C5.5 14.2228 5.53975 14.3188 5.6105 14.3895C5.68125 14.4603 5.7772 14.5 5.87726 14.5H7.58316C7.99383 14.5 8.32674 14.1671 8.32674 13.7564V13.4639H8.98559C9.08564 13.4639 9.1816 13.4241 9.25235 13.3534C9.3231 13.2826 9.36285 13.1867 9.36285 13.0866L9.36285 12.4278H10.0217C10.1218 12.4278 10.2177 12.388 10.2885 12.3173L10.6306 11.9752C11.854 12.2997 13.2134 11.9826 14.1739 11.0221C15.6087 9.58731 15.6087 7.26097 14.1739 5.82613ZM12.3322 8.42725C12.7516 8.42725 13.0916 8.08728 13.0916 7.6679C13.0916 7.24852 12.7516 6.90855 12.3322 6.90855C11.9129 6.90855 11.5729 7.24852 11.5729 7.6679C11.5729 8.08728 11.9129 8.42725 12.3322 8.42725Z"/><path d="M4.44445 2.66667C4.44445 2.42121 4.24546 2.22222 4 2.22222C3.75454 2.22222 3.55556 2.42121 3.55556 2.66667V4C3.55556 4.11787 3.60238 4.23092 3.68573 4.31427L4.57462 5.20316C4.74819 5.37673 5.02959 5.37673 5.20316 5.20316C5.37673 5.02959 5.37673 4.74819 5.20316 4.57462L4.44445 3.81591V2.66667Z"/><path fill-rule="evenodd" clip-rule="evenodd" d="M4 8C6.20914 8 8 6.20914 8 4C8 1.79086 6.20914 0 4 0C1.79086 0 0 1.79086 0 4C0 6.20914 1.79086 8 4 8ZM4 0.888889C2.28178 0.888889 0.888889 2.28178 0.888889 4C0.888889 5.71822 2.28178 7.11111 4 7.11111C5.71822 7.11111 7.11111 5.71822 7.11111 4C7.11111 2.28178 5.71822 0.888889 4 0.888889ZM4 2.22222C4.24546 2.22222 4.44445 2.42121 4.44445 2.66667V3.81591L5.20316 4.57462C5.37673 4.74819 5.37673 5.02959 5.20316 5.20316C5.02959 5.37673 4.74819 5.37673 4.57462 5.20316L3.68573 4.31427C3.60238 4.23092 3.55556 4.11787 3.55556 4V2.66667C3.55556 2.42121 3.75454 2.22222 4 2.22222Z"/></g><g id="ic-cross-small"><path d="M10.854 5.854a.5.5 0 1 0-.708-.708L8 7.293 5.854 5.146a.5.5 0 1 0-.708.708L7.293 8l-2.147 2.146a.5.5 0 0 0 .708.708L8 8.707l2.146 2.147a.5.5 0 0 0 .707-.708L8.707 8l2.146-2.146Z"/></g><g id="ic-chevron-down"><path fill-rule="evenodd" d="M3.13 6.165a.5.5 0 0 1 .705-.036L8 9.895l4.165-3.766a.5.5 0 1 1 .67.742l-4.367 3.948a.697.697 0 0 1-.936 0L3.165 6.871a.5.5 0 0 1-.036-.706Z"/></g><g id="ic-checkmark"><path fill-rule="evenodd" d="M14.103 3.146a.5.5 0 0 1 .002.707L7.74 10.241a.7.7 0 0 1-.995-.002L4.394 7.852a.5.5 0 0 1 .712-.702l2.14 2.171 6.15-4.174a.5.5 0 0 1 .707-.001Z"/></g><g id="ic-chevron-left"><path fill-rule="evenodd" d="M5.665 12.87a.5.5 0 0 0 .742-.67L2.605 8l3.802-4.2a.5.5 0 1 0-.742-.67l-3.948 4.367a.697.697 0 0 0 0 .936l3.948 4.367Z"/></g><g id="ic-chevron-right"><path fill-rule="evenodd" d="M5.665 3.13a.5.5 0 0 0-.036.705L9.395 8l-3.766 4.165a.5.5 0 1 0 .742.67l3.948-4.367a.697.697 0 0 0 0-.936L6.371 3.165a.5.5 0 0 0-.706-.036Z"/></g><g id="ic-trash"><path fill-rule="evenodd" d="M6.5 1a.5.5 0 0 0-.447.276L5.19 3H2a.5.5 0 0 0 0 1h1.022l.435 9.568A1.5 1.5 0 0 0 4.956 15h6.088a1.5 1.5 0 0 0 1.499-1.432L12.978 4H14a.5.5 0 0 0 0-1h-3.191l-.862-1.724A.5.5 0 0 0 9.5 1h-3Zm3.191 2-.5-1H6.809l-.5 1h3.382ZM4.023 4h7.954l-.433 9.523a.5.5 0 0 1-.5.477H4.956a.5.5 0 0 1-.5-.477L4.023 4ZM7 6a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6Zm3 0a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6Z"/></g><g id="ic-eye"><path fill-rule="evenodd" d="M8 12c-2.186 0-4.476-1.26-5.987-4C3.523 5.26 5.814 4 8 4s4.476 1.26 5.987 4c-1.51 2.74-3.8 4-5.987 4Zm6.89-4.434c-3.32-6.088-10.46-6.088-13.78 0a.909.909 0 0 0 0 .868c3.32 6.088 10.46 6.088 13.78 0a.908.908 0 0 0 0-.868ZM8 6a2 2 0 0 1-2.989 1.739A3 3 0 1 0 7.74 5.01c.166.292.261.63.261.989Z"/></g><g id="ic-eye-slash"><path fill-rule="evenodd" d="M2.146 2.146a.5.5 0 0 0 0 .708l11 11a.5.5 0 1 0 .707-.708l-1.599-1.6c1.007-.748 1.912-1.785 2.636-3.112a.908.908 0 0 0 0-.868C12.494 3.172 8.108 1.95 4.605 3.898L2.854 2.146a.5.5 0 0 0-.708 0Zm3.202 2.495 2.375 2.375A1.99 1.99 0 0 0 8 6c0-.36-.095-.697-.261-.989a3 3 0 0 1 2.707 4.727l1.088 1.09c.916-.654 1.757-1.59 2.439-2.828C12.46 5.254 10.173 4 8 4c-.885 0-1.79.208-2.652.64Zm.925 3.34a2.017 2.017 0 0 1-1.262-.242 3 3 0 0 0 4.076 3.058L6.273 7.98ZM1.11 7.566C1.69 6.506 2.383 5.63 3.153 4.94l.719.707C3.187 6.253 2.559 7.034 2.027 8c1.512 2.746 3.8 4 5.973 4 .655 0 1.32-.114 1.972-.349l.781.769c-3.382 1.472-7.391.143-9.643-3.986a.909.909 0 0 1 0-.868Z"/></g><g id="ic-shield"><path fill-rule="evenodd" d="M3.07 3.723c-.16 1.784-.077 3.66.587 5.403.67 1.761 1.958 3.456 4.343 4.802 2.385-1.346 3.673-3.04 4.343-4.802.664-1.743.748-3.62.587-5.403L8 2.03 3.07 3.723Zm-.63-.84 5.399-1.856a.497.497 0 0 1 .323 0l5.398 1.856a.495.495 0 0 1 .333.415c.417 3.917-.17 8.692-5.663 11.645a.488.488 0 0 1-.459 0C2.278 11.99 1.689 7.215 2.107 3.298a.495.495 0 0 1 .333-.415Z"/></g><g id="ic-clock"><path d="M11.354 11.354a.5.5 0 0 1-.708 0l-2.5-2.5A.5.5 0 0 1 8 8.5v-4a.5.5 0 0 1 1 0v3.793l2.354 2.353a.5.5 0 0 1 0 .708Z"/><path fill-rule="evenodd" d="M16 8.5a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0Zm-1 0a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z"/></g><g id="ic-globe"><path fill-rule="evenodd" d="M4.012 8H2.02a6.504 6.504 0 0 1 3.805-5.425 7.143 7.143 0 0 0-.591.917C4.539 4.764 4.09 6.39 4.013 8Zm0 1H2.02a6.504 6.504 0 0 0 3.805 5.425 7.14 7.14 0 0 1-.591-.917C4.539 12.236 4.09 10.61 4.013 9ZM8 14.917c-.664-.219-1.331-.864-1.89-1.888C5.5 11.908 5.092 10.451 5.014 9H8v5.917Zm3.176-.492c.217-.284.415-.593.591-.917.694-1.272 1.143-2.897 1.22-4.508h1.994a6.504 6.504 0 0 1-3.805 5.425ZM11.986 9c-.077 1.451-.485 2.908-1.097 4.03-.558 1.023-1.225 1.668-1.889 1.887V9h2.986Zm1.002-1h1.993a6.504 6.504 0 0 0-3.805-5.425c.217.284.415.593.591.917.694 1.272 1.143 2.897 1.22 4.508ZM9 2.083c.664.219 1.331.865 1.89 1.888.61 1.121 1.019 2.578 1.096 4.029H9V2.083Zm-1 0V8H5.013c.078-1.451.486-2.908 1.098-4.03C6.669 2.949 7.336 2.303 8 2.084ZM8.5 1a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15Z"/></g><g id="ic-note"><path fill-rule="evenodd" d="M3 12a1 1 0 0 0 1 1h5v-2.5A1.5 1.5 0 0 1 10.5 9H13V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v8Zm9.75-2H10.5a.5.5 0 0 0-.5.5v2.25a1.5 1.5 0 0 0 .232-.19l2.329-2.328a1.5 1.5 0 0 0 .19-.232ZM4 14a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v5.172a2.5 2.5 0 0 1-.732 1.767l-2.329 2.329A2.5 2.5 0 0 1 9.172 14H4Z"/></g><g id="ic-credit-card"><path fill-rule="evenodd" d="M3 4h10a1 1 0 0 1 1 1v1H2V5a1 1 0 0 1 1-1ZM1 8V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8Zm13 0v3a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8h12Z"/></g><g id="ic-pass-laptop"><path fill-rule="evenodd" clip-rule="evenodd" d="M1 11V3.5C1 3.10218 1.15804 2.72064 1.43934 2.43934C1.72064 2.15804 2.10218 2 2.5 2H13.5C13.8978 2 14.2794 2.15804 14.5607 2.43934C14.842 2.72064 15 3.10217 15 3.5V11H15.5C15.7761 11 16 11.2239 16 11.5C16 12.163 15.7366 12.7989 15.2678 13.2678C14.7989 13.7366 14.163 14 13.5 14H2.5C1.83696 14 1.20107 13.7366 0.732233 13.2678C0.263392 12.7989 0 12.163 0 11.5C0 11.3674 0.0526784 11.2402 0.146447 11.1464C0.240215 11.0527 0.367392 11 0.5 11H1ZM2.14645 3.14645C2.24021 3.05268 2.36739 3 2.5 3H13.5C13.6326 3 13.7598 3.05268 13.8536 3.14645C13.9473 3.24021 14 3.36739 14 3.5V11H2V3.5C2 3.36739 2.05268 3.24021 2.14645 3.14645ZM1.08579 12C1.15967 12.209 1.27964 12.401 1.43934 12.5607C1.72064 12.842 2.10218 13 2.5 13H13.5C13.8978 13 14.2794 12.842 14.5607 12.5607C14.7204 12.401 14.8403 12.209 14.9142 12H1.08579Z"/></g><g id="ic-pass-work"><path fill-rule="evenodd" clip-rule="evenodd" d="M5.5 0C5.22386 0 5 0.223858 5 0.5V3H1.5C1.10218 3 0.720644 3.15804 0.43934 3.43934C0.158035 3.72064 0 4.10218 0 4.5V9.5C0 9.77614 0.223858 10 0.5 10H6V11.5C6 11.7761 6.22386 12 6.5 12H9.5C9.77614 12 10 11.7761 10 11.5V10H15.5C15.7761 10 16 9.77614 16 9.5V4.5C16 4.10218 15.842 3.72064 15.5607 3.43934C15.2794 3.15804 14.8978 3 14.5 3H11V0.5C11 0.223858 10.7761 0 10.5 0H5.5ZM10 9H15V4.5C15 4.36739 14.9473 4.24021 14.8536 4.14645C14.7598 4.05268 14.6326 4 14.5 4H1.5C1.36739 4 1.24021 4.05268 1.14645 4.14645C1.05268 4.24021 1 4.36739 1 4.5V9H6V7.5C6 7.22386 6.22386 7 6.5 7H9.5C9.77614 7 10 7.22386 10 7.5V9ZM7 11H9V8H7V11ZM10 3V1H6V3H10Z"/><path d="M1.5 11C1.77614 11 2 11.2239 2 11.5V13.5C2 13.6326 2.05268 13.7598 2.14645 13.8536C2.24021 13.9473 2.36739 14 2.5 14H13.5C13.6326 14 13.7598 13.9473 13.8536 13.8536C13.9473 13.7598 14 13.6326 14 13.5V11.5C14 11.2239 14.2239 11 14.5 11C14.7761 11 15 11.2239 15 11.5V13.5C15 13.8978 14.842 14.2794 14.5607 14.5607C14.2794 14.842 13.8978 15 13.5 15H2.5C2.10217 15 1.72064 14.842 1.43934 14.5607C1.15804 14.2794 1 13.8978 1 13.5V11.5C1 11.2239 1.22386 11 1.5 11Z"/></g><g id="ic-bolt"><path fill-rule="evenodd" d="M5.765 15.441a.5.5 0 0 1-.247-.573L6.845 10H3.5a.5.5 0 0 1-.378-.827l6.5-7.5a.5.5 0 0 1 .86.459L9.155 7H12.5a.5.5 0 0 1 .378.827l-6.5 7.5a.5.5 0 0 1-.613.114ZM11.405 8H8.5a.5.5 0 0 1-.482-.632l.922-3.381L4.595 9H7.5a.5.5 0 0 1 .482.632l-.922 3.381L11.405 8Z"/></g><g id="ic-user-plus"><path fill-rule="evenodd" d="M11 5a2 2 0 1 1-4 0 2 2 0 0 1 4 0Zm1 0a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm-7.145 5.98A2.092 2.092 0 0 1 6.641 10h4.718c.74 0 1.416.38 1.786.98l.782 1.272c.182.296-.01.748-.467.748H4.54c-.457 0-.649-.452-.467-.748l.782-1.272Zm-.851-.524A3.092 3.092 0 0 1 6.64 9h4.718c1.08 0 2.082.553 2.637 1.457l.782 1.271c.615 1-.123 2.272-1.318 2.272H4.54c-1.195 0-1.933-1.272-1.319-2.272l.783-1.271ZM2 6V4.5a.5.5 0 0 1 1 0V6h1.5a.5.5 0 0 1 0 1H3v1.5a.5.5 0 0 1-1 0V7H.5a.5.5 0 0 1 0-1H2Z"/></g><g id="ic-card-identity"><path fill-rule="evenodd" d="M13 4H3a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1ZM3 3a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2H3Zm2.5 4.5a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1Zm0 1a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Zm-1.5 2a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v.5a.5.5 0 0 0 1 0v-.5A1.5 1.5 0 0 0 6.5 9h-2A1.5 1.5 0 0 0 3 10.5v.5a.5.5 0 0 0 1 0v-.5Zm5-3a.5.5 0 0 1 .5-.5H12a.5.5 0 0 1 0 1H9.5a.5.5 0 0 1-.5-.5ZM9.5 9a.5.5 0 0 0 0 1H12a.5.5 0 0 0 0-1H9.5Z"/></g><g id="ic-pass-shield-fill-danger"><path fill-rule="evenodd" clip-rule="evenodd" d="M8.85436 1.27869C8.30246 1.078 7.69754 1.078 7.14564 1.27869L2.32913 3.03015C2.13153 3.102 2 3.28979 2 3.50005V9.12551C2 10.7723 2.89949 12.2875 4.34517 13.076L7.76057 14.939C7.90981 15.0204 8.09019 15.0204 8.23943 14.939L11.6548 13.076C13.1005 12.2875 14 10.7723 14 9.12551V3.50005C14 3.28979 13.8685 3.102 13.6709 3.03015L8.85436 1.27869ZM5.52492 5.73223C5.32965 5.53697 5.32965 5.22038 5.52492 5.02512C5.72018 4.82986 6.03676 4.82986 6.23202 5.02512L7.99978 6.79288L9.76753 5.02513C9.96279 4.82987 10.2794 4.82987 10.4746 5.02513C10.6699 5.22039 10.6699 5.53697 10.4746 5.73224L8.70689 7.49999L10.4747 9.26776C10.6699 9.46302 10.6699 9.77961 10.4747 9.97487C10.2794 10.1701 9.96282 10.1701 9.76756 9.97487L7.99978 8.20709L6.232 9.97488C6.03673 10.1701 5.72015 10.1701 5.52489 9.97488C5.32963 9.77962 5.32963 9.46303 5.52489 9.26777L7.29267 7.49999L5.52492 5.73223Z"/></g><g id="ic-pass-shield-fill-success"><path fill-rule="evenodd" clip-rule="evenodd" d="M7.14564 1.27864C7.69754 1.07796 8.30246 1.07796 8.85436 1.27864L13.6709 3.0301C13.8685 3.10196 14 3.28975 14 3.5V9.12547C14 10.7722 13.1005 12.2875 11.6548 13.076L8.23943 14.939C8.09019 15.0204 7.90981 15.0204 7.76057 14.939L4.34517 13.076C2.89949 12.2875 2 10.7722 2 9.12547V3.5C2 3.28975 2.13153 3.10196 2.32913 3.0301L7.14564 1.27864ZM10.8536 6.35278C11.0488 6.15751 11.0488 5.84093 10.8536 5.64567C10.6583 5.45041 10.3417 5.45041 10.1464 5.64567L7 8.79212L5.85355 7.64567C5.65829 7.45041 5.34171 7.45041 5.14645 7.64567C4.95118 7.84093 4.95118 8.15751 5.14645 8.35278L6.64645 9.85278C6.84171 10.048 7.15829 10.048 7.35355 9.85278L10.8536 6.35278Z"/></g><g id="ic-pass-shield-fill-warning"><path fill-rule="evenodd" clip-rule="evenodd" d="M7.14564 1.27864C7.69754 1.07796 8.30246 1.07796 8.85436 1.27864L13.6709 3.0301C13.8685 3.10196 14 3.28975 14 3.5V9.12547C14 10.7722 13.1005 12.2875 11.6548 13.076L8.23943 14.939C8.09019 15.0204 7.90981 15.0204 7.76057 14.939L4.34517 13.076C2.89949 12.2875 2 10.7722 2 9.12547V3.5C2 3.28975 2.13153 3.10196 2.32913 3.0301L7.14564 1.27864ZM8 3.99995C7.72386 3.99995 7.5 4.22381 7.5 4.49995V9.49996C7.5 9.7761 7.72386 9.99996 8 9.99996V9.99996C8.27614 9.99996 8.5 9.7761 8.5 9.49996V4.49995C8.5 4.22381 8.27614 3.99995 8 3.99995V3.99995ZM8.5 11.5C8.5 11.2238 8.27614 11 8 11V11C7.72386 11 7.5 11.2238 7.5 11.5V11.5C7.5 11.7761 7.72386 12 8 12V12C8.27614 12 8.5 11.7761 8.5 11.5V11.5Z"/></g><g id="ic-users-plus"><path fill-rule="evenodd" d="M7.5 7a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Zm0 1a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Zm-1.876 2h3.752a.98.98 0 0 1 .833.467l.758 1.224c.043.069.043.141.006.209a.178.178 0 0 1-.165.1H4.192a.178.178 0 0 1-.165-.1.197.197 0 0 1 .006-.21l.759-1.223A.98.98 0 0 1 5.624 10Zm-1.682-.06A1.98 1.98 0 0 1 5.624 9h3.752c.684 0 1.32.355 1.682.94l.76 1.224c.495.8-.075 1.836-1.01 1.836H4.192c-.935 0-1.505-1.037-1.01-1.836l.76-1.224ZM13.036 9H12v1h1.036c.424 0 .83.194 1.108.535l.786.968c.174.214.004.497-.21.497h-1.746v1h1.745c1.107 0 1.66-1.3.987-2.127l-.786-.968A2.428 2.428 0 0 0 13.036 9Zm.464-3a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm1 0a2 2 0 1 1-4 0 2 2 0 0 1 4 0ZM2 7V5.5a.5.5 0 0 1 1 0V7h1.5a.5.5 0 0 1 0 1H3v1.5a.5.5 0 0 1-1 0V8H.5a.5.5 0 0 1 0-1H2Z"/></g><g id="ic-shield-2"><path fill-rule="evenodd" d="M7.146 1.28a2.5 2.5 0 0 1 1.708 0l4.817 1.75A.5.5 0 0 1 14 3.5v5.626a4.5 4.5 0 0 1-2.345 3.95L8.239 14.94a.5.5 0 0 1-.478 0l-3.416-1.863A4.5 4.5 0 0 1 2 9.127V3.5a.5.5 0 0 1 .33-.47l4.816-1.752Zm1.367.94a1.5 1.5 0 0 0-1.026 0L3 3.85v5.275a3.5 3.5 0 0 0 1.824 3.073L8 13.93l3.176-1.732A3.5 3.5 0 0 0 13 9.126V3.851L8.513 2.219Z"/></g><g id="ic-magnifier"><path fill-rule="evenodd" d="M11 6.5a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Zm-.98 4.227a5.5 5.5 0 1 1 .707-.707l3.127 3.126a.5.5 0 0 1-.708.708l-3.127-3.127Z"/></g><g id="ic-hamburger"><path fill-rule="evenodd" clip-rule="evenodd" d="M2 3.5C2 3.22386 2.22386 3 2.5 3H13.5C13.7761 3 14 3.22386 14 3.5C14 3.77614 13.7761 4 13.5 4L2.5 4C2.22386 4 2 3.77614 2 3.5ZM2 8C2 7.72386 2.22386 7.5 2.5 7.5L13.5 7.5C13.7761 7.5 14 7.72386 14 8C14 8.27614 13.7761 8.5 13.5 8.5L2.5 8.5C2.22386 8.5 2 8.27614 2 8ZM2.5 13H13.5C13.7761 13 14 12.7761 14 12.5C14 12.2239 13.7761 12 13.5 12H2.5C2.22386 12 2 12.2239 2 12.5C2 12.7761 2.22386 13 2.5 13Z"/></g><g id="ic-paper-clip"><path fill-rule="evenodd" d="M12.207 2.795a2.598 2.598 0 0 0-3.573 0L3.72 7.531a3.635 3.635 0 0 0 0 5.281c1.527 1.472 4.011 1.472 5.538 0l4.325-4.167a.541.541 0 1 1 .751.78l-4.324 4.168c-1.947 1.876-5.095 1.876-7.041 0a4.72 4.72 0 0 1 0-6.842l4.913-4.736c1.404-1.353 3.672-1.353 5.076 0a3.414 3.414 0 0 1 0 4.948l-4.914 4.736c-.86.83-2.249.83-3.11 0a2.109 2.109 0 0 1 0-3.054l4.324-4.168a.541.541 0 1 1 .752.781L5.686 9.425a1.024 1.024 0 0 0 0 1.493 1.171 1.171 0 0 0 1.607 0l4.914-4.736a2.33 2.33 0 0 0 0-3.387Z"/></g><g id="ic-image"><path fill-rule="evenodd" d="M13 3H3a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1ZM3 2a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H3Zm9.446 10c.452 0 .713-.483.448-.828L9.792 7.129a.344.344 0 0 0-.538 0l-2.256 2.94-1.254-1.634a.344.344 0 0 0-.537 0l-2.1 2.737c-.266.345-.005.828.447.828h8.892ZM6.5 7a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></g><g id="ic-video-camera"><path fill-rule="evenodd" clip-rule="evenodd" d="M13.7699 3.95759C14.2584 3.55051 15 3.89788 15 4.53376V11.4662C15 12.1021 14.2584 12.4495 13.7699 12.0424L11.5397 10.184C11.1977 9.89897 11 9.47679 11 9.03162V6.96837C11 6.52321 11.1977 6.10103 11.5397 5.81604L13.7699 3.95759ZM14 5.06752L12.1799 6.58426C12.0659 6.67926 12 6.81998 12 6.96837V9.03162C12 9.18002 12.0659 9.32074 12.1799 9.41574L14 10.9325V5.06752Z"/><path fill-rule="evenodd" clip-rule="evenodd" d="M1 5C1 3.89543 1.89543 3 3 3H8C9.10457 3 10 3.89543 10 5V5.5C10 5.77614 9.77614 6 9.5 6C9.22386 6 9 5.77614 9 5.5V5C9 4.44772 8.55228 4 8 4H3C2.44772 4 2 4.44772 2 5V11C2 11.5523 2.44772 12 3 12H8C8.55228 12 9 11.5523 9 11V10.5C9 10.2239 9.22386 10 9.5 10C9.77614 10 10 10.2239 10 10.5V11C10 12.1046 9.10457 13 8 13H3C1.89543 13 1 12.1046 1 11V5Z"/></g><g id="ic-meet-copy"><path fill-rule="evenodd" d="M6.8802 0.22857C5.7419 0.22857 4.78571 1.18476 4.78571 2.32308V3.65715H5.94286V2.32308C5.94286 1.80337 6.40306 1.34286 6.8802 1.34286H13.6571C14.2857 1.34286 14.9714 2.02857 14.9714 2.65715V9.31429C14.9714 9.94286 14.2857 10.6286 13.6571 10.6286H12.4571V11.8286H13.6571C14.8571 11.8286 15.8857 10.8 15.8857 9.6V2.65715C15.8857 1.45715 14.8571 0.42857 13.6571 0.42857H6.8802Z"/><path fill-rule="evenodd" d="M1.37143 7.08572C1.37143 6.45715 1.94286 5.88572 2.57143 5.88572H8.74286C9.37143 5.88572 9.94286 6.45715 9.94286 7.08572V13.7143C9.94286 14.3429 9.37143 14.9143 8.74286 14.9143H2.57143C1.94286 14.9143 1.37143 14.3429 1.37143 13.7143V7.08572ZM0.22857 7.08572C0.22857 5.88572 1.25714 4.85715 2.45714 4.85715H8.74286C9.94286 4.85715 10.9714 5.88572 10.9714 7.08572V13.7143C10.9714 14.9143 9.94286 15.9429 8.74286 15.9429H2.45714C1.25714 15.9429 0.22857 14.9143 0.22857 13.7143V7.08572Z"/></g><g id="ic-envelope"><path fill-rule="evenodd" d="M2 6.217V10.8c0 .577 0 .949.024 1.232.022.272.06.373.085.422a1 1 0 0 0 .437.437c.05.025.15.063.422.085C3.25 13 3.623 13 4.2 13h7.6c.577 0 .949 0 1.232-.024.272-.022.373-.06.422-.085a1 1 0 0 0 .437-.437c.025-.05.063-.15.085-.422C14 11.75 14 11.377 14 10.8V6.217L8.786 9.426a1.5 1.5 0 0 1-1.572 0L2 6.217Zm11.982-1.163-5.72 3.52a.5.5 0 0 1-.524 0l-5.72-3.52.006-.086c.022-.272.06-.373.085-.422a1 1 0 0 1 .437-.437c.05-.025.15-.063.422-.085C3.25 4 3.623 4 4.2 4h7.6c.577 0 .949 0 1.232.024.272.022.373.06.422.085a1 1 0 0 1 .437.437c.025.05.063.15.085.422l.006.086ZM1.218 4.092C1 4.52 1 5.08 1 6.2v4.6c0 1.12 0 1.68.218 2.108a2 2 0 0 0 .874.874C2.52 14 3.08 14 4.2 14h7.6c1.12 0 1.68 0 2.108-.218a2 2 0 0 0 .874-.874C15 12.48 15 11.92 15 10.8V6.2c0-1.12 0-1.68-.218-2.108a2 2 0 0 0-.874-.874C13.48 3 12.92 3 11.8 3H4.2c-1.12 0-1.68 0-2.108.218a2 2 0 0 0-.874.874Z"/></g><g id="ic-pass-credit-card"><path d="M3.5 10C3.22386 10 3 10.2239 3 10.5C3 10.7761 3.22386 11 3.5 11H6.5C6.77614 11 7 10.7761 7 10.5C7 10.2239 6.77614 10 6.5 10H3.5Z"/><path d="M11.5 10C11.2239 10 11 10.2239 11 10.5C11 10.7761 11.2239 11 11.5 11H12.5C12.7761 11 13 10.7761 13 10.5C13 10.2239 12.7761 10 12.5 10H11.5Z"/><path fill-rule="evenodd" clip-rule="evenodd" d="M0 3.5C0 2.67186 0.671858 2 1.5 2H14.5C15.3281 2 16 2.67186 16 3.5V12.5C16 13.3281 15.3281 14 14.5 14H1.5C0.671858 14 0 13.3281 0 12.5V3.5ZM1 3.5C1 3.22414 1.22414 3 1.5 3H14.5C14.7759 3 15 3.22414 15 3.5V6H1V3.5ZM15 7V12.5C15 12.7759 14.7759 13 14.5 13H1.5C1.22414 13 1 12.7759 1 12.5V7H15Z"/></g><g id="ic-folder-open"><path d="M3 2a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2H8.472a1.5 1.5 0 0 1-.67-.158l-1.156-.578A2.5 2.5 0 0 0 5.528 2H3Z"/></g><g id="ic-folder-closed"><path fill-rule="evenodd" d="M3.11 2.5A1.5 1.5 0 0 1 4.61 1h3.536a1.5 1.5 0 0 1 .67.158l1.642.821a.2.2 0 0 0 .09.021H14.5A1.5 1.5 0 0 1 16 3.5v8a1.5 1.5 0 0 1-1.5 1.5H4.61a1.5 1.5 0 0 1-1.5-1.5v-9Z"/><path fill-rule="evenodd" d="M2 4a1 1 0 0 0-1 1v7.5A2.5 2.5 0 0 0 3.5 15H13a1 1 0 0 0 1-1H3.5A1.5 1.5 0 0 1 2 12.5V4Z"/></g><g id="ic-chevron-down-filled"><path d="M7.627 9.846 4.502 6.72A.422.422 0 0 1 4.8 6h6.4c.376 0 .564.454.298.72L8.373 9.846a.527.527 0 0 1-.746 0Z"/></g><g id="ic-chevron-right-filled"><path d="M9.846 7.627 6.72 4.502A.422.422 0 0 0 6 4.8v6.4c0 .376.454.564.72.298l3.126-3.125a.527.527 0 0 0 0-.746Z"/></g><g id="ic-moon"><path d="M9.798 1.033a.55.55 0 0 0-.683.622 4.75 4.75 0 0 1-5.46 5.46.55.55 0 0 0-.622.683A6.25 6.25 0 1 0 9.798 1.033Z"/></g><g id="ic-sun"><path d="M8 4.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z"/><path fill-rule="evenodd" d="M8 1a.55.55 0 0 1 .55.55v.4a.55.55 0 1 1-1.1 0v-.4A.55.55 0 0 1 8 1Zm0 12.5a.55.55 0 0 1 .55.55v.4a.55.55 0 1 1-1.1 0v-.4a.55.55 0 0 1 .55-.55ZM1 8a.55.55 0 0 1 .55-.55h.4a.55.55 0 1 1 0 1.1h-.4A.55.55 0 0 1 1 8Zm12.5 0a.55.55 0 0 1 .55-.55h.4a.55.55 0 1 1 0 1.1h-.4a.55.55 0 0 1-.55-.55ZM2.98 2.98a.55.55 0 0 1 .778 0l.283.283a.55.55 0 1 1-.778.778l-.283-.283a.55.55 0 0 1 0-.778Zm9.262 9.262a.55.55 0 0 1 .778 0l.283.283a.55.55 0 1 1-.778.778l-.283-.283a.55.55 0 0 1 0-.778Zm.283-9.262a.55.55 0 0 1 0 .778l-.283.283a.55.55 0 1 1-.778-.778l.283-.283a.55.55 0 0 1 .778 0ZM3.263 12.242a.55.55 0 0 1 0 .778l-.283.283a.55.55 0 1 1-.778-.778l.283-.283a.55.55 0 0 1 .778 0Z"/></g><symbol id="pp-logo" viewBox="0 0 512 512"><path d="M153.963 64.6798C189.679 28.9634 207.537 11.1052 228.13 4.41417C246.244 -1.47139 265.756 -1.47139 283.87 4.41417C304.463 11.1052 322.321 28.9634 358.037 64.6798L447.32 153.963C483.037 189.679 500.895 207.537 507.586 228.13C513.471 246.244 513.471 265.756 507.586 283.87C500.895 304.463 483.037 322.321 447.32 358.037L358.037 447.32C322.321 483.037 304.463 500.895 283.87 507.586C265.756 513.471 246.244 513.471 228.13 507.586C207.537 500.895 189.679 483.037 153.962 447.32L137.176 428.501C127.018 417.113 121.939 411.419 118.318 404.943C115.106 399.199 112.75 393.017 111.324 386.593C109.715 379.35 109.715 371.72 109.715 356.46L109.715 155.541C109.715 140.28 109.715 132.65 111.323 125.407C112.75 118.983 115.106 112.801 118.318 107.057C121.939 100.581 127.018 94.887 137.176 83.4988L153.963 64.6798Z" fill="url(#paint0_radial_3371_26980)" /><path d="M153.963 64.6798C189.679 28.9634 207.537 11.1052 228.13 4.41417C246.244 -1.47139 265.756 -1.47139 283.87 4.41417C304.463 11.1052 322.321 28.9634 358.037 64.6798L447.32 153.963C483.037 189.679 500.895 207.537 507.586 228.13C513.471 246.244 513.471 265.756 507.586 283.87C500.895 304.463 483.037 322.321 447.32 358.037L358.037 447.32C322.321 483.037 304.463 500.895 283.87 507.586C265.756 513.471 246.244 513.471 228.13 507.586C207.537 500.895 189.679 483.037 153.962 447.32L137.176 428.501C127.018 417.113 121.939 411.419 118.318 404.943C115.106 399.199 112.75 393.017 111.324 386.593C109.715 379.35 109.715 371.72 109.715 356.46L109.715 155.541C109.715 140.28 109.715 132.65 111.323 125.407C112.75 118.983 115.106 112.801 118.318 107.057C121.939 100.581 127.018 94.887 137.176 83.4988L153.963 64.6798Z" fill="url(#paint1_linear_3371_26980)" /><path d="M147.585 71.0519C165.443 53.1937 174.373 44.2646 184.669 40.9191C193.726 37.9764 203.482 37.9764 212.539 40.9191C222.835 44.2646 231.764 53.1937 249.623 71.052L383.547 204.976C401.405 222.834 410.334 231.763 413.68 242.06C416.622 251.117 416.622 260.873 413.68 269.93C410.334 280.226 401.405 289.155 383.547 307.013L249.623 440.938C231.764 458.796 222.835 467.725 212.539 471.07C203.482 474.013 193.726 474.013 184.669 471.07C174.373 467.725 165.443 458.796 147.585 440.938L64.6798 358.032C28.9634 322.316 11.1052 304.457 4.41417 283.865C-1.47139 265.751 -1.47139 246.239 4.41417 228.125C11.1052 207.532 28.9634 189.674 64.6798 153.957L147.585 71.0519Z" fill="url(#paint2_radial_3371_26980)" /><defs><radialGradient id="paint0_radial_3371_26980" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(154.521 521.978) rotate(-58.142) scale(427.395 668.358)" ><stop stop-color="#FFD580" /><stop offset="0.09375" stop-color="#F6C592" /><stop offset="0.205" stop-color="#EBB6A2" /><stop offset="0.324466" stop-color="#DFA5AF" /><stop offset="0.42875" stop-color="#D397BE" /><stop offset="0.53375" stop-color="#C486CB" /><stop offset="0.64875" stop-color="#B578D9" /><stop offset="0.77125" stop-color="#A166E5" /><stop offset="0.89125" stop-color="#8B57F2" /><stop offset="1" stop-color="#704CFF" /></radialGradient><linearGradient id="paint1_linear_3371_26980" x1="136.887" y1="-101.663" x2="236.456" y2="506.122" gradientUnits="userSpaceOnUse" ><stop stop-color="#6D4AFF" /><stop offset="0.392009" stop-color="#B39FFB" stop-opacity="0.978022" /><stop offset="1" stop-color="#FFE8DB" stop-opacity="0.8" /></linearGradient><radialGradient id="paint2_radial_3371_26980" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(116.979 469.934) rotate(-58.142) scale(343.774 537.592)" ><stop stop-color="#FFD580" /><stop offset="0.09375" stop-color="#F6C592" /><stop offset="0.205" stop-color="#EBB6A2" /><stop offset="0.324466" stop-color="#DFA5AF" /><stop offset="0.42875" stop-color="#D397BE" /><stop offset="0.53375" stop-color="#C486CB" /><stop offset="0.64875" stop-color="#B578D9" /><stop offset="0.77125" stop-color="#A166E5" /><stop offset="0.89125" stop-color="#8B57F2" /><stop offset="1" stop-color="#704CFF" /></radialGradient></defs></symbol></defs></svg>
+
+<div id="lock-screen" class="lock-screen hidden">
+  <div class="lock-card">
+    <div class="lock-logo">
+      <svg width="56" height="56" viewBox="0 0 512 512" aria-hidden="true"><use href="#pp-logo"></use></svg>
+    </div>
+    <h1>Proton Pass</h1>
+    <p class="lock-sub">This archive is encrypted. Enter the password to unlock it.</p>
+    <input id="lock-password" type="password" placeholder="Archive password" autocomplete="off">
+    <button id="lock-button" class="btn btn-solid">Unlock archive</button>
+    <div id="lock-error" class="lock-error hidden"></div>
+  </div>
+</div>
+<div id="app" class="app hidden">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand"><svg width="24" height="24" viewBox="0 0 512 512" aria-hidden="true"><use href="#pp-logo"></use></svg><span>Proton Pass</span><span class="brand-tag">archive</span></div>
+    <nav class="filters">
+      <button class="filter has-chip active" data-filter="all">
+        <span class="row-chip vault" style="--chip:136 73 255"><svg viewBox="0 0 16 16" aria-hidden="true"><use href="#ic-pass-all-vaults"></use></svg></span>
+        <span class="nav-labels"><span class="nav-name">All items</span><span class="nav-sub" id="count-all"></span></span>
+      </button>
+      <div class="filters-title accent" id="vaults-title">Vaults &amp; folders</div>
+      <div id="vault-list"></div>
+    </nav>
+    <div class="sidebar-footer">
+      <span id="export-info"></span>
+    </div>
+  </aside>
+  <main class="main">
+    <header class="item-list-header">
+      <button id="menu-toggle" class="icon-btn" title="Toggle sidebar"><svg viewBox="0 0 16 16" width="16" height="16"><use href="#ic-hamburger"></use></svg></button>
+      <button id="mobile-back" class="icon-btn" title="Back to list" style="display:none"><svg viewBox="0 0 16 16" width="16" height="16"><use href="#ic-chevron-left"></use></svg></button>
+      <div class="top-search" id="top-search">
+        <div class="input-shell">
+          <span class="prefix-icon"><svg viewBox="0 0 16 16" aria-hidden="true"><use href="#ic-magnifier"></use></svg></span>
+          <input id="search" type="text" placeholder="Search all items" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
+          <button id="search-clear" class="search-clear" type="button" title="Clear search" aria-label="Clear search"><svg viewBox="0 0 16 16" aria-hidden="true"><use href="#ic-cross-small"></use></svg></button>
+        </div>
+      </div>
+      <div class="spacer"></div>
+      <button id="theme-toggle" class="icon-btn" title="Toggle light/dark theme" aria-label="Toggle theme">
+        <svg viewBox="0 0 16 16" width="16" height="16"><use id="theme-icon" href="#ic-moon"></use></svg>
+      </button>
+    </header>
+    <div class="body-row">
+      <div class="list-col">
+        <div class="list-toolbar" id="list-toolbar">
+          <div class="toolbar-top">
+            <h2 id="list-title">All items</h2>
+            <span class="list-count" id="list-count"></span>
+          </div>
+          <div class="type-pills" id="type-pills"></div>
+        </div>
+        <section class="item-list" id="item-list"></section>
+      </div>
+      <section class="detail-pane" id="detail-pane">
+        <div class="empty-state" id="empty-state">
+          <svg width="56" height="56" viewBox="0 0 512 512" aria-hidden="true"><use href="#pp-logo"></use></svg>
+          <p>Select an item to see its details</p>
+        </div>
+        <div class="detail-content hidden" id="detail-content"></div>
+      </section>
+    </div>
+  </main>
+</div>
+<script><!--{{META_JSON}}--></script>
+<script><!--{{PAYLOAD_JSON}}--></script>
+<script><!--{{KDF_JS}}--></script>
+<script>
+/* ============================================================================
+ * Proton Pass — offline archive viewer
+ * ==========================================================================*/
+const META = JSON.parse(__META_JSON);
+const $ = (sel) => document.querySelector(sel);
+
+/* ---------------- utilities ---------------- */
+function b64ToBytes(b64) {
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+function escapeHtml(s) {
+  return (s || "").replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[c]));
+}
+function formatDate(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d)) return iso;
+  return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+}
+function formatDateTime(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d)) return iso;
+  return d.toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+function formatSize(bytes) {
+  if (bytes == null) return "";
+  if (bytes < 1024) return bytes + " B";
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+  return (bytes / 1024 / 1024).toFixed(2) + " MB";
+}
+let toastTimer = null;
+function toast(msg) {
+  let el = $("#toast-el");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "toast-el";
+    el.className = "toast";
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.style.opacity = "1";
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.style.opacity = "0"; }, 1600);
+}
+async function copyText(text, btn) {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch (e) {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    ta.remove();
+  }
+  toast("Copied to clipboard");
+  if (btn) {
+    btn.classList.add("copied");
+    const old = btn.innerHTML;
+    btn.innerHTML = iconSvg("ic-checkmark") || "&#10003;";
+    setTimeout(() => { btn.classList.remove("copied"); btn.innerHTML = old; }, 1200);
+  }
+}
+function iconSvg(id, cls) {
+  return `<svg viewBox="0 0 16 16"${cls ? ` class="${cls}"` : ""} aria-hidden="true"><use href="#${id}"></use></svg>`;
+}
+function hexToRgb(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
+  if (!m) return [136, 73, 255];
+  const n = parseInt(m[1], 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+function domainOf(url) {
+  try {
+    const u = new URL(url.includes("://") ? url : "https://" + url);
+    const parts = u.hostname.split(".");
+    if (parts.length >= 2) return parts.slice(-2).join(".");
+    return u.hostname;
+  } catch (e) {
+    const clean = url.replace(/^https?:\/\//, "").split("/")[0];
+    const parts = clean.split(".");
+    return parts.length >= 2 ? parts.slice(-2).join(".") : clean;
+  }
+}
+
+/* ---------------- decryption ---------------- */
+async function deriveKeyArgon2(password, saltHex, kdf) {
+  // Pure-JS Argon2id (embedded above as an IIFE). Runs synchronously and
+  // blocks the UI thread for roughly a second at 64 MiB / t=2 / p=4.
+  return __passArchiveKdf.derive(password, saltHex, kdf);
+}
+async function decryptArchive(password) {
+  const envelope = JSON.parse(__PAYLOAD_JSON);
+  const key = await deriveKeyArgon2(password, envelope.salt, envelope.kdf);
+  const blob = b64ToBytes(envelope.blob);
+  const nonce = blob.slice(0, 12);
+  const ciphertext = blob.slice(12);
+  const cryptoKey = await crypto.subtle.importKey("raw", key, { name: "AES-GCM" }, false, ["decrypt"]);
+  const aad = new TextEncoder().encode("proton-pass-archive-v1");
+  const plain = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: nonce, additionalData: aad },
+    cryptoKey,
+    ciphertext
+  );
+  return JSON.parse(new TextDecoder().decode(plain));
+}
+
+/* ---------------- app state ---------------- */
+let DATA = null;
+let state = {
+  filter: "all",
+  typeFilter: null,
+  vaultFilter: null,
+  folderFilter: null,
+  expandedFolders: {},
+  search: "",
+  selectedItem: null,
+};
+const VAULT_DOT_COLORS = ["#8849ff", "#00afe6", "#e65200", "#007b58", "#cc2d4f", "#5817d1", "#f0a500"];
+const TYPE_META = {
+  login:       { label: "Logins",       icon: "ic-user",            ui: "ui-violet",  singular: "Login" },
+  note:        { label: "Notes",        icon: "ic-file-lines",      ui: "ui-orange",  singular: "Note" },
+  alias:       { label: "Aliases",      icon: "ic-alias",           ui: "ui-teal",    singular: "Alias" },
+  credit_card: { label: "Credit cards", icon: "ic-pass-credit-card",ui: "ui-gray",    singular: "Credit card" },
+  identity:    { label: "Identities",   icon: "ic-card-identity",   ui: "ui-blue",    singular: "Identity" },
+  ssh_key:     { label: "SSH keys",     icon: "ic-filing-cabinet",  ui: "ui-gray",    singular: "SSH key" },
+  wifi:        { label: "Wi\u2011Fi",   icon: "ic-shield-2",        ui: "ui-teal",    singular: "Wi-Fi" },
+  custom:      { label: "Custom items", icon: "ic-wrench",          ui: "ui-gray",    singular: "Custom item" },
+};
+function vaultColor(vault, idx) {
+  if (vault && vault.color) return vault.color;
+  let h = 0;
+  const s = (vault && vault.id ? vault.id : "v") + (idx || 0);
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return VAULT_DOT_COLORS[h % VAULT_DOT_COLORS.length];
+}
+function vaultById(id) { return DATA.vaults.find((v) => v.id === id); }
+function vaultOfItem(item) { return vaultById(item.vault_id); }
+function isSharedItem(item) { return item.vault_id === "shared-with-me"; }
+function folderById(id) { return (DATA.folders || []).find((f) => f.id === id); }
+function foldersOfShare(shareId) { return (DATA.folders || []).filter((f) => f.share_id === shareId); }
+function childFolders(shareId, parentId) {
+  return foldersOfShare(shareId).filter((f) => (f.parent_folder_id || null) === parentId);
+}
+function folderPathIds(id) {
+  const path = [];
+  let cur = folderById(id);
+  const seen = new Set();
+  while (cur && !seen.has(cur.id)) {
+    seen.add(cur.id);
+    path.unshift(cur);
+    cur = cur.parent_folder_id ? folderById(cur.parent_folder_id) : null;
+  }
+  return path;
+}
+function descendantsOfFolder(shareId, folderId, includeSelf) {
+  const out = includeSelf ? [folderId] : [];
+  const stack = [folderId];
+  const guard = new Set(stack);
+  while (stack.length) {
+    const cur = stack.pop();
+    for (const f of foldersOfShare(shareId)) {
+      if (f.parent_folder_id === cur && !guard.has(f.id)) {
+        guard.add(f.id);
+        out.push(f.id);
+        stack.push(f.id);
+      }
+    }
+  }
+  return out;
+}
+function folderLabelOf(item) {
+  if (!item.folder_id) return "";
+  const path = folderPathIds(item.folder_id);
+  return path.map((f) => f.name).join(" › ");
+}
+function itemSubtitle(item) {
+  switch (item.item_type) {
+    case "login": return item.content.kind === "login" ? (item.content.username || item.content.email) : "";
+    case "alias": return item.alias_email || item.title;
+    case "credit_card": return item.content.kind === "credit_card" ? item.content.number.replace(/\d(?=\d{4})/g, "\u2022") : "";
+    case "wifi": return item.content.kind === "wifi" ? item.content.ssid : "";
+    case "ssh_key": return "SSH key";
+    case "identity": return item.content.kind === "identity" ? (item.content.email || item.content.full_name) : "";
+    default: {
+      const s = (item.note || "").split("\n")[0];
+      return s.length > 60 ? s.slice(0, 60) + "\u2026" : s;
+    }
+  }
+}
+
+/* ---------------- unlocking ---------------- */
+function showLock() {
+  $("#lock-screen").classList.remove("hidden");
+  const btn = $("#lock-button");
+  const input = $("#lock-password");
+  const attempt = async () => {
+    const pw = input.value;
+    if (!pw) return;
+    btn.disabled = true;
+    btn.textContent = "Deriving key\u2026";
+    $("#lock-error").classList.add("hidden");
+    try {
+      DATA = await decryptArchive(pw);
+      startApp();
+    } catch (e) {
+      $("#lock-error").textContent = "Wrong password or corrupted archive.";
+      $("#lock-error").classList.remove("hidden");
+      btn.disabled = false;
+      btn.textContent = "Unlock archive";
+      input.focus();
+      input.select();
+    }
+  };
+  btn.addEventListener("click", attempt);
+  input.addEventListener("keydown", (ev) => { if (ev.key === "Enter") attempt(); });
+  input.focus();
+}
+
+function startApp() {
+  $("#lock-screen").classList.add("hidden");
+  $("#app").classList.remove("hidden");
+  buildSidebar();
+  renderList();
+}
+
+/* ---------------- sidebar ---------------- */
+function buildTypePills() {
+  const counts = {};
+  for (const item of DATA.items) counts[item.item_type] = (counts[item.item_type] || 0) + 1;
+  const el = $("#type-pills");
+  el.innerHTML = "";
+  Object.entries(TYPE_META).forEach(([type, meta]) => {
+    if (!counts[type]) return;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.dataset.type = type;
+    btn.innerHTML = `${iconSvg(meta.icon)}${meta.label}`;
+    btn.title = `${meta.label} (${counts[type]})`;
+    btn.addEventListener("click", () => {
+      state.typeFilter = state.typeFilter === type ? null : type;
+      state.filter = "types";
+      state.vaultFilter = null;
+      state.folderFilter = null;
+      updateSidebarActive();
+      renderList();
+    });
+    el.appendChild(btn);
+  });
+}
+function syncSearchContext() {
+  const input = $("#search");
+  if (!input) return;
+  let scope = null;
+  if (state.filter === "vault" && state.vaultFilter) scope = vaultById(state.vaultFilter)?.name;
+  else if (state.filter === "folder" && state.folderFilter) {
+    const path = folderPathIds(state.folderFilter);
+    if (path.length) scope = path[path.length - 1].name;
+  }
+  input.placeholder = scope ? `Search in ${scope}\u2026` : "Search all items";
+  $("#top-search").classList.toggle("has-text", !!input.value);
+}
+
+function buildSidebar() {
+  // type-filter pills (above the item list, like the web app)
+  buildTypePills();
+
+  // vault + folder tree
+  buildSidebarVaults();
+
+  document.querySelectorAll(".filter[data-filter]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      state.filter = btn.dataset.filter;
+      state.typeFilter = null;
+      state.vaultFilter = null;
+      state.folderFilter = null;
+      updateSidebarActive();
+      renderList();
+    });
+  });
+
+  $("#count-all").textContent = DATA.items.length + " items";
+  $("#vaults-title").textContent = (DATA.folders || []).length ? "Vaults \u0026 folders" : "Vaults";
+  const folderCount = (DATA.folders || []).length;
+  $("#export-info").innerHTML =
+    `Exported ${formatDate(META.exported_at)}<br>${DATA.items.length} items \u00b7 ${DATA.vaults.length} vaults`
+    + (folderCount ? ` \u00b7 ${folderCount} folders` : "")
+    + (META.encrypted ? "<br>\ud83d\udd12 encrypted archive" : "<br>unencrypted archive");
+  updateSidebarActive();
+}
+function buildSidebarVaults() {
+  const vaultEl = $("#vault-list");
+  vaultEl.innerHTML = "";
+  // With no folders anywhere there are no chevrons to align against, so skip
+  // the invisible chevron spacer and let the chip sit flush left.
+  const anyFolders = (DATA.folders || []).length > 0;
+  DATA.vaults.forEach((vault, idx) => {
+    const rootFolders = childFolders(vault.share_id, null);
+    const expandable = rootFolders.length > 0;
+    const vaultKey = "v:" + vault.id;
+    const vaultOpen = expandable && !!state.expandedFolders[vaultKey];
+
+    const row = document.createElement("button");
+    row.className = "filter vault has-chip";
+    row.dataset.vault = vault.id;
+    const vcount = DATA.items.filter((i) => i.vault_id === vault.id).length;
+    row.innerHTML =
+      (expandable
+        ? `<span class="folder-chevron ${vaultOpen ? "expanded" : "collapsed"}" data-chev-vault="${escapeHtml(vault.id)}">${iconSvg(vaultOpen ? "ic-chevron-down-filled" : "ic-chevron-right-filled")}</span>`
+        : anyFolders
+          ? `<span class="folder-chevron" style="visibility:hidden">${iconSvg("ic-chevron-right-filled")}</span>`
+          : "")
+      + `<span class="row-chip vault" style="--chip:${hexToRgb(vaultColor(vault, idx)).join(' ')}">${iconSvg("ic-pass-home")}</span>`
+      + `<span class="nav-labels"><span class="nav-name">${escapeHtml(vault.name)}</span><span class="nav-sub">${vcount} item${vcount === 1 ? "" : "s"}</span></span>`;
+    row.title = escapeHtml(vault.description || vault.name);
+    row.addEventListener("click", () => {
+      state.folderFilter = null;
+      state.vaultFilter = state.vaultFilter === vault.id ? null : vault.id;
+      state.filter = "vault";
+      state.typeFilter = null;
+      updateSidebarActive();
+      renderList();
+    });
+    vaultEl.appendChild(row);
+
+    if (expandable) {
+      row.querySelector(".folder-chevron").addEventListener("click", (ev) => {
+        ev.stopPropagation();
+
+        state.expandedFolders[vaultKey] = !state.expandedFolders[vaultKey];
+        renderVaultTree();
+      });
+
+      const children = document.createElement("div");
+      children.className = "folder-rows";
+      children.style.display = vaultOpen ? "block" : "none";
+      vaultEl.appendChild(children);
+      if (vaultOpen) renderFolderNodes(children, vault, null, 0);
+    }
+  });
+}
+
+function renderVaultTree() {
+  buildSidebarVaults();
+  updateSidebarActive();
+}
+
+function selectFolder(folder) {
+  state.folderFilter = state.folderFilter === folder.id ? null : folder.id;
+  state.filter = "folder";
+  state.vaultFilter = null;
+  state.typeFilter = null;
+  if (state.folderFilter) {
+    // Expand ancestors so the selection is visible in the tree.
+    let cur = folder.parent_folder_id ? folderById(folder.parent_folder_id) : null;
+    while (cur) {
+      state.expandedFolders[cur.id] = true;
+      cur = cur.parent_folder_id ? folderById(cur.parent_folder_id) : null;
+    }
+  }
+  renderVaultTree();
+  renderList();
+}
+
+function renderFolderNodes(mount, vault, parentId, depth) {
+  childFolders(vault.share_id, parentId).forEach((folder) => {
+    const kidsHere = childFolders(vault.share_id, folder.id);
+    const expandable = kidsHere.length > 0;
+    const open = expandable && !!state.expandedFolders[folder.id];
+
+    const btn = document.createElement("button");
+    btn.className = "filter folder";
+    btn.dataset.folder = folder.id;
+    btn.style.paddingLeft = 22 + depth * 12 + "px";
+    btn.innerHTML =
+      (expandable
+        ? `<span class="folder-chevron ${open ? "expanded" : "collapsed"}">${iconSvg(open ? "ic-chevron-down-filled" : "ic-chevron-right-filled")}</span>`
+        : `<span class="folder-chevron" style="visibility:hidden">${iconSvg("ic-chevron-right-filled")}</span>`)
+      + `<span class="folder-icon">${iconSvg(open ? "ic-folder-open" : "ic-folder-closed")}</span>`
+      + escapeHtml(folder.name)
+      + `<span class="count">${itemsInFolderBranch(vault.share_id, folder.id).length}</span>`;
+    btn.addEventListener("click", () => selectFolder(folder));
+    mount.appendChild(btn);
+
+    if (expandable) {
+      btn.querySelector(".folder-chevron").addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        state.expandedFolders[folder.id] = !state.expandedFolders[folder.id];
+        renderVaultTree();
+      });
+
+      const children = document.createElement("div");
+      children.className = "folder-children";
+      mount.appendChild(children);
+      if (open) renderFolderNodes(children, vault, folder.id, depth + 1);
+    }
+  });
+}
+
+function itemsInFolderBranch(shareId, folderId) {
+  const ids = new Set(descendantsOfFolder(shareId, folderId, true));
+  return DATA.items.filter((i) => i.share_id === shareId && i.folder_id && ids.has(i.folder_id));
+}
+
+function updateSidebarActive() {
+  document.querySelectorAll(".filter").forEach((el) => {
+    const isActive =
+      (el.dataset.filter === state.filter && !el.dataset.type && !el.dataset.vault && !el.dataset.folder) ||
+      (el.dataset.vault && state.filter === "vault" && el.dataset.vault === state.vaultFilter) ||
+      (el.dataset.folder && state.filter === "folder" && el.dataset.folder === state.folderFilter);
+    el.classList.toggle("active", !!isActive);
+  });
+  document.querySelectorAll("#type-pills button").forEach((el) => {
+    el.classList.toggle("active", state.filter === "types" && el.dataset.type === state.typeFilter);
+  });
+  syncSearchContext();
+}
+
+/* ---------------- filtering ---------------- */
+function filteredItems() {
+  let items = DATA.items.slice();
+  if (state.filter === "types" && state.typeFilter) items = items.filter((i) => i.item_type === state.typeFilter);
+  if (state.filter === "vault" && state.vaultFilter) items = items.filter((i) => i.vault_id === state.vaultFilter);
+  if (state.filter === "folder" && state.folderFilter) {
+    const folder = folderById(state.folderFilter);
+    if (folder) {
+      const ids = new Set(descendantsOfFolder(folder.share_id, folder.id, true));
+      items = items.filter((i) => i.folder_id && ids.has(i.folder_id));
+    } else {
+      items = [];
+    }
+  }
+  if (state.search) {
+    const q = state.search.toLowerCase();
+    items = items.filter((i) => {
+      const hay = [
+        i.title, i.note,
+        i.content.kind === "login" ? [i.content.username, i.content.email, (i.content.urls||[]).join(" ")].join(" ") : "",
+        i.content.kind === "credit_card" ? i.content.cardholder_name : "",
+        i.extra_fields.map((f) => f.name + " " + fieldValueText(f)).join(" "),
+        (i.attachments||[]).map((a) => a.name).join(" "),
+        i.folder_id ? folderLabelOf(i) : "",
+      ].join(" ").toLowerCase();
+      return hay.includes(q);
+    });
+  }
+  return items;
+}
+function fieldValueText(f) {
+  if (f.content.type === "totp") return "";
+  return f.content.value !== undefined ? f.content.value : "";
+}
+
+/* ---------------- list rendering ---------------- */
+function renderList() {
+  const items = filteredItems();
+  const listEl = $("#item-list");
+  listEl.innerHTML = "";
+  $("#list-count").textContent = items.length + (items.length === 1 ? " item" : " items");
+  let title = "All items";
+  let crumbHtml = "";
+  if (state.filter === "vault" && state.vaultFilter) {
+    title = vaultById(state.vaultFilter)?.name || "Vault";
+  } else if (state.filter === "types" && state.typeFilter) {
+    title = TYPE_META[state.typeFilter]?.label || "Items";
+  } else if (state.filter === "folder" && state.folderFilter) {
+    const path = folderPathIds(state.folderFilter);
+    title = path.map((f) => escapeHtml(f.name)).join('<span class="crumb-sep"> › </span>');
+    crumbHtml = title;
+  }
+  const titleEl = $("#list-title");
+  titleEl.innerHTML = crumbHtml ? `<span class="crumbs">${crumbHtml}</span>` : escapeHtml(title);
+  titleEl.title = crumbHtml ? "" : title;
+  syncSearchContext();
+
+  items.forEach((item) => {
+    const meta = TYPE_META[item.item_type] || TYPE_META.custom;
+    const card = document.createElement("div");
+    card.className = "item-card" + (state.selectedItem === item.id ? " active" : "");
+    card.innerHTML = `
+      <div class="item-icon ${meta.ui}">${iconSvg(meta.icon)}</div>
+      <div class="titles">
+        <div class="title">${escapeHtml(item.title || meta.singular)}</div>
+        <div class="subtitle">${escapeHtml(itemSubtitle(item) || "")}</div>
+      </div>
+      <div class="badges">
+        ${isSharedItem(item) ? '<span class="badge badge-shared">shared</span>' : ""}
+        ${(item.attachments||[]).length ? `<span class="att-count">${iconSvg("ic-paper-clip")}</span>` : ""}
+      </div>`;
+    card.addEventListener("click", () => selectItem(item.id));
+    listEl.appendChild(card);
+  });
+
+  if (!items.length) {
+    listEl.innerHTML = '<div style="padding:30px;text-align:center;color:var(--text-hint)">No items found</div>';
+  }
+}
+
+function selectItem(id) {
+  state.selectedItem = id;
+  renderList();
+  const item = DATA.items.find((i) => i.id === id);
+  if (item) renderDetail(item);
+  const bodyRow = document.querySelector(".body-row");
+  if (window.innerWidth <= 900 && bodyRow) bodyRow.classList.add("has-detail");
+}
+
+/* ---------------- detail rendering ---------------- */
+function fieldRow(label, valueHtml, opts) {
+  opts = opts || {};
+  const copyable = opts.copy !== false && opts.rawValue != null && opts.rawValue !== "";
+  return `
+  <div class="field-row">
+    <div class="field-box">
+      ${opts.glyph === false ? "" : `<span class="field-glyph">${iconSvg(opts.glyphIcon || "ic-key")}</span>`}
+      <div class="field-main">
+        <div class="field-label">${escapeHtml(label)}</div>
+        <div class="field-value${opts.plain ? " plain" : ""}${opts.mono ? " mono" : ""}${opts.masked ? " masked-value" : ""}" id="${opts.domId || ""}">
+          <span class="field-display">${valueHtml}</span>
+        </div>
+      </div>
+    </div>
+    <div class="field-actions">
+      ${opts.extraButtons || ""}
+      ${copyable ? `<button class="field-btn copy-btn" title="Copy" data-copy="${escapeHtml(opts.rawValue)}">${iconSvg("ic-meet-copy")}</button>` : ""}
+      ${opts.reveal ? `<button class="field-btn reveal-btn" title="Show/Hide">${iconSvg("ic-eye")}</button>` : ""}
+    </div>
+  </div>`;
+}
+function metaCard(item) {
+  return `<div class="meta-card">
+    <div class="meta-row">${iconSvg("ic-magic-wand")}<div class="meta-titles"><span class="meta-title">Last modified</span><span class="meta-sub">${formatDateTime(item.modify_time)}</span></div></div>
+    <div class="meta-row">${iconSvg("ic-bolt")}<div class="meta-titles"><span class="meta-title">Created</span><span class="meta-sub">${formatDateTime(item.create_time)}</span></div></div>
+  </div>`;
+}
+function renderDetail(item) {
+  const meta = TYPE_META[item.item_type] || TYPE_META.custom;
+  const vault = vaultOfItem(item);
+  const content = $("#detail-content");
+  $("#empty-state").classList.add("hidden");
+  content.classList.remove("hidden");
+
+  const folderCrumb = item.folder_id ? folderPathIds(item.folder_id) : [];
+  const folderLoc = folderCrumb.length
+    ? `<span class="detail-location" title="${escapeHtml(folderCrumb.map((f) => f.name).join(" › "))}">${folderCrumb.map((f) => `<span class="detail-crumb">${escapeHtml(f.name)}</span>`).join('<span class="detail-crumb-sep">›</span>')}</span>`
+    : "";
+  let html = `
+    <div class="detail-header">
+      <div class="item-icon ${meta.ui}">${iconSvg(meta.icon)}</div>
+      <div style="flex:1;min-width:0">
+        <h2>${escapeHtml(item.title || meta.singular)}</h2>
+        <div class="detail-meta">
+          <span class="vault-tag">${iconSvg("ic-pass-home")}${escapeHtml(vault ? vault.name : "Unknown vault")}</span>
+          ${folderLoc ? folderLoc + "<span>·</span>" : ""}
+          <span>${escapeHtml(meta.singular)}</span>
+          ${isSharedItem(item) ? "<span>· shared with you</span>" : ""}
+        </div>
+      </div>
+      <div class="spacer"></div>
+    </div>`;
+
+  const clusters = [];
+  const pushRow = (rowHtml, kind) => {
+    if (!clusters.length || clusters[clusters.length-1].kind !== kind) clusters.push({ kind, rows: [] });
+    clusters[clusters.length-1].rows.push(rowHtml);
+  };
+
+  if (item.note) {
+    pushRow(`<div class="field-row"><div class="field-box"><span class="field-glyph">${iconSvg("ic-file-lines")}</span><div class="field-main"><div class="field-label">Note</div><div class="field-value plain no-copy"><span class="field-note">${escapeHtml(item.note)}</span></div></div></div></div>`, "fields");
+  }
+
+  const c = item.content;
+  if (item.item_type === "alias") {
+    const addr = item.alias_email || item.title;
+    pushRow(fieldRow("Alias address", escapeHtml(addr), { rawValue: addr, glyphIcon: "ic-alias" }), "fields");
+  } else if (c.kind === "login") {
+    if (c.email) pushRow(fieldRow("Email", escapeHtml(c.email), { rawValue: c.email, domId: "v-email", glyphIcon: "ic-envelope" }), "fields");
+    if (c.username) pushRow(fieldRow("Username", escapeHtml(c.username), { rawValue: c.username, domId: "v-username", glyphIcon: "ic-user" }), "fields");
+    if (c.password) pushRow(fieldRow("Password", "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022", { rawValue: c.password, reveal: true, masked: true, mono: true, glyphIcon: "ic-key" }), "fields");
+    if ((c.urls || []).length) {
+      pushRow(`<div class="field-row"><div class="field-box"><span class="field-glyph">${iconSvg("ic-globe")}</span><div class="field-main"><div class="field-label">Website</div><div class="field-value plain no-copy url-list">${
+        c.urls.map((u) => `<a class="link" href="${escapeHtml(u)}" target="_blank" rel="noopener noreferrer">${escapeHtml(u)}</a>`).join("")
+      }</div></div></div></div>`, "fields");
+    }
+    if (c.totp_uri) pushRow(totpRowHtml(c.totp_uri), "fields");
+    for (const pk of c.passkeys || []) {
+      pushRow(`<div class="field-row"><div class="field-box"><span class="field-glyph">${iconSvg("ic-key")}</span><div class="field-main"><div class="field-value plain no-copy"><div class="passkey-row" style="border:none;background:transparent;padding:0"><div class="pk-domain">${iconSvg("ic-key")}${escapeHtml(pk.rp_name || pk.domain)}</div><div class="pk-user">${escapeHtml(pk.user_name || pk.user_display_name)}</div></div></div></div></div></div>`, "fields");
+    }
+  } else if (c.kind === "credit_card") {
+    if (c.cardholder_name) pushRow(fieldRow("Cardholder", escapeHtml(c.cardholder_name), { rawValue: c.cardholder_name, plain: true, glyphIcon: "ic-user" }), "fields");
+    if (c.number) pushRow(fieldRow("Card number", escapeHtml(maskCard(c.number)), { rawValue: c.number, reveal: true, masked: true, mono: true, glyphIcon: "ic-pass-credit-card" }), "fields");
+    if (c.expiration_date) pushRow(fieldRow("Expiration", escapeHtml(c.expiration_date), { rawValue: c.expiration_date, glyphIcon: "ic-clock" }), "fields");
+    if (c.verification_number) pushRow(fieldRow("CVV", "\u2022\u2022\u2022", { rawValue: c.verification_number, reveal: true, masked: true, mono: true, glyphIcon: "ic-shield" }), "fields");
+    if (c.pin) pushRow(fieldRow("PIN", "\u2022\u2022\u2022\u2022", { rawValue: c.pin, reveal: true, masked: true, mono: true, glyphIcon: "ic-key" }), "fields");
+  } else if (c.kind === "identity") {
+    const idRows = [
+      ["Full name", c.full_name, "ic-user"], ["Email", c.email, "ic-envelope"], ["Phone", c.phone_number, "ic-clock"],
+      ["Organization", c.organization, "ic-pass-work"], ["Street address", c.street_address, "ic-pass-home"],
+      ["City", c.city, "ic-pass-home"], ["State", c.state_or_province, "ic-pass-home"], ["Country", c.country_or_region, "ic-globe"],
+      ["ZIP", c.zip_or_postal_code, "ic-pass-home"], ["Social security", c.social_security_number, "ic-card-identity"],
+      ["Passport", c.passport_number, "ic-card-identity"], ["License", c.license_number, "ic-card-identity"],
+      ["Birthdate", c.birthdate, "ic-clock"], ["Gender", c.gender, "ic-user"], ["Company", c.company, "ic-pass-work"],
+      ["Job title", c.job_title, "ic-pass-work"], ["Website", c.website, "ic-globe"],
+    ];
+    for (const [label, val, g] of idRows) {
+      if (val) pushRow(fieldRow(label, escapeHtml(val), { rawValue: val, plain: true, glyphIcon: g }), "fields");
+    }
+    const sections = [...(c.extra_sections || [])];
+    for (const sec of sections) {
+      pushRow(...sectionBlock(sec), "sections");
+    }
+  } else if (c.kind === "ssh_key") {
+    if (c.private_key) pushRow(fieldRow("Private key", "PRIVATE KEY", { rawValue: c.private_key, reveal: true, masked: true, mono: true, glyphIcon: "ic-key" }), "fields");
+    if (c.public_key) pushRow(fieldRow("Public key", "PUBLIC KEY", { rawValue: c.public_key, reveal: true, masked: true, mono: true, glyphIcon: "ic-key-history" }), "fields");
+    for (const sec of c.sections || []) {
+      pushRow(...sectionBlock(sec), "sections");
+    }
+  } else if (c.kind === "wifi") {
+    if (c.ssid) pushRow(fieldRow("SSID", escapeHtml(c.ssid), { rawValue: c.ssid, glyphIcon: "ic-globe" }), "fields");
+    if (c.password) pushRow(fieldRow("Password", "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022", { rawValue: c.password, reveal: true, masked: true, mono: true, glyphIcon: "ic-key" }), "fields");
+    if (c.security && c.security !== "None") pushRow(fieldRow("Security", escapeHtml(c.security), { copy: false, glyphIcon: "ic-shield" }), "fields");
+    for (const sec of c.sections || []) {
+      pushRow(...sectionBlock(sec), "sections");
+    }
+  } else if (c.kind === "custom") {
+    for (const sec of c.sections || []) {
+      pushRow(...sectionBlock(sec), "sections");
+    }
+  }
+
+  for (const f of item.extra_fields || []) {
+    pushRow(extraFieldRow(f), "fields");
+  }
+
+  for (const cluster of clusters) {
+    if (cluster.kind === "sections") {
+      html += cluster.rows.join("");
+    } else {
+      html += `<div class="field-cluster">${cluster.rows.join("")}</div>`;
+    }
+  }
+
+  html += metaCard(item);
+
+  if ((item.attachments || []).length) {
+    const atts = item.attachments.map((a) => {
+      if (!a.data_base64) {
+        return `<div class="attach-row"><span class="attach-icon">${iconSvg("ic-paper-clip")}</span><span class="attach-name">${escapeHtml(a.name)}</span>
+          <span class="attach-size">${formatSize(a.size)}</span>
+          <span class="attach-size" title="Re-export with --include-attachments to embed this file">not embedded</span></div>`;
+      }
+      return `<div class="attach-row"><span class="attach-icon">${attachmentIcon(a.mime_type)}</span><span class="attach-name">${escapeHtml(a.name)}</span>
+        <span class="attach-size">${formatSize(a.size)}</span>
+        <button class="field-btn att-download" data-att-id="${escapeHtml(a.id)}">${iconSvg("ic-arrow-rotate-right")} Save</button></div>`;
+    }).join("");
+    html += `<div class="detail-section-title">Attachments (${item.attachments.length})</div><div class="field-cluster" style="background:transparent">${atts}</div>`;
+  }
+
+  content.innerHTML = html;
+
+  // wire events
+  content.querySelectorAll(".copy-btn").forEach((btn) => {
+    btn.addEventListener("click", () => copyText(btn.dataset.copy || "", btn));
+  });
+  content.querySelectorAll(".reveal-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const row = btn.closest(".field-row");
+      const valueDiv = row.querySelector(".field-value");
+      const copyBtn = row.querySelector(".copy-btn");
+      const real = copyBtn ? copyBtn.dataset.copy : "";
+      const masked = valueDiv.classList.contains("masked-value");
+      if (masked) {
+        valueDiv.classList.remove("masked-value");
+        valueDiv.querySelector(".field-display").textContent = real;
+        btn.innerHTML = iconSvg("ic-eye-slash");
+      } else {
+        valueDiv.classList.add("masked-value");
+        valueDiv.querySelector(".field-display").textContent = "\u2022".repeat(Math.min(Math.max(real.length, 8), 20));
+        btn.innerHTML = iconSvg("ic-eye");
+      }
+    });
+  });
+  // click on value copies (like pass-value-control)
+  content.querySelectorAll(".field-value").forEach((v) => {
+    if (v.classList.contains("no-copy")) return;
+    v.addEventListener("click", () => {
+      const row = v.closest(".field-row");
+      const copyBtn = row && row.querySelector(".copy-btn");
+      if (copyBtn) copyText(copyBtn.dataset.copy || "", null);
+    });
+  });
+  content.querySelectorAll(".att-download").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const att = item.attachments.find((a) => a.id === btn.dataset.attId);
+      if (!att || !att.data_base64) return;
+      const bytes = b64ToBytes(att.data_base64);
+      const blob = new Blob([bytes], { type: att.mime_type || "application/octet-stream" });
+      const url = URL.createObjectURL(blob);
+      const aEl = document.createElement("a");
+      aEl.href = url;
+      aEl.download = att.name || "attachment";
+      aEl.click();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    });
+  });
+}
+
+function sectionBlock(sec) {
+  const block = `<div class="section-block"><h4>${escapeHtml(sec.section_name)}</h4><div class="field-cluster">${
+    sec.section_fields.map((f) => extraFieldRow(f)).join("")
+  }</div></div>`;
+  return [block, "sections"];
+}
+
+function maskCard(number) {
+  const digits = number.replace(/\D/g, "");
+  const visible = digits.slice(-4);
+  return "\u2022".repeat(Math.max(digits.length - 4, 0)) + visible;
+}
+function attachmentIcon(mime) {
+  let id = "ic-file-lines";
+  if (mime && mime.startsWith("image/")) id = "ic-image";
+  else if (mime && mime.startsWith("video/")) id = "ic-video-camera";
+  else if (mime && mime.includes("pdf")) id = "ic-file-lines";
+  else if (mime && (mime.includes("zip") || mime.includes("compressed"))) id = "ic-paper-clip";
+  return iconSvg(id);
+}
+
+function extraFieldRow(f) {
+  const c = f.content;
+  if (c.type === "totp") {
+    return totpRowHtml(c.uri, f.name);
+  }
+  if (c.type === "hidden") {
+    return fieldRow(f.name, "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022", { rawValue: c.value, reveal: true, masked: true, mono: true, glyphIcon: "ic-eye-slash" });
+  }
+  if (c.type === "timestamp") {
+    const d = new Date(c.unix_seconds * 1000);
+    return fieldRow(f.name, escapeHtml(d.toLocaleString()), { copy: false, plain: true, glyphIcon: "ic-clock" });
+  }
+  return fieldRow(f.name, escapeHtml(c.value), { rawValue: c.value, plain: true, glyphIcon: "ic-pass-all-vaults" });
+}
+
+function totpRowHtml(uri, label) {
+  return fieldRow(label || "2FA token (TOTP URI)", `<code class="totp-uri">${escapeHtml(uri)}</code>`, { copy: true, rawValue: uri, plain: true, glyphIcon: "ic-clock" });
+}
+
+/* ---------------- search ---------------- */
+function bindSearch() {
+  const input = $("#search");
+  const wrap = $("#top-search");
+  const doSearch = () => {
+    state.search = input.value;
+    wrap.classList.toggle("has-text", !!input.value);
+    renderList();
+  };
+  input.addEventListener("input", doSearch);
+  input.addEventListener("keydown", (ev) => {
+    if (ev.key === "Escape") {
+      if (input.value) { input.value = ""; doSearch(); }
+      else input.blur();
+      ev.stopPropagation();
+    }
+  });
+  $("#search-clear").addEventListener("click", () => {
+    input.value = "";
+    doSearch();
+    input.focus();
+  });
+  document.addEventListener("keydown", (ev) => {
+    if ((ev.metaKey || ev.ctrlKey) && ev.key.toLowerCase() === "f" && !$("#app").classList.contains("hidden")) {
+      ev.preventDefault();
+      input.focus();
+      input.select();
+    }
+  });
+}
+
+/* ---------------- misc ui ---------------- */
+function applyThemeIcon() {
+  const dark = document.documentElement.getAttribute("data-theme") === "dark";
+  const use = document.getElementById("theme-icon");
+  if (use) use.setAttribute("href", dark ? "#ic-sun" : "#ic-moon");
+}
+
+function bindThemeToggle() {
+  applyThemeIcon();
+  document.getElementById("theme-toggle").addEventListener("click", () => {
+    const dark = document.documentElement.getAttribute("data-theme") === "dark";
+    if (dark) {
+      document.documentElement.removeAttribute("data-theme");
+    } else {
+      document.documentElement.setAttribute("data-theme", "dark");
+    }
+    try { localStorage.setItem("pp-archive-theme", dark ? "light" : "dark"); } catch (e) {}
+    applyThemeIcon();
+  });
+  // Follow live system theme changes while the preference is unset.
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (mq) => {
+    let pref = null;
+    try { pref = localStorage.getItem("pp-archive-theme"); } catch (e) {}
+    if (pref !== "light" && pref !== "dark") {
+      if (mq.matches) document.documentElement.setAttribute("data-theme", "dark");
+      else document.documentElement.removeAttribute("data-theme");
+      applyThemeIcon();
+    }
+  });
+}
+
+function bindChrome() {
+  $("#menu-toggle").addEventListener("click", () => {
+    if (window.innerWidth <= 900) {
+      $("#sidebar").classList.toggle("open");
+    } else {
+      const sb = $("#sidebar");
+      sb.style.display = sb.style.display === "none" ? "flex" : "none";
+    }
+  });
+  window.addEventListener("resize", () => {
+    const bodyRow = document.querySelector(".body-row");
+    if (window.innerWidth > 900 && bodyRow) bodyRow.classList.remove("has-detail");
+  });
+}
+
+/* ---------------- boot ---------------- */
+(async function boot() {
+  bindSearch();
+  bindThemeToggle();
+  bindChrome();
+  if (META.encrypted) {
+    showLock();
+  } else {
+    DATA = JSON.parse(__PAYLOAD_JSON);
+    startApp();
+  }
+})();
+
+</script>
+</body>
+</html>

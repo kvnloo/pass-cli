@@ -40,7 +40,7 @@ this means the D-Bus Secret Service (e.g. GNOME Keyring) is unavailable or has n
   pass-cli login
   ```
 
-See the [Configuration - Linux keyring note](../get-started/configuration.md#linux-keyring-note) for a full explanation of the available backends.
+See the [Configuration - Linux keyring note](../get-started/configuration.md#1-keyring-storage-default) for a full explanation of the available backends.
 
 ## **On Windows it complains about `install.ps1` cannot be loaded because running scripts is disabled**
 

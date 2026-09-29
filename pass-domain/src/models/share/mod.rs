@@ -24,7 +24,7 @@ pub use member::*;
 pub use role::*;
 
 use crate::models::group::GroupId;
-use crate::{AddressId, ItemId, VaultId};
+use crate::{AddressId, FolderId, ItemId, VaultId};
 use anyhow::{Result, anyhow};
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -44,14 +44,24 @@ display_for_basic!(ShareId);
 
 #[derive(Clone, Debug)]
 pub enum ShareType {
-    Vault { vault_id: VaultId },
-    Item { vault_id: VaultId, item_id: ItemId },
+    Vault {
+        vault_id: VaultId,
+    },
+    Item {
+        vault_id: VaultId,
+        item_id: ItemId,
+    },
+    Folder {
+        vault_id: VaultId,
+        folder_id: FolderId,
+    },
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub enum TargetType {
     Vault,
     Item,
+    Folder,
 }
 
 impl std::fmt::Display for TargetType {
@@ -65,6 +75,7 @@ impl TargetType {
         match self {
             TargetType::Vault => 1,
             TargetType::Item => 2,
+            TargetType::Folder => 3,
         }
     }
 
@@ -72,6 +83,7 @@ impl TargetType {
         match value {
             1 => Ok(TargetType::Vault),
             2 => Ok(TargetType::Item),
+            3 => Ok(TargetType::Folder),
             _ => Err(anyhow!("Invalid target type: {value}")),
         }
     }
@@ -123,6 +135,10 @@ impl Share {
 
     pub fn is_item_share(&self) -> bool {
         matches!(self.share_type, ShareType::Item { .. })
+    }
+
+    pub fn is_folder_share(&self) -> bool {
+        matches!(self.share_type, ShareType::Folder { .. })
     }
 
     pub fn is_group_share(&self) -> bool {

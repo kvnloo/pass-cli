@@ -1,15 +1,16 @@
 [package]
 name = "pass-auth"
-version = "2.3.3"
+version = "2.4.1"
 edition = "2024"
 
 [dependencies]
 pass = { path = "../pass" }
 pass-domain = { path = "../pass-domain" }
 
-aes = "0.8.4"
+aes = "0.9"
 async-compat = "0.2"
-rand_chacha = { version = "0.9", features = ["os_rng"] }
+rand_chacha = "0.10"
+rand.workspace = true
 urlencoding = "2.1"
 
 anyhow.workspace = true

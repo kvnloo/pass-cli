@@ -31,6 +31,7 @@ use muon::env::{Env, Environment};
 use parking_lot::RwLock;
 use pass_domain::LocalKeyProvider;
 use pass_domain::headers::{ClientHeaders, HeaderBuilder};
+use rand::rng;
 use rand_chacha::ChaCha20Rng;
 use rand_chacha::rand_core::SeedableRng;
 use std::sync::Arc;
@@ -157,7 +158,7 @@ pub async fn create_client(
 
     // Proxy must be configured before with_persistence due to typestate constraints
     let mut transport_builder = muon::Client::builder_with_transport::<Hyper>(app, current_env)
-        .with_operating_system(ProdOs::default(), ChaCha20Rng::from_os_rng())
+        .with_operating_system(ProdOs::default(), ChaCha20Rng::from_rng(&mut rng()))
         .with_multi_thread_executor(TokioExecutor);
 
     if config.proxy_config.http_proxy.is_some() {

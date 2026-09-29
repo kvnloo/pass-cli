@@ -347,11 +347,12 @@ mod tests {
             create_time: jiff::civil::DateTime::default(),
             modify_time: jiff::civil::DateTime::default(),
             folder_id: None,
+            alias_email: None,
         }
     }
 
     fn generate_pkcs8_rsa_private_key() -> String {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand_core::OsRng;
         let private_key =
             rsa::RsaPrivateKey::new(&mut rng, 2048).expect("Should generate test RSA key");
         private_key

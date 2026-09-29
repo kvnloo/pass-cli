@@ -21,12 +21,13 @@ use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result};
 use muon::GET;
 use pass_domain::{
-    AddressId, GroupId, ItemId, Permission, Share, ShareContent, ShareId, ShareRole, ShareType,
-    VaultId,
+    AddressId, FolderId, GroupId, ItemId, Permission, Share, ShareContent, ShareId, ShareRole,
+    ShareType, VaultId,
 };
 
 const TARGET_TYPE_VAULT: u8 = 1;
 const TARGET_TYPE_ITEM: u8 = 2;
+const TARGET_TYPE_FOLDER: u8 = 3;
 
 struct GetSharesCacheType;
 
@@ -102,6 +103,10 @@ fn share_response_to_share(value: ShareResponse, is_pat: bool) -> Result<Share> 
             TARGET_TYPE_ITEM => ShareType::Item {
                 vault_id: VaultId::new(value.vault_id),
                 item_id: ItemId::new(value.target_id),
+            },
+            TARGET_TYPE_FOLDER => ShareType::Folder {
+                vault_id: VaultId::new(value.vault_id),
+                folder_id: FolderId::new(value.target_id),
             },
             _ => anyhow::bail!("Invalid share type {}", value.target_type),
         },
@@ -289,6 +294,10 @@ mod tests {
         const SHARE_2_ADDRESS_ID: &str = "Share2AddressID";
         const SHARE_2_VAULT_ID: &str = "Share2VaultID";
         const SHARE_2_ITEM_ID: &str = "Share2ItemID";
+        const SHARE_3_ID: &str = "Share3ID";
+        const SHARE_3_ADDRESS_ID: &str = "Share3AddressID";
+        const SHARE_3_VAULT_ID: &str = "Share3VaultID";
+        const SHARE_3_FOLDER_ID: &str = "Share3FolderID";
 
         let client = make_test_pass_client_with_setup(raw_client, &api, PlanType::Free).await;
 
@@ -328,11 +337,31 @@ mod tests {
             group_id: None,
         };
         let share_response_2_clone = share_response_2.clone();
+
+        let share_response_3 = ShareResponse {
+            share_id: SHARE_3_ID.to_string(),
+            address_id: SHARE_3_ADDRESS_ID.to_string(),
+            vault_id: SHARE_3_VAULT_ID.to_string(),
+            target_type: TargetType::Folder.value(),
+            target_id: SHARE_3_FOLDER_ID.to_string(),
+            owner: false,
+            permission: 0,
+            share_role_id: "1".to_string(),
+            content: None,
+            content_key_rotation: None,
+            content_format_version: None,
+            expiration_time: None,
+            create_time: 111222333,
+            group_id: None,
+        };
+        let share_response_3_clone = share_response_3.clone();
+
         let handled = api.handler_with_method(Method::GET, "/pass/v1/share", move |_| {
             success(GetSharesResponse {
                 shares: vec![
                     share_response_1_clone.clone(),
                     share_response_2_clone.clone(),
+                    share_response_3_clone.clone(),
                 ],
             })
         });
@@ -348,9 +377,10 @@ mod tests {
         let requests = recorder.read();
         assert_eq!(1, requests.len());
 
-        assert_eq!(2, shares.len());
+        assert_eq!(3, shares.len());
         assert_share_matches_response(&shares[0], &share_response_1);
         assert_share_matches_response(&shares[1], &share_response_2);
+        assert_share_matches_response(&shares[2], &share_response_3);
     }
 
     fn assert_share_matches_response(share: &Share, response: &ShareResponse) {
@@ -376,6 +406,14 @@ mod tests {
                 assert_eq!(vault_id.value(), response.vault_id);
                 assert_eq!(item_id.value(), response.target_id);
                 assert_eq!(TargetType::Item.value(), response.target_type);
+            }
+            ShareType::Folder {
+                folder_id,
+                vault_id,
+            } => {
+                assert_eq!(vault_id.value(), response.vault_id);
+                assert_eq!(folder_id.value(), response.target_id);
+                assert_eq!(TargetType::Folder.value(), response.target_type);
             }
         }
 

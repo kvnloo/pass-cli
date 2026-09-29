@@ -16,6 +16,7 @@
  *  along with Proton Pass.  If not, see <https://www.gnu.org/licenses/>.
  *
  */
+#![recursion_limit = "256"]
 
 #[macro_use]
 extern crate tracing;
@@ -53,6 +54,7 @@ pub mod password;
 mod permission;
 pub(crate) mod personal_access_token;
 mod ping;
+mod reports;
 mod share;
 mod telemetry;
 mod user;
@@ -82,6 +84,7 @@ pub use personal_access_token::{
     CreatePersonalAccessTokenArgs, CreatePersonalAccessTokenResponse, PersonalAccessToken,
     PersonalAccessTokenAccess, RenewPersonalAccessTokenResponse,
 };
+pub use reports::{BreachCount, ItemsReport, MemberReport, MonitorReport, Report};
 pub use user::access::{PassPlan, PlanType, UserDataSettings, UserInfo};
 pub use utils::is_id;
 pub use vault::{CreateVaultArgs, UpdateVaultArgs};
