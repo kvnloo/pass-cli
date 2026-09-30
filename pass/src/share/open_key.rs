@@ -18,10 +18,10 @@
  */
 
 use crate::crypto::share_key::{OpenShareKeyFlow, OpenShareKeyForGroupFlow};
+use crate::domain::{AccountType, AddressId, DecryptedShareKey, GroupId, Share, ShareId};
 use crate::share::ShareKey;
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result, anyhow};
-use pass_domain::{AccountType, AddressId, DecryptedShareKey, GroupId, Share, ShareId};
 
 impl<C: PassClientContext> PassClient<C> {
     pub(crate) async fn get_all_opened_share_keys(
@@ -185,10 +185,10 @@ impl<C: PassClientContext> PassClient<C> {
                     .await
                     .context("Error getting local personal access token key")?;
 
-                pass_domain::crypto::decrypt(
+                crate::domain::crypto::decrypt(
                     key.key.as_ref(),
                     &personal_access_token_key,
-                    pass_domain::crypto::EncryptionTag::ShareKey,
+                    crate::domain::crypto::EncryptionTag::ShareKey,
                 )
                 .map_err(|e| {
                     anyhow!(
@@ -246,11 +246,11 @@ mod tests {
     use crate::account::keys::{
         ActivePublicKeysResponse, AddressDataResponse, PublicAddressKeyResponse,
     };
+    use crate::domain::{DataToArmor, PlainText, PublicKey, ShareRole, ShareType, crypto};
     use crate::invite::group::keys::{GetGroupsResponse, GroupResponse};
     use crate::share::EncryptedShareKey;
     use crate::test_tools::*;
     use muon::rest::core::v4::{addresses, keys};
-    use pass_domain::{DataToArmor, PlainText, PublicKey, ShareRole, ShareType, crypto};
 
     #[muon_test::test]
     async fn open_share_key_for_direct_share(server: muon_test::Server) {

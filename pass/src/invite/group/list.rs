@@ -18,15 +18,16 @@
  */
 
 use crate::crypto::open_invite_key::OpenInviteKeyFlow;
+use crate::domain::{GroupId, Invite, InviteId, InviteVaultData, TargetType, VaultData};
 use crate::invite::list::{
     EncryptedInviteKey, InviteKey, InviteKeyResponse, InviteWithKeys, OpenedInviteKey,
-    PendingInviteVaultData,
+    PendingInviteVaultData, UserInvite,
 };
 use crate::permission::PermissionAction;
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result, anyhow};
 use muon::GET;
-use pass_domain::{GroupId, Invite, InviteId, InviteVaultData, TargetType, VaultData};
+use pass_derive::sdk_export;
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 struct GroupInviteContent {
@@ -68,7 +69,29 @@ struct GetGroupInvitesResponse {
     pub invites: GroupInvitesResponse,
 }
 
+/// A pending group invite, without the cryptographic material.
+#[sdk_export]
+#[derive(Clone, Debug)]
+pub struct GroupUserInvite {
+    pub invite: UserInvite,
+    pub is_group_owner: bool,
+}
+
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
+    /// Lists the pending group invites of the user.
+    #[sdk_export]
+    pub async fn list_pending_group_invites(&self) -> Result<Vec<GroupUserInvite>> {
+        let invites = self.list_group_invites().await?;
+        Ok(invites
+            .into_iter()
+            .map(|i| GroupUserInvite {
+                invite: UserInvite::from(i.invite_with_keys.invite),
+                is_group_owner: i.is_group_owner,
+            })
+            .collect())
+    }
+
     pub async fn list_group_invites(&self) -> Result<Vec<GroupInviteWithKeys>> {
         self.action_guard(PermissionAction::ListInvites).await?;
 

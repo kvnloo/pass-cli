@@ -17,13 +17,13 @@
  *
  */
 
-use crate::{PassClient, PassClientContext};
-use anyhow::{Context, Result, anyhow};
-use muon::GET;
-use pass_domain::{
+use crate::domain::{
     AddressKey, DataToDecrypt, Passphrase, PrivateKey, PublicKey, Signature, UnlockedAddressKeys,
     UserKeyExt,
 };
+use crate::{PassClient, PassClientContext};
+use anyhow::{Context, Result, anyhow};
+use muon::GET;
 
 struct OrgKeyCacheType;
 

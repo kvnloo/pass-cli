@@ -17,6 +17,10 @@
  *
  */
 
+use crate::domain::{
+    AttachmentChunk, AttachmentId, Item, ItemAttachment, ItemAttachmentContent, ItemFlag, ItemId,
+    ShareId, crypto,
+};
 use crate::item::item_keys::OpenedItemKey;
 use crate::item::list::ItemRevision;
 use crate::pagination::SincePagination;
@@ -24,11 +28,9 @@ use crate::utils::debug_response;
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result, anyhow};
 use muon::GET;
-use pass_domain::{
-    AttachmentChunk, AttachmentId, Item, ItemAttachment, ItemAttachmentContent, ItemFlag, ItemId,
-    ShareId, crypto,
-};
+use pass_derive::sdk_export;
 
+#[sdk_export]
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct ItemDetails {
     pub item: Item,
@@ -81,7 +83,10 @@ struct ChunkResponse {
     pub size: usize,
 }
 
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
+    /// Fetches and decrypts an item, along with its attachments' metadata.
+    #[sdk_export]
     pub async fn view_item(&self, share_id: &ShareId, item_id: &ItemId) -> Result<ItemDetails> {
         let item_revision = self
             .fetch_item_revision(share_id, item_id)
@@ -168,8 +173,8 @@ impl<C: PassClientContext> PassClient<C> {
                 .into_iter()
                 .map(|chunk| AttachmentChunk {
                     chunk_id: chunk.chunk_id,
-                    index: chunk.index,
-                    size: chunk.size,
+                    index: chunk.index as u64,
+                    size: chunk.size as u64,
                 })
                 .collect();
 
@@ -272,7 +277,7 @@ mod tests {
     use crate::test_tools::*;
     use crate::utils::b64_encode;
 
-    use pass_domain::{
+    use crate::domain::{
         CustomItem, CustomSection, ItemContent, ItemData, ItemExtraField, ItemExtraFieldContent,
         ItemFlag,
     };

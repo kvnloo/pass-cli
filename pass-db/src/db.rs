@@ -20,7 +20,7 @@
 use crate::{DbConnection, EncryptedSqliteManager};
 use anyhow::{Context, Result, anyhow};
 use deadpool::managed::Pool;
-use pass_domain::LocalKey;
+use pass::domain::LocalKey;
 use std::path::PathBuf;
 use tokio::fs;
 

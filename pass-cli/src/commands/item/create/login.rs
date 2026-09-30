@@ -22,11 +22,11 @@ use crate::commands::{item::common::ShareQuery, settings_helper};
 use crate::helpers::CliPassClient as PassClient;
 use anyhow::{Context, Result, bail};
 use clap::Args;
+use pass::domain::EventAction;
 use pass::login::LoginItemCreatePayload;
 use pass::password::{
     PassphraseConfig, PasswordGenerationArgs, RandomPasswordConfig, WordSeparator,
 };
-use pass_domain::EventAction;
 use std::io::{self, Read};
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Default)]
@@ -156,7 +156,7 @@ pub async fn run(mut args: LoginArgs, client: PassClient) -> Result<()> {
         let folder_id = args
             .folder_id
             .as_ref()
-            .map(|id| pass_domain::FolderId::new(id.clone()));
+            .map(|id| pass::domain::FolderId::new(id.clone()));
         #[cfg(not(feature = "internal"))]
         let folder_id = None;
 
@@ -200,7 +200,7 @@ pub async fn run(mut args: LoginArgs, client: PassClient) -> Result<()> {
     let folder_id = args
         .folder_id
         .as_ref()
-        .map(|id| pass_domain::FolderId::new(id.clone()));
+        .map(|id| pass::domain::FolderId::new(id.clone()));
     #[cfg(not(feature = "internal"))]
     let folder_id = None;
 
@@ -210,7 +210,7 @@ pub async fn run(mut args: LoginArgs, client: PassClient) -> Result<()> {
 async fn create_login_from_template(
     template: LoginTemplate,
     share_query: ShareQuery,
-    folder_id: Option<pass_domain::FolderId>,
+    folder_id: Option<pass::domain::FolderId>,
     client: PassClient,
 ) -> Result<()> {
     ensure_reason_if_agent(&client)?;

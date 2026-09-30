@@ -17,7 +17,7 @@
  *
  */
 
-use pass_domain::TelemetryEvent;
+use pass::domain::TelemetryEvent;
 use std::collections::HashMap;
 
 #[derive(Clone, Debug)]

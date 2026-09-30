@@ -17,13 +17,13 @@
  *
  */
 
+use crate::domain::ShareId;
 use crate::pagination::Pagination;
 use crate::share::{EncryptedShareKey, ShareKey, ShareKeys};
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result};
 use async_lock::{Mutex, RwLock};
 use muon::GET;
-use pass_domain::ShareId;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -137,7 +137,7 @@ impl<C: PassClientContext> PassClient<C> {
             .cache
             .get(ShareKeyCacheType)
             .await
-            .expect("ShareKeyCache should exist after ensure_has_value");
+            .context("ShareKeyCache should exist after ensure_has_value")?;
 
         let client = self.clone();
         let share_id_for_fetch = share_id.clone();

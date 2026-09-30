@@ -17,13 +17,14 @@
  *
  */
 
+use crate::domain::{ItemId, ShareId, crypto};
 use crate::item::list::ItemRevision;
 use crate::permission::PermissionAction;
 use crate::utils::b64_encode;
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result};
 use muon::PUT;
-use pass_domain::{ItemId, ShareId, crypto};
+use pass_derive::sdk_export;
 
 #[derive(Debug, serde::Serialize)]
 pub(crate) struct MoveItemRequest {
@@ -55,7 +56,9 @@ struct MoveItemResponse {
     items: Vec<ItemRevision>,
 }
 
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
+    #[sdk_export]
     pub async fn move_item(
         &self,
         from_share_id: &ShareId,

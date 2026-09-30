@@ -18,7 +18,7 @@
  */
 
 use anyhow::Result;
-use pass_auth::CredentialProvider;
+use pass::auth::CredentialProvider;
 
 pub const PERSONAL_ACCESS_TOKEN_ENV_VAR: &str = "PROTON_PASS_PERSONAL_ACCESS_TOKEN";
 

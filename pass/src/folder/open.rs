@@ -17,13 +17,16 @@
  *
  */
 
+use crate::domain::{DecryptedFolderKey, FolderId, ShareId, ShareType, crypto};
 use crate::folder::list::FolderResponse;
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result, anyhow};
-use pass_domain::{DecryptedFolderKey, FolderId, ShareId, ShareType, crypto};
+use pass_derive::sdk_export;
 
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
     /// Get the name of a folder using existing caches and methods
+    #[sdk_export]
     pub async fn get_folder_name(
         &self,
         share_id: &ShareId,
@@ -55,7 +58,7 @@ impl<C: PassClientContext> PassClient<C> {
             anyhow!("Error decrypting folder content")
         })?;
 
-        let folder_data = pass_domain::FolderData::deserialize(&decrypted)
+        let folder_data = crate::domain::FolderData::deserialize(&decrypted)
             .context("Error deserializing folder content")?;
 
         Ok(folder_data.name)
@@ -262,10 +265,10 @@ impl<C: PassClientContext> PassClient<C> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::domain::TargetType;
     use crate::folder::list::{FoldersWrapper, ListFoldersResponse};
     use crate::share::list::ShareResponse;
     use crate::test_tools::*;
-    use pass_domain::TargetType;
 
     fn setup_folder_share(server: &ProtonAPI, share_id: &str, folder_id: &str, vault_id: &str) {
         let share_response = ShareResponse {

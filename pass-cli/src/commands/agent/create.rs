@@ -22,7 +22,7 @@ use crate::commands::personal_access_token::{PatExpiration, expiration_to_timest
 use crate::helpers::CliPassClient as PassClient;
 use anyhow::{Context, Result};
 use pass::CreatePersonalAccessTokenArgs;
-use pass_domain::ShareRole;
+use pass::domain::ShareRole;
 
 pub async fn run(
     client: PassClient,

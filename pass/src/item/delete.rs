@@ -17,12 +17,13 @@
  *
  */
 
+use crate::domain::{ItemId, ItemType, ShareId, TelemetryEvent};
 use crate::permission::PermissionAction;
 use crate::utils::debug_response;
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result, anyhow};
 use muon::DELETE;
-use pass_domain::{ItemId, ItemType, ShareId, TelemetryEvent};
+use pass_derive::sdk_export;
 use std::collections::HashMap;
 
 #[derive(Debug, serde::Serialize)]
@@ -58,7 +59,9 @@ impl TelemetryEvent for ItemDeletedEvent {
     }
 }
 
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
+    #[sdk_export]
     pub async fn delete_item(&self, share_id: &ShareId, item_id: &ItemId) -> Result<()> {
         self.action_guard(PermissionAction::DeleteItem {
             share_id: share_id.clone(),

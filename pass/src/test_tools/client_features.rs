@@ -17,16 +17,16 @@
  *
  */
 
-use anyhow::Result;
-use async_lock::RwLock;
-use pass_domain::models::organization_policy::OrganizationInfo;
-use pass_domain::{
+use crate::domain::models::organization_policy::OrganizationInfo;
+use crate::domain::{
     AccountCrypto, ClientFeatures, CoreEventStorage, CursorEntry, DataStorage, DecryptedFolderKey,
     DecryptedShareKey, FolderId, FolderKeyStorage, FsStorage, LocalKey, LocalKeyProvider,
     OrganizationPolicyEntry, OrganizationPolicyStorage, PgpCrypto, ShareId, ShareKeyStorage,
 };
-use pass_fs::InMemoryFsStorage;
-use pass_pgp::{NativePgpCrypto, ProtonAccountCrypto};
+use crate::pgp::{NativePgpCrypto, ProtonAccountCrypto};
+use crate::test_tools::in_memory_fs::InMemoryFsStorage;
+use anyhow::Result;
+use async_lock::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -254,8 +254,8 @@ impl ClientFeatures for TestClientFeatures {
         Arc::new(NativePgpCrypto)
     }
 
-    async fn get_telemetry_handler(&self) -> Arc<dyn pass_domain::TelemetryHandler> {
-        Arc::new(pass_domain::NoopTelemetryHandler)
+    async fn get_telemetry_handler(&self) -> Arc<dyn crate::domain::TelemetryHandler> {
+        Arc::new(crate::domain::NoopTelemetryHandler)
     }
 
     async fn get_data_storage(&self) -> Result<Arc<dyn DataStorage>> {

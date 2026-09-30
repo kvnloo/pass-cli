@@ -18,14 +18,14 @@
  */
 
 use crate::crypto::encrypt_invite_keys::{EncryptInviteKeysFlow, InviteKeyToPrepare};
+use crate::domain::{
+    Address, DecryptedFolderKey, DecryptedShareKey, FolderId, ItemId, PublicKey, ShareId,
+    ShareRole, ShareType, TargetType,
+};
 use crate::folder::list::FolderResponse;
 use crate::item::item_keys::OpenedItemKeys;
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result};
-use pass_domain::{
-    Address, DecryptedFolderKey, DecryptedShareKey, FolderId, ItemId, PublicKey, ShareId,
-    ShareRole, ShareType, TargetType,
-};
 use std::collections::HashMap;
 
 pub(crate) enum InviteRequest {

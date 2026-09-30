@@ -20,7 +20,7 @@
 use crate::commands::OutputFormat;
 use crate::helpers::CliPassClient as PassClient;
 use anyhow::{Context, Result};
-use pass_domain::Invite;
+use pass::domain::Invite;
 
 #[derive(serde::Serialize)]
 struct InviteList {

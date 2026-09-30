@@ -20,9 +20,10 @@
 use crate::{PassClient, PassClientContext, PlanType};
 use anyhow::{Context, Result};
 use muon::GET;
+use pass_derive::sdk_export;
 
-// Re-export types from pass-domain to maintain backwards compatibility
-pub use pass_domain::{
+// Re-export types from domain to maintain backwards compatibility
+pub use crate::domain::{
     OrganizationAliasCreateMode, OrganizationExportMode, OrganizationInfo,
     OrganizationPasswordPolicy, OrganizationSettings, OrganizationShareMode,
     OrganizationVaultCreateMode,
@@ -34,7 +35,9 @@ struct GetOrganizationResponse {
     organization: OrganizationInfo,
 }
 
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
+    #[sdk_export]
     pub async fn get_organization_policy(&self) -> Result<Option<OrganizationInfo>> {
         if let Some(cached) = self.get_cached_organization_policy().await? {
             return Ok(Some(cached));

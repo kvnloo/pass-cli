@@ -66,9 +66,7 @@ pub fn setup_logs() {
         filter = filter
             .with_target("pass", log_level)
             .with_target("pass_cli", log_level)
-            .with_target("pass_domain", log_level)
-            .with_target("pass_fs", log_level)
-            .with_target("pass_pgp", log_level);
+            .with_target("pass_fs", log_level);
     }
 
     if let Some(muon_log_level) = muon_log_level {

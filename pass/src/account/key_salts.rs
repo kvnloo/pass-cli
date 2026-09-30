@@ -17,10 +17,10 @@
  *
  */
 
+use crate::domain::{KeyPassphrase, KeyPassphrases, KeySalt, Passphrase};
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result, anyhow};
 use muon::GET;
-use pass_domain::{KeyPassphrase, KeyPassphrases, KeySalt, Passphrase};
 use std::collections::HashMap;
 use std::path::Path;
 

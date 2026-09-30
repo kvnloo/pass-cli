@@ -26,7 +26,7 @@ use crate::helpers::CliPassClient as PassClient;
 use crate::telemetry::event::CommandEvent;
 use anyhow::{Context, Result, anyhow, bail};
 use pass::FindItemQuery;
-use pass_domain::{EventAction, Field};
+use pass::domain::{EventAction, Field};
 
 pub enum ViewItemQuery {
     Ids {

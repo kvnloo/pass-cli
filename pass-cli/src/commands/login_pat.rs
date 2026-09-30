@@ -23,15 +23,15 @@ use crate::helpers::{CliPassClient as PassClient, PassClientExt, SessionExt};
 use anyhow::{Context, Result};
 use parking_lot::RwLock;
 use pass::FirstTimeSetupKey;
-use pass_auth::Authenticator;
-use pass_auth::PassSessionStore;
-use pass_auth::os::ProdClient;
+use pass::auth::Authenticator;
+use pass::auth::PassSessionStore;
+use pass::auth::{TokioClient, TokioRuntime};
 use std::sync::Arc;
 
 pub async fn login_personal_access_token(
-    authenticator: Authenticator,
+    authenticator: Authenticator<TokioRuntime>,
     token_string_arg: Option<String>,
-    client: ProdClient,
+    client: TokioClient,
     client_features: Arc<CliClientFeatures>,
     store: Arc<RwLock<PassSessionStore>>,
 ) -> Result<PassClient> {
@@ -62,7 +62,7 @@ pub async fn login_personal_access_token(
 
 pub async fn run(
     token_string_arg: Option<String>,
-    client: ProdClient,
+    client: TokioClient,
     client_features: Arc<CliClientFeatures>,
     store: Arc<RwLock<PassSessionStore>>,
 ) -> Result<()> {

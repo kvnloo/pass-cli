@@ -24,9 +24,16 @@ extern crate tracing;
 #[macro_use]
 mod macros;
 
+#[cfg(uniffi_runtime)]
+uniffi::setup_scaffolding!();
+
 #[cfg(test)]
 #[macro_use]
 mod test_tools;
+
+pub mod auth;
+pub mod domain;
+pub mod pgp;
 
 mod account;
 mod cache;
@@ -55,6 +62,8 @@ mod permission;
 pub(crate) mod personal_access_token;
 mod ping;
 mod reports;
+#[cfg(any(wasm_runtime, uniffi_runtime))]
+pub mod sdk;
 mod share;
 mod telemetry;
 mod user;
@@ -63,17 +72,19 @@ mod utils;
 mod vault;
 
 pub use account::settings::AccountUserSettings;
+#[cfg(any(tokio_runtime, wasm_runtime))]
+pub use auth::Authenticator;
+pub use auth::store::{PassSessionStore, SharedPassSessionStore};
+pub use auth::{
+    AuthError, AuthEventHandler, ClientConfig, CredentialProvider, DebugConfig, PostLoginConfig,
+    ProxyConfig, SessionStorage,
+};
 pub use client::{PassClient, PassClientContext, PassSessionKeyType};
+pub use domain::{ClientFeatures, LocalKeyProvider};
 pub use error::{AnyhowErrorExt, SessionInvalidatedError};
 pub use first_time_setup::FirstTimeSetupKey;
 pub use folder::create::CreateFolderPayload;
-pub use item::create::credit_card;
-pub use item::create::custom;
-pub use item::create::identity;
-pub use item::create::login;
-pub use item::create::note;
-pub use item::create::ssh_key;
-pub use item::create::wifi;
+pub use item::create::{credit_card, custom, identity, login, note, ssh_key, wifi};
 pub use item::find::FindItemQuery;
 pub use organization::{
     OrganizationAliasCreateMode, OrganizationExportMode, OrganizationInfo,
@@ -88,3 +99,7 @@ pub use reports::{BreachCount, ItemsReport, MemberReport, MonitorReport, Report}
 pub use user::access::{PassPlan, PlanType, UserDataSettings, UserInfo};
 pub use utils::is_id;
 pub use vault::{CreateVaultArgs, UpdateVaultArgs};
+
+pub use muon;
+pub use proton_pass_common;
+pub use proton_pass_types;

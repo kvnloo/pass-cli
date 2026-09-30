@@ -20,7 +20,7 @@
 use crate::commands::Role;
 use crate::helpers::CliPassClient as PassClient;
 use anyhow::{Context, Result};
-use pass_domain::{ItemId, ShareId, ShareRole};
+use pass::domain::{ItemId, ShareId, ShareRole};
 
 pub async fn run(
     client: PassClient,

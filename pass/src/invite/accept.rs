@@ -19,12 +19,13 @@
 
 use crate::common::CodeResponse;
 use crate::crypto::reencrypt_invite_keys::{InviteKeyToReencrypt, ReencryptInviteKeysFlow};
+use crate::domain::InviteId;
 use crate::invite::list::InviteWithKeys;
 use crate::permission::PermissionAction;
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result};
 use muon::POST;
-use pass_domain::InviteId;
+use pass_derive::sdk_export;
 
 #[derive(Debug, serde::Serialize)]
 pub(crate) struct AcceptInviteRequest {
@@ -40,7 +41,9 @@ pub(crate) struct AcceptInviteKey {
     pub key_rotation: u8,
 }
 
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
+    #[sdk_export]
     pub async fn accept_invite(&self, invite_id: &InviteId) -> Result<()> {
         self.action_guard(PermissionAction::AcceptInvite).await?;
 

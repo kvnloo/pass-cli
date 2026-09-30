@@ -1,0 +1,44 @@
+/*
+ *  Copyright (c) 2026 Proton AG
+ *  This file is part of Proton AG and Proton Pass.
+ *
+ *  Proton Pass is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Proton Pass is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Proton Pass.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
+pub mod flags {
+    /// First bit: marks a PAT as an Agent session.
+    pub const PASS_AGENT: u64 = 1 << 0;
+}
+
+pub fn has_pass_agent_flag(flags: Option<u64>) -> bool {
+    flags.map(|f| f & flags::PASS_AGENT != 0).unwrap_or(false)
+}
+
+use pass_derive::sdk_export;
+
+#[sdk_export]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct PersonalAccessTokenId(pub String);
+display_for_basic!(PersonalAccessTokenId);
+
+impl PersonalAccessTokenId {
+    pub fn new(id: String) -> Self {
+        Self(id)
+    }
+
+    pub fn value(&self) -> &str {
+        &self.0
+    }
+}

@@ -20,7 +20,7 @@
 use crate::commands::{OutputFormat, settings_helper};
 use crate::helpers::CliPassClient as PassClient;
 use anyhow::{Context, Result};
-use pass_domain::Vault;
+use pass::domain::Vault;
 
 #[derive(serde::Serialize)]
 struct VaultList {

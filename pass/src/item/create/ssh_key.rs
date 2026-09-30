@@ -18,13 +18,15 @@
  */
 
 use super::ItemCreatedEvent;
-use crate::{PassClient, PassClientContext};
-use anyhow::{Context, Result};
-use pass_domain::{
+use crate::domain::{
     FolderId, ItemContent, ItemData, ItemExtraField, ItemExtraFieldContent, ItemId, ItemType,
     ShareId, SshKeyItem,
 };
+use crate::{PassClient, PassClientContext};
+use anyhow::{Context, Result};
+use pass_derive::sdk_export;
 
+#[sdk_export]
 #[derive(Clone, Debug)]
 pub struct SshKeyItemCreatePayload {
     pub title: String,
@@ -33,7 +35,9 @@ pub struct SshKeyItemCreatePayload {
     pub passphrase: Option<String>,
 }
 
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
+    #[sdk_export]
     pub async fn create_ssh_key(
         &self,
         share_id: &ShareId,
@@ -61,6 +65,7 @@ impl<C: PassClientContext> PassClient<C> {
             }),
             extra_fields,
             platform_specific: None,
+            custom_icon: None,
         };
 
         let req = self
@@ -87,10 +92,10 @@ mod tests {
     use super::*;
     use crate::test_tools::*;
 
+    use crate::domain::ItemData;
+    use crate::domain::crypto::EncryptionTag;
     use crate::item::create::common::{CreateItemRequest, CreateItemResponse};
     use crate::item::list::ItemRevision;
-    use pass_domain::ItemData;
-    use pass_domain::crypto::EncryptionTag;
 
     #[muon_test::test]
     async fn test_create_ssh_key_with_passphrase(server: muon_test::Server) {
@@ -152,7 +157,7 @@ mod tests {
 
         // Check item is properly encrypted and contains the right contents
         let decoded_encrypted_item_key = crate::utils::b64_decode(&request.item_key).unwrap();
-        let decrypted_item_key = pass_domain::crypto::decrypt(
+        let decrypted_item_key = crate::domain::crypto::decrypt(
             &decoded_encrypted_item_key,
             &TEST_SHARE_KEY,
             EncryptionTag::ItemKey,
@@ -161,7 +166,7 @@ mod tests {
         assert_eq!(32, decrypted_item_key.len());
 
         let decoded_item_content = crate::utils::b64_decode(&request.content).unwrap();
-        let decrypted_item_content = pass_domain::crypto::decrypt(
+        let decrypted_item_content = crate::domain::crypto::decrypt(
             &decoded_item_content,
             &decrypted_item_key,
             EncryptionTag::ItemContent,
@@ -252,7 +257,7 @@ mod tests {
 
         // Check item is properly encrypted and contains the right contents
         let decoded_encrypted_item_key = crate::utils::b64_decode(&request.item_key).unwrap();
-        let decrypted_item_key = pass_domain::crypto::decrypt(
+        let decrypted_item_key = crate::domain::crypto::decrypt(
             &decoded_encrypted_item_key,
             &TEST_SHARE_KEY,
             EncryptionTag::ItemKey,
@@ -261,7 +266,7 @@ mod tests {
         assert_eq!(32, decrypted_item_key.len());
 
         let decoded_item_content = crate::utils::b64_decode(&request.content).unwrap();
-        let decrypted_item_content = pass_domain::crypto::decrypt(
+        let decrypted_item_content = crate::domain::crypto::decrypt(
             &decoded_item_content,
             &decrypted_item_key,
             EncryptionTag::ItemContent,

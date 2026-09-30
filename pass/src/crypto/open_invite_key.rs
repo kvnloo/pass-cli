@@ -18,9 +18,9 @@
  */
 
 use crate::crypto::constants::SIGNATURE_CONTEXT_EXISTING_USER;
+use crate::domain::{PgpCrypto, PublicKey, UnlockedAddressKeys};
 use crate::invite::list::{DecryptedInviteKey, InviteKey, OpenedInviteKey};
 use anyhow::{Context, Result};
-use pass_domain::{PgpCrypto, PublicKey, UnlockedAddressKeys};
 use std::sync::Arc;
 
 pub(crate) struct OpenInviteKeyFlow {

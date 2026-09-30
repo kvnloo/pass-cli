@@ -19,7 +19,7 @@
 
 use crate::helpers::CliPassClient as PassClient;
 use anyhow::{Context, Result, anyhow};
-use pass_domain::{ItemId, ShareId};
+use pass::domain::{ItemId, ShareId};
 
 pub enum ShareQuery {
     ShareId(ShareId),

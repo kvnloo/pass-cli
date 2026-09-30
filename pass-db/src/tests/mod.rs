@@ -19,7 +19,7 @@
 
 use crate::DatabaseManager;
 use anyhow::Result;
-use pass_domain::LocalKey;
+use pass::domain::LocalKey;
 
 #[macro_export]
 macro_rules! test_db {

@@ -18,8 +18,8 @@
  */
 
 use anyhow::{Context, Result};
-use pass_domain::utils::xor_key;
-use pass_domain::{LocalKey, LocalKeyProvider};
+use pass::domain::utils::xor_key;
+use pass::domain::{LocalKey, LocalKeyProvider};
 use sha2::{Digest, Sha256};
 
 const ENCRYPTION_KEY_ENV_VAR: &str = "PROTON_PASS_ENCRYPTION_KEY";
@@ -44,7 +44,7 @@ impl EnvLocalKeyProvider {
         hasher.update(key_value.as_bytes());
         let hashed_key = hasher.finalize().to_vec();
 
-        let xor_byte = pass_domain::crypto::generate_random_byte();
+        let xor_byte = pass::domain::crypto::generate_random_byte();
 
         let xored_key = xor_key(&hashed_key, xor_byte);
 

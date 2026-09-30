@@ -17,6 +17,10 @@
  *
  */
 
+use crate::domain::{
+    FolderId, Item, ItemData, ItemFlag, ItemId, ItemState, ItemType, ShareId, ShareType, VaultId,
+    crypto,
+};
 use crate::item::item_keys::OpenedItemKey;
 use crate::item::list::ItemRevision;
 use crate::{PassClient, PassClientContext};
@@ -24,10 +28,6 @@ use anyhow::{Context, Result, anyhow};
 use bytes::Bytes;
 use futures::stream::{self, StreamExt};
 use jiff::Timestamp;
-use pass_domain::{
-    FolderId, Item, ItemData, ItemFlag, ItemId, ItemState, ItemType, ShareId, ShareType, VaultId,
-    crypto,
-};
 use std::collections::HashMap;
 
 const MAX_CONCURRENCY: usize = 10;
@@ -337,15 +337,15 @@ mod tests {
     use crate::account::keys::{
         ActivePublicKeysResponse, AddressDataResponse, PublicAddressKeyResponse,
     };
+    use crate::domain::{
+        CustomItem, CustomSection, DataToArmor, ItemContent, ItemData, ItemExtraField,
+        ItemExtraFieldContent, ItemFlag, ItemState, PlainText, PublicKey, TargetType, crypto,
+    };
     use crate::invite::group::keys::{GetGroupsResponse, GroupResponse};
     use crate::share::keys::{GetShareKeysResponse, ShareKeyList, ShareKeyResponse};
     use crate::share::list::ShareResponse;
     use crate::test_tools::*;
     use muon::rest::core::v4::{addresses, keys};
-    use pass_domain::{
-        CustomItem, CustomSection, DataToArmor, ItemContent, ItemData, ItemExtraField,
-        ItemExtraFieldContent, ItemFlag, ItemState, PlainText, PublicKey, TargetType, crypto,
-    };
 
     // Helper function to setup item share (target_type: Item)
     fn setup_item_share(server: &ProtonAPI, share_id: &str, item_id: &str, vault_id: &str) {

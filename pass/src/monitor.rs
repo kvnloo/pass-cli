@@ -18,15 +18,16 @@
  */
 
 use crate::common::CodeResponse;
+use crate::domain::crypto::{self, EncryptionTag};
+use crate::domain::{
+    AccountType, ActionPayload, ActionPayloadContent, EventAction, ItemId, PersonalAccessTokenId,
+    ShareId,
+};
 use crate::utils::{b64_decode, b64_encode};
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result, anyhow};
 use muon::{GET, POST};
-use pass_domain::crypto::{self, EncryptionTag};
-use pass_domain::{
-    AccountType, ActionPayload, ActionPayloadContent, EventAction, ItemId, PersonalAccessTokenId,
-    ShareId,
-};
+use pass_derive::sdk_export;
 
 pub const MAX_REASON_LENGTH: usize = 300;
 const PAGE_SIZE: usize = 100;
@@ -89,14 +90,54 @@ pub struct PatMonitorEntry {
     pub action_time: jiff::Timestamp,
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[sdk_export]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DecryptedMonitorPayload {
     pub reason: String,
     pub vault_name: Option<String>,
     pub item_name: Option<String>,
 }
 
+/// A monitor record of what a personal access token did.
+#[sdk_export]
+#[derive(Debug, Clone)]
+pub struct PatMonitorEntrySummary {
+    pub record_id: String,
+    pub vault_id: String,
+    pub object_id: Option<String>,
+    pub action: EventAction,
+    pub payload: Option<DecryptedMonitorPayload>,
+    /// RFC 3339 timestamp.
+    pub action_time: String,
+}
+
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
+    /// Lists up to `max_results` monitor records of the personal access token `pat_id`.
+    #[sdk_export]
+    pub async fn list_pat_monitor_entries(
+        &self,
+        pat_id: &str,
+        max_results: u32,
+    ) -> Result<Vec<PatMonitorEntrySummary>> {
+        let entries = self
+            .list_pat_monitor(
+                &PersonalAccessTokenId::new(pat_id.to_string()),
+                max_results as usize,
+            )
+            .await?;
+        Ok(entries
+            .into_iter()
+            .map(|entry| PatMonitorEntrySummary {
+                record_id: entry.record_id,
+                vault_id: entry.vault_id,
+                object_id: entry.object_id,
+                action: entry.action,
+                payload: entry.payload,
+                action_time: entry.action_time.to_string(),
+            })
+            .collect())
+    }
     pub async fn list_pat_monitor(
         &self,
         pat_id: &PersonalAccessTokenId,
@@ -186,6 +227,7 @@ impl<C: PassClientContext> PassClient<C> {
         Ok(all_records)
     }
 
+    #[sdk_export]
     pub async fn send_monitor_action(
         &self,
         action: EventAction,
@@ -213,6 +255,7 @@ impl<C: PassClientContext> PassClient<C> {
             .await
     }
 
+    #[sdk_export]
     pub async fn send_monitor_action_with_name(
         &self,
         action: EventAction,

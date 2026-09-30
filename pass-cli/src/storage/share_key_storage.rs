@@ -18,8 +18,8 @@
  */
 
 use anyhow::Result;
+use pass::domain::{DecryptedShareKey, ShareId, ShareKeyStorage};
 use pass_db::{DatabaseManager, ShareKeyModel};
-use pass_domain::{DecryptedShareKey, ShareId, ShareKeyStorage};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 

@@ -18,11 +18,12 @@
  */
 
 use crate::crypto::open_invite_key::OpenInviteKeyFlow;
+use crate::domain::{Invite, InviteId, InviteVaultData, TargetType, VaultData, crypto};
 use crate::permission::PermissionAction;
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result, anyhow};
 use muon::GET;
-use pass_domain::{Invite, InviteId, InviteVaultData, TargetType, VaultData, crypto};
+use pass_derive::sdk_export;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 #[derive(Clone, Debug, serde::Deserialize)]
@@ -101,7 +102,47 @@ pub struct InviteWithKeys {
     pub keys: Vec<InviteKey>,
 }
 
+/// A pending invite, without the cryptographic material.
+#[sdk_export]
+#[derive(Clone, Debug)]
+pub struct UserInvite {
+    pub id: String,
+    pub token: String,
+    pub target_type: TargetType,
+    pub target_id: String,
+    pub reminders: u8,
+    pub inviter_email: String,
+    pub invited_email: String,
+    pub vault_data: Option<InviteVaultData>,
+}
+
+impl From<Invite> for UserInvite {
+    fn from(invite: Invite) -> Self {
+        Self {
+            id: invite.id.to_string(),
+            token: invite.token,
+            target_type: invite.target_type,
+            target_id: invite.target_id,
+            reminders: invite.reminders,
+            inviter_email: invite.inviter_email,
+            invited_email: invite.invited_email,
+            vault_data: invite.vault_data,
+        }
+    }
+}
+
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
+    /// Lists the pending invites of the user.
+    #[sdk_export]
+    pub async fn list_pending_invites(&self) -> Result<Vec<UserInvite>> {
+        let invites = self.list_user_invites().await?;
+        Ok(invites
+            .into_iter()
+            .map(|i| UserInvite::from(i.invite))
+            .collect())
+    }
+
     pub async fn list_user_invites(&self) -> Result<Vec<InviteWithKeys>> {
         self.action_guard(PermissionAction::ListInvites).await?;
 

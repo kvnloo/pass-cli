@@ -26,14 +26,14 @@ use crate::storage::{
 };
 use crate::telemetry::SqliteTelemetryHandler;
 use anyhow::{Context, Result};
-use pass_db::DatabaseManager;
-use pass_domain::crypto::KEY_LENGTH;
-use pass_domain::{
+use pass::domain::crypto::KEY_LENGTH;
+use pass::domain::{
     AccountCrypto, ClientFeatures, DataStorage, FsStorage, LocalKey, LocalKeyProvider,
     TelemetryHandler,
 };
+use pass::pgp::{NativePgpCrypto, ProtonAccountCrypto};
+use pass_db::DatabaseManager;
 use pass_fs::RealFsStorage;
-use pass_pgp::{NativePgpCrypto, ProtonAccountCrypto};
 use std::env;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -208,7 +208,7 @@ impl FsLocalKeyProvider {
 
         info!("Couldn't find local key file, generating one");
 
-        let key = pass_domain::crypto::generate_encryption_key();
+        let key = pass::domain::crypto::generate_encryption_key();
 
         #[cfg(not(target_os = "windows"))]
         {
@@ -283,7 +283,7 @@ impl ClientFeatures for CliClientFeatures {
         self.storage.clone()
     }
 
-    async fn get_pgp_crypto(&self) -> Arc<dyn pass_domain::PgpCrypto> {
+    async fn get_pgp_crypto(&self) -> Arc<dyn pass::domain::PgpCrypto> {
         Arc::new(NativePgpCrypto)
     }
 

@@ -17,11 +17,11 @@
  *
  */
 
+use crate::domain::{AttachmentChunk, AttachmentId, ItemAttachment, ItemId, ShareId, crypto};
 use crate::utils::debug_response;
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result, anyhow};
 use muon::GET;
-use pass_domain::{AttachmentChunk, AttachmentId, ItemAttachment, ItemId, ShareId, crypto};
 use std::future::Future;
 
 impl<C: PassClientContext> PassClient<C> {
@@ -133,7 +133,7 @@ impl<C: PassClientContext> PassClient<C> {
                 &encrypted_data,
                 file_key,
                 crypto::EncryptionTag::FileDataV2 {
-                    chunk_index: chunk.index,
+                    chunk_index: chunk.index as usize,
                     num_chunks: attachment.chunks.len(),
                 },
             ),
@@ -158,11 +158,11 @@ mod tests {
     use super::*;
     use crate::item::get_one::GetItemResponse;
 
-    use crate::test_tools::*;
-    use pass_domain::{
+    use crate::domain::{
         CustomItem, CustomSection, ItemAttachmentContent, ItemContent, ItemData, ItemExtraField,
         ItemExtraFieldContent, ItemFlag, ItemState, crypto,
     };
+    use crate::test_tools::*;
     use std::collections::HashMap;
     use std::sync::{Arc, Mutex};
 
@@ -185,8 +185,8 @@ mod tests {
             .into_iter()
             .map(|(chunk_id, index, size)| AttachmentChunk {
                 chunk_id,
-                index,
-                size,
+                index: index as u64,
+                size: size as u64,
             })
             .collect();
 
@@ -197,7 +197,7 @@ mod tests {
 
         ItemAttachment {
             id: AttachmentId::new(attachment_id.to_string()),
-            size: chunks.iter().map(|c| c.size as u64).sum(),
+            size: chunks.iter().map(|c| c.size).sum(),
             encryption_version,
             content,
             chunks,

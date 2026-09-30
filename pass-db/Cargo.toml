@@ -7,7 +7,7 @@ edition = "2024"
 doctest = false
 
 [dependencies]
-pass-domain = { path = "../pass-domain" }
+pass = { path = "../pass" }
 
 deadpool = "0.13"
 rusqlite = { version = "0.40.2", features = ["bundled-sqlcipher-vendored-openssl"] }

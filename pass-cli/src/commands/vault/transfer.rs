@@ -20,7 +20,7 @@
 use crate::commands::vault::VaultQuery;
 use crate::helpers::CliPassClient as PassClient;
 use anyhow::{Context, Result};
-use pass_domain::ShareId;
+use pass::domain::ShareId;
 
 pub async fn run(client: PassClient, query: VaultQuery, member_share_id: ShareId) -> Result<()> {
     let share_id = query.resolve(&client).await?;

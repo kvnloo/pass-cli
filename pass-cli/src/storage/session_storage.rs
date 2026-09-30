@@ -18,7 +18,7 @@
  */
 
 use anyhow::{Context, Result, anyhow};
-use pass_auth::SessionStorage;
+use pass::auth::SessionStorage;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 

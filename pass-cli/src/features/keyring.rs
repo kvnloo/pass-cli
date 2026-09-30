@@ -21,9 +21,9 @@ use crate::constants::SESSION_FILE_NAME;
 use anyhow::{Context, Result};
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use keyring_core::{Entry, Error as KeyringError};
+use pass::domain::utils::xor_key_multibyte;
+use pass::domain::{LocalKey, LocalKeyProvider};
 use pass_db::DATABASE_NAME;
-use pass_domain::utils::xor_key_multibyte;
-use pass_domain::{LocalKey, LocalKeyProvider};
 use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 use tokio::sync::RwLock;
@@ -119,7 +119,7 @@ pub struct KeyringKeyProvider {
 impl KeyringKeyProvider {
     pub fn new(base_dir: PathBuf) -> Result<Self> {
         init_keyring_store()?;
-        let xor_key = pass_domain::crypto::random_bytes(XOR_KEY_LENGTH);
+        let xor_key = pass::domain::crypto::random_bytes(XOR_KEY_LENGTH);
         Ok(Self {
             key: RwLock::new(None),
             xor_key,
@@ -268,7 +268,7 @@ impl KeyringKeyProvider {
                     std::process::exit(1);
                 } else {
                     info!("Credential not found in Keyring. Creating one");
-                    let key = pass_domain::crypto::generate_encryption_key();
+                    let key = pass::domain::crypto::generate_encryption_key();
                     debug!(
                         "Generated new local key (fingerprint: {})",
                         Self::key_fingerprint(&key)

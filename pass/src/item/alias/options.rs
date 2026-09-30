@@ -17,10 +17,10 @@
  *
  */
 
+use crate::domain::ShareId;
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result, anyhow};
 use muon::GET;
-use pass_domain::ShareId;
 
 #[derive(serde::Deserialize)]
 pub(crate) struct AliasMailbox {

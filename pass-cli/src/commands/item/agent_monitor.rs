@@ -19,8 +19,8 @@
 
 use crate::helpers::CliPassClient as PassClient;
 use anyhow::{Result, anyhow};
+use pass::domain::{EventAction, ItemId, ShareId};
 use pass::monitor::MAX_REASON_LENGTH;
-use pass_domain::{EventAction, ItemId, ShareId};
 
 const REASON_ENV_VAR: &str = "PROTON_PASS_AGENT_REASON";
 

@@ -17,12 +17,15 @@
  *
  */
 
+use crate::domain::{ItemId, ShareId, ShareRole};
 use crate::permission::PermissionAction;
 use crate::{PassClient, PassClientContext};
 use anyhow::Context;
-use pass_domain::{ItemId, ShareId, ShareRole};
+use pass_derive::sdk_export;
 
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
+    #[sdk_export]
     pub async fn share_item(
         &self,
         share_id: &ShareId,

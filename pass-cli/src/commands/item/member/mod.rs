@@ -21,7 +21,7 @@ use crate::commands::{OutputFormat, Role};
 use crate::helpers::CliPassClient as PassClient;
 use anyhow::Result;
 use clap::Subcommand;
-use pass_domain::{ItemId, ShareId};
+use pass::domain::{ItemId, ShareId};
 
 pub mod list;
 pub mod remove;

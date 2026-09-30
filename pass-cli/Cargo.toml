@@ -4,12 +4,9 @@ version = "2.4.1"
 edition = "2024"
 
 [dependencies]
-pass = { path = "../pass" }
-pass-auth = { path = "../pass-auth" }
+pass = { path = "../pass", features = ["tokio-runtime"] }
 pass-db = { path = "../pass-db" }
-pass-domain = { path = "../pass-domain" }
 pass-fs = { path = "../pass-fs" }
-pass-pgp = { path = "../pass-pgp" }
 
 clap = { version = "4.5", features = ["derive"] }
 clap_complete = "4.6"
@@ -45,7 +42,7 @@ base64.workspace = true
 async-trait.workspace = true
 jiff.workspace = true
 futures.workspace = true
-muon.workspace = true
+muon = { workspace = true, features = ["transport-hyper"] }
 parking_lot.workspace = true
 proton-pass-common.workspace = true
 rand.workspace = true

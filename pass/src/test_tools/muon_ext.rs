@@ -96,7 +96,7 @@ pub async fn make_test_pass_client(
     raw_client: muon_test::server::TestClient<()>,
     api: &ProtonAPI,
 ) -> TestPassClient {
-    let key = pass_domain::crypto::generate_encryption_key();
+    let key = crate::domain::crypto::generate_encryption_key();
     let session = raw_client
         .new_session_without_credentials(())
         .await
@@ -107,7 +107,7 @@ pub async fn make_test_pass_client(
     TestPassClient::new(
         raw_client,
         Arc::new(TestClientFeatures::new(key)),
-        pass_domain::AccountType::User,
+        crate::domain::AccountType::User,
         sdk,
     )
 }
@@ -117,7 +117,7 @@ pub async fn make_test_pass_pat_client(
     raw_client: muon_test::server::TestClient<()>,
     api: &ProtonAPI,
 ) -> TestPassClient {
-    let key = pass_domain::crypto::generate_encryption_key();
+    let key = crate::domain::crypto::generate_encryption_key();
     let session = raw_client
         .new_session_without_credentials(())
         .await
@@ -127,7 +127,7 @@ pub async fn make_test_pass_pat_client(
     TestPassClient::new(
         raw_client,
         Arc::new(TestClientFeatures::new(key)),
-        pass_domain::AccountType::PersonalAccessToken,
+        crate::domain::AccountType::PersonalAccessToken,
         sdk,
     )
 }

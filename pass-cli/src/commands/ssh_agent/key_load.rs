@@ -23,7 +23,7 @@ use super::ssh_key_parsing::parse_private_key_with_rsa_pem_fallback;
 use crate::helpers::CliPassClient as PassClient;
 use anyhow::{Context, Result, anyhow};
 use futures::stream::{self, StreamExt};
-use pass_domain::{Item, ItemContent, ItemState};
+use pass::domain::{Item, ItemContent, ItemState};
 use ssh_key::private::PrivateKey as SshPrivateKey;
 use std::collections::HashSet;
 
@@ -125,10 +125,10 @@ fn find_passphrases_in_extra_fields(item: &Item) -> Vec<String> {
             if field_name_lower.contains(term) {
                 // Extract the content based on field type
                 let content = match &extra_field.content {
-                    pass_domain::ItemExtraFieldContent::Text(s) => Some(s.clone()),
-                    pass_domain::ItemExtraFieldContent::Hidden(s) => Some(s.clone()),
-                    pass_domain::ItemExtraFieldContent::Totp(_) => None,
-                    pass_domain::ItemExtraFieldContent::Timestamp(_) => None,
+                    pass::domain::ItemExtraFieldContent::Text(s) => Some(s.clone()),
+                    pass::domain::ItemExtraFieldContent::Hidden(s) => Some(s.clone()),
+                    pass::domain::ItemExtraFieldContent::Totp(_) => None,
+                    pass::domain::ItemExtraFieldContent::Timestamp(_) => None,
                 };
 
                 if let Some(passphrase) = content
@@ -146,7 +146,7 @@ fn find_passphrases_in_extra_fields(item: &Item) -> Vec<String> {
 
     // Iterate all extra fields and get the Hidden ones just to have a fallback
     for extra_field in &item.content.extra_fields {
-        if let pass_domain::ItemExtraFieldContent::Hidden(ref val) = extra_field.content
+        if let pass::domain::ItemExtraFieldContent::Hidden(ref val) = extra_field.content
             && !val.is_empty()
         {
             debug!(

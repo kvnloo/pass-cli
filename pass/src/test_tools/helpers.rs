@@ -25,8 +25,8 @@ use muon::http::Method;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 
-pub use pass_domain::utils::random_string;
-use pass_domain::{
+pub use crate::domain::utils::random_string;
+use crate::domain::{
     CustomItem, CustomSection, ItemContent, ItemData, ItemExtraField, ItemExtraFieldContent,
     PermissionFlag, TargetType, crypto,
 };
@@ -34,35 +34,35 @@ use pass_domain::{
 #[macro_export]
 macro_rules! share_id {
     ($id:expr) => {
-        pass_domain::ShareId::new($id.to_string())
+        $crate::domain::ShareId::new($id.to_string())
     };
 }
 
 #[macro_export]
 macro_rules! vault_id {
     ($id:expr) => {
-        pass_domain::VaultId::new($id.to_string())
+        $crate::domain::VaultId::new($id.to_string())
     };
 }
 
 #[macro_export]
 macro_rules! item_id {
     ($id:expr) => {
-        pass_domain::ItemId::new($id.to_string())
+        $crate::domain::ItemId::new($id.to_string())
     };
 }
 
 #[macro_export]
 macro_rules! address_id {
     ($id:expr) => {
-        pass_domain::AddressId::new($id.to_string())
+        $crate::domain::AddressId::new($id.to_string())
     };
 }
 
 #[macro_export]
 macro_rules! group_id {
     ($id:expr) => {
-        pass_domain::GroupId::new($id.to_string())
+        $crate::domain::GroupId::new($id.to_string())
     };
 }
 

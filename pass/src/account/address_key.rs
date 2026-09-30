@@ -17,9 +17,9 @@
  *
  */
 
+use crate::domain::{AddressKey, UnlockedAddressKeys};
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result};
-use pass_domain::{AddressKey, UnlockedAddressKeys};
 
 impl<C: PassClientContext> PassClient<C> {
     pub async fn open_address_keys(

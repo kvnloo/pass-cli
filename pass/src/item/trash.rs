@@ -18,11 +18,12 @@
  */
 
 use crate::common::CodeResponse;
+use crate::domain::{ItemId, ItemState, ShareId};
 use crate::permission::PermissionAction;
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result, bail};
 use muon::POST;
-use pass_domain::{ItemId, ItemState, ShareId};
+use pass_derive::sdk_export;
 
 #[derive(Debug, serde::Serialize)]
 struct TrashItemsRequest {
@@ -38,7 +39,9 @@ struct TrashItemBody {
     revision: u64,
 }
 
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
+    #[sdk_export]
     pub async fn trash_item(&self, share_id: &ShareId, item_id: &ItemId) -> Result<()> {
         let request = self
             .trash_status_item_request(share_id, item_id, ItemState::Active)
@@ -61,6 +64,7 @@ impl<C: PassClientContext> PassClient<C> {
         Ok(())
     }
 
+    #[sdk_export]
     pub async fn untrash_item(&self, share_id: &ShareId, item_id: &ItemId) -> Result<()> {
         let request = self
             .trash_status_item_request(share_id, item_id, ItemState::Trashed)

@@ -1,7 +1,0 @@
-syntax = "proto3";
-
-package proton_pass_folder_v1;
-
-message Folder {
-  string name = 1;
-}

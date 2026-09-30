@@ -18,11 +18,12 @@
  */
 
 use crate::common::CodeResponse;
+use crate::domain::crypto::EncryptionTag;
+use crate::domain::{ItemId, PersonalAccessTokenId, ShareId, ShareRole, TargetType, crypto};
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result, anyhow};
 use muon::POST;
-use pass_domain::crypto::EncryptionTag;
-use pass_domain::{ItemId, PersonalAccessTokenId, ShareId, ShareRole, TargetType, crypto};
+use pass_derive::sdk_export;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 struct KeyRotationKeyPair {
@@ -46,7 +47,9 @@ struct PersonalAccessTokenGrantAccessRequest {
     keys: Vec<KeyRotationKeyPair>,
 }
 
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
+    #[sdk_export]
     pub async fn grant_personal_access_token_access(
         &self,
         personal_access_token_id: &PersonalAccessTokenId,
@@ -226,11 +229,11 @@ impl<C: PassClientContext> PassClient<C> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::domain::PlainText;
     use crate::personal_access_token::list::{
         ListPersonalAccessTokensResponse, PersonalAccessTokenData, PersonalAccessTokensWrapper,
     };
     use crate::test_tools::*;
-    use pass_domain::PlainText;
 
     #[muon_test::test]
     async fn test_grant_vault_access(server: muon_test::Server) {

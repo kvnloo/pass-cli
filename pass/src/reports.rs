@@ -20,7 +20,9 @@ use crate::pagination::Pagination;
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result};
 use muon::GET;
+use pass_derive::sdk_export;
 
+#[sdk_export]
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[cfg_attr(test, derive(PartialEq))]
 pub struct Report {
@@ -30,6 +32,7 @@ pub struct Report {
     pub total_member_count: i64,
 }
 
+#[sdk_export]
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[cfg_attr(test, derive(PartialEq))]
 pub struct MemberReport {
@@ -47,6 +50,7 @@ pub struct MemberReport {
     pub last_activity_time: i64,
 }
 
+#[sdk_export]
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[cfg_attr(test, derive(PartialEq))]
 pub struct BreachCount {
@@ -56,6 +60,7 @@ pub struct BreachCount {
     pub total_breach_count: i64,
 }
 
+#[sdk_export]
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[cfg_attr(test, derive(PartialEq))]
 pub struct ItemsReport {
@@ -69,6 +74,7 @@ pub struct ItemsReport {
     pub accessible_item_count: i64,
 }
 
+#[sdk_export]
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[cfg_attr(test, derive(PartialEq))]
 pub struct MonitorReport {
@@ -98,7 +104,9 @@ struct OrganizationReportResponse {
     report: Report,
 }
 
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
+    #[sdk_export]
     pub async fn get_organization_report(&self) -> Result<Report> {
         let mut report: Option<Report> = None;
         let mut pagination = Pagination::default_paginated();

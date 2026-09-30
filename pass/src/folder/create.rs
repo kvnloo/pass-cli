@@ -17,12 +17,14 @@
  *
  */
 
+use crate::domain::{FolderData, FolderId, ShareId, crypto};
 use crate::folder::list::FolderResponse;
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result, anyhow};
 use muon::POST;
-use pass_domain::{FolderData, FolderId, ShareId, crypto};
+use pass_derive::sdk_export;
 
+#[sdk_export]
 pub struct CreateFolderPayload {
     pub name: String,
     pub parent_folder_id: Option<FolderId>,
@@ -48,7 +50,9 @@ struct CreateFolderResponse {
     folder: FolderResponse,
 }
 
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
+    #[sdk_export]
     pub async fn create_folder(
         &self,
         share_id: &ShareId,
@@ -58,7 +62,7 @@ impl<C: PassClientContext> PassClient<C> {
         let folder_key = crypto::generate_encryption_key();
 
         // Create and serialize folder content
-        let folder_data = FolderData::new(payload.name);
+        let folder_data = FolderData::new(payload.name)?;
         let serialized_content = folder_data
             .serialize()
             .context("Error serializing folder content")?;
@@ -153,7 +157,7 @@ impl<C: PassClientContext> PassClient<C> {
         // Store the folder key in storage (best effort)
         if let Ok(data_storage) = self.client_features.get_data_storage().await {
             let folder_key_storage = data_storage.get_folder_key_storage().await;
-            let decrypted_key = pass_domain::DecryptedFolderKey::new(key_rotation, folder_key);
+            let decrypted_key = crate::domain::DecryptedFolderKey::new(key_rotation, folder_key);
             let res = folder_key_storage
                 .store_folder_keys(share_id, &folder_id, vec![decrypted_key])
                 .await;

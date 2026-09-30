@@ -36,6 +36,7 @@ mod auth;
 mod client;
 mod commands;
 mod constants;
+mod env_config;
 mod features;
 mod helpers;
 mod logs;

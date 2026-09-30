@@ -18,8 +18,8 @@
  */
 
 use deadpool::managed::{Manager, Metrics, Object, RecycleResult};
-use pass_domain::LocalKey;
-use pass_domain::utils::xor_key;
+use pass::domain::LocalKey;
+use pass::domain::utils::xor_key;
 use std::ops::Deref;
 
 pub fn format_key_for_sqlcipher(key: &[u8]) -> String {
@@ -37,7 +37,7 @@ pub struct EncryptedSqliteManager {
 
 impl EncryptedSqliteManager {
     pub fn new(path: String, encryption_key: LocalKey) -> Self {
-        let xor_key_byte = pass_domain::crypto::generate_random_byte();
+        let xor_key_byte = pass::domain::crypto::generate_random_byte();
         let xored_key = xor_key(encryption_key.as_ref(), xor_key_byte);
         Self {
             path,
@@ -125,11 +125,22 @@ impl DbConnection {
         F: FnOnce(&rusqlite::Connection) -> R + Send,
         R: Send + 'static,
     {
+        // This executes synchronously and returns a ready future
+        // Wrap the result in Ok to create the outer Result layer
+        std::future::ready(Ok(self.interact_blocking(func)))
+    }
+
+    /// Synchronous version of [`Self::interact`]. Futures that must be `Send`
+    /// can't hold a `&DbConnection` across an `.await` (the connection isn't
+    /// `Sync`), so they can use this instead once they're done awaiting.
+    pub fn interact_blocking<F, R>(&self, func: F) -> R
+    where
+        F: FnOnce(&rusqlite::Connection) -> R + Send,
+        R: Send + 'static,
+    {
         let conn: &rusqlite::Connection = self.obj.deref();
 
         // Use block_in_place to run blocking code without moving to a separate thread
-        // This executes synchronously and returns a ready future
-        // Wrap the result in Ok to create the outer Result layer
-        std::future::ready(Ok(tokio::task::block_in_place(|| func(conn))))
+        tokio::task::block_in_place(|| func(conn))
     }
 }

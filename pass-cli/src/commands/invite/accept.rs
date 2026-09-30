@@ -19,7 +19,7 @@
 
 use crate::helpers::CliPassClient as PassClient;
 use anyhow::{Context, Result};
-use pass_domain::InviteId;
+use pass::domain::InviteId;
 
 pub async fn run(client: PassClient, invite_id: InviteId) -> Result<()> {
     client

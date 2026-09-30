@@ -17,11 +17,15 @@
  *
  */
 
+use crate::domain::Vault;
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result, anyhow};
-use pass_domain::Vault;
+use pass_derive::sdk_export;
 
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
+    /// Finds a vault by its exact name.
+    #[sdk_export]
     pub async fn find_vault(&self, vault_name: &str) -> Result<Vault> {
         let vaults = self.list_vaults().await.context("Error listing vaults")?;
         let vault = vaults

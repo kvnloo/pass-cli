@@ -19,7 +19,7 @@
 
 use crate::helpers::CliPassClient as PassClient;
 use anyhow::{Context, Result};
-use pass_domain::{ItemId, ShareId};
+use pass::domain::{ItemId, ShareId};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;

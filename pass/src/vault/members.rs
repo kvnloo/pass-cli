@@ -18,11 +18,12 @@
  */
 
 use crate::common::CodeResponse;
+use crate::domain::{PermissionFlag, ShareId, ShareMember, ShareRole, TargetType};
 use crate::pagination::SincePagination;
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result};
 use muon::{DELETE, GET, PUT};
-use pass_domain::{PermissionFlag, ShareId, ShareMember, ShareRole, TargetType};
+use pass_derive::sdk_export;
 
 #[derive(Debug, serde::Deserialize)]
 struct ShareMembersResponse {
@@ -79,7 +80,9 @@ struct UpdateMemberRequest {
     expire_time: Option<i64>,
 }
 
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
+    #[sdk_export]
     pub async fn list_vault_members(&self, share_id: &ShareId) -> Result<Vec<ShareMember>> {
         let members = self
             .fetch_members(share_id)
@@ -129,6 +132,7 @@ impl<C: PassClientContext> PassClient<C> {
         Ok(members)
     }
 
+    #[sdk_export]
     pub async fn update_vault_member(
         &self,
         share_id: &ShareId,
@@ -162,6 +166,8 @@ impl<C: PassClientContext> PassClient<C> {
         Ok(())
     }
 
+    /// Removes a member from the vault.
+    #[sdk_export]
     pub async fn remove_vault_member(
         &self,
         share_id: &ShareId,

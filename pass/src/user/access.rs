@@ -20,8 +20,10 @@
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result};
 use muon::GET;
+use pass_derive::sdk_export;
 
 // Example enum for PlanType
+#[sdk_export]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub enum PlanType {
     #[serde(rename = "free")]
@@ -32,6 +34,7 @@ pub enum PlanType {
     Business,
 }
 
+#[sdk_export]
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct PassPlan {
     /// Type of plan for this user, can be free, plus or business
@@ -93,6 +96,7 @@ pub struct PassPlan {
     pub cli_allowed: Option<bool>,
 }
 
+#[sdk_export]
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct MonitorStatus {
     /// If the monitor for proton address leaks is enabled
@@ -103,6 +107,7 @@ pub struct MonitorStatus {
     pub aliases: bool,
 }
 
+#[sdk_export]
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct UserDataSettings {
     /// Default share to user for this user. Null if not set any default share
@@ -116,6 +121,7 @@ pub struct UserDataSettings {
     pub pending_alias_to_sync: u16,
 }
 
+#[sdk_export]
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct UserInfo {
     #[serde(rename = "Plan")]
@@ -136,7 +142,9 @@ pub struct GetUserInfoResponse {
     pub access: UserInfo,
 }
 
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
+    #[sdk_export]
     pub async fn get_user_access(&self) -> Result<UserInfo> {
         let res = self
             .send(GET!("/pass/v1/user/access"))
@@ -147,9 +155,10 @@ impl<C: PassClientContext> PassClient<C> {
         Ok(response.access)
     }
 
+    #[sdk_export]
     pub async fn can_use_cli(&self) -> Result<bool> {
         let ff = self
-            .has_feature_flag(pass_domain::FeatureFlag::PassCanUseCli)
+            .has_feature_flag(crate::domain::FeatureFlag::PassCanUseCli)
             .await
             .context("Error checking PassCanUseCli feature flag")?;
         if !ff {

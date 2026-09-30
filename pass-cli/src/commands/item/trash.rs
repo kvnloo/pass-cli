@@ -21,7 +21,7 @@ use super::common::{ItemQuery, ShareQuery};
 use crate::commands::item::agent_monitor::{ensure_reason_if_agent, send_reason_if_agent};
 use crate::helpers::CliPassClient as PassClient;
 use anyhow::{Context, Result};
-use pass_domain::EventAction;
+use pass::domain::EventAction;
 
 pub struct TrashItemQuery {
     share_query: ShareQuery,

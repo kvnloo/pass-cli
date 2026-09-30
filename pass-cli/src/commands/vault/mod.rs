@@ -21,7 +21,7 @@ use crate::commands::{OutputFormat, Role};
 use crate::helpers::CliPassClient as PassClient;
 use anyhow::{Context, Result, anyhow};
 use clap::Subcommand;
-use pass_domain::ShareId;
+use pass::domain::ShareId;
 
 pub enum VaultQuery {
     ShareId(ShareId),

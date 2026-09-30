@@ -20,7 +20,7 @@
 use super::super::PersonalAccessTokenQuery;
 use crate::helpers::CliPassClient as PassClient;
 use anyhow::{Context, Result};
-use pass_domain::ShareId;
+use pass::domain::ShareId;
 
 pub async fn run(
     client: PassClient,

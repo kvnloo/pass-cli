@@ -17,12 +17,13 @@
  *
  */
 
+use crate::domain::PersonalAccessTokenId;
 use crate::personal_access_token::PersonalAccessTokenFlags;
 use crate::{PassClient, PassClientContext};
 use anyhow::Result;
 use muon::GET;
 use muon::env::Environment;
-use pass_domain::PersonalAccessTokenId;
+use pass_derive::sdk_export;
 
 #[derive(Debug)]
 pub struct UserInfo {
@@ -30,6 +31,7 @@ pub struct UserInfo {
     pub env: Environment,
 }
 
+#[sdk_export]
 #[derive(Debug)]
 pub struct UserInfoUser {
     pub id: String,
@@ -63,6 +65,7 @@ struct UserResponse {
     pub email: String,
 }
 
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
     pub async fn get_info(&self) -> Result<UserInfo> {
         let res = self.send(GET!("/core/v4/users")).await?;
@@ -73,16 +76,25 @@ impl<C: PassClientContext> PassClient<C> {
         })
     }
 
+    /// The logged-in user's id, name and email.
+    #[sdk_export]
+    pub async fn get_user_info_user(&self) -> Result<UserInfoUser> {
+        Ok(self.get_info().await?.user)
+    }
+
+    #[sdk_export]
     pub async fn get_personal_access_token_name(&self) -> Result<String> {
         let personal_access_token_data = self.get_personal_access_token_self().await?;
         Ok(personal_access_token_data.name)
     }
 
+    #[sdk_export]
     pub async fn get_personal_access_token_id(&self) -> Result<PersonalAccessTokenId> {
         let data = self.get_personal_access_token_self().await?;
         Ok(PersonalAccessTokenId::new(data.personal_access_token_id))
     }
 
+    #[sdk_export]
     pub async fn get_personal_access_token_pass_agent(&self) -> Result<bool> {
         let data = self.get_personal_access_token_self().await?;
         Ok(data.flags.map(|f| f.pass_agent).unwrap_or(false))

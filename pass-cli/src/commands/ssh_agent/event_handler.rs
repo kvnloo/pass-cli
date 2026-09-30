@@ -18,7 +18,7 @@
  */
 
 use anyhow::Result;
-use pass_domain::{ContinuationStrategy, EventId, UserEvents, UserEventsHandler};
+use pass::domain::{ContinuationStrategy, EventId, UserEvents, UserEventsHandler};
 use tokio::sync::mpsc::Sender;
 use tokio::sync::{Mutex, RwLock};
 

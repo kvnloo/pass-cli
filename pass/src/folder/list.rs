@@ -17,10 +17,11 @@
  *
  */
 
+use crate::domain::{Folder, FolderData, FolderId, ShareId};
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result};
 use muon::GET;
-use pass_domain::{Folder, FolderData, FolderId, ShareId};
+use pass_derive::sdk_export;
 use std::collections::{HashMap, HashSet, VecDeque};
 
 const PAGE_SIZE: usize = 100;
@@ -123,6 +124,7 @@ fn topological_sort_folders(revisions: &[FolderResponse]) -> Vec<String> {
     sorted_ids
 }
 
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
     pub(crate) async fn list_all_folder_revisions(
         &self,
@@ -204,6 +206,8 @@ impl<C: PassClientContext> PassClient<C> {
         Ok(all_revisions)
     }
 
+    /// Lists all folders (at any depth) in the vault behind `share_id`.
+    #[sdk_export]
     pub async fn list_folders(&self, share_id: &ShareId) -> Result<Vec<Folder>> {
         // Get all folder revisions with pagination
         let all_revisions = self
@@ -409,10 +413,10 @@ impl<C: PassClientContext> PassClient<C> {
         let encrypted_bytes =
             crate::utils::b64_decode(encrypted_content).context("Error decoding folder content")?;
 
-        let decrypted = pass_domain::crypto::decrypt(
+        let decrypted = crate::domain::crypto::decrypt(
             &encrypted_bytes,
             folder_key,
-            pass_domain::crypto::EncryptionTag::FolderContent,
+            crate::domain::crypto::EncryptionTag::FolderContent,
         )
         .map_err(|e| {
             error!("Error decrypting folder content: {e:#}");

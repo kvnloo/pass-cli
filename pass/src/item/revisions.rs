@@ -17,12 +17,12 @@
  *
  */
 
+use crate::domain::{ItemId, ShareId};
 use crate::item::list::ItemRevision;
 use crate::pagination::SincePagination;
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result};
 use muon::GET;
-use pass_domain::{ItemId, ShareId};
 use std::collections::HashMap;
 
 #[derive(Debug, serde::Deserialize)]

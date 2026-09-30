@@ -17,7 +17,7 @@
  *
  */
 
-use pass_domain::{ItemType, TelemetryEvent};
+use crate::domain::{ItemType, TelemetryEvent};
 use std::collections::HashMap;
 
 pub mod batch;

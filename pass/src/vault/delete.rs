@@ -17,14 +17,18 @@
  *
  */
 
+use crate::domain::ShareId;
 use crate::permission::PermissionAction;
 use crate::utils::debug_response;
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result, anyhow};
 use muon::DELETE;
-use pass_domain::ShareId;
+use pass_derive::sdk_export;
 
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
+    /// Deletes the vault behind `share_id`, with all its items.
+    #[sdk_export]
     pub async fn delete_vault(&self, share_id: &ShareId) -> Result<()> {
         self.action_guard(PermissionAction::DeleteVault {
             share_id: share_id.clone(),

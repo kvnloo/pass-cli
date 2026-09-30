@@ -17,7 +17,7 @@
  *
  */
 
-use pass_domain::{
+use pass::domain::{
     CoreEventStorage, DataStorage, FolderKeyStorage, OrganizationPolicyStorage, ShareKeyStorage,
 };
 use std::sync::Arc;

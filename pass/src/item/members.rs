@@ -17,11 +17,12 @@
  *
  */
 
+use crate::domain::{ItemId, ShareId, ShareMember, ShareRole, TargetType};
 use crate::pagination::SincePagination;
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result};
 use muon::GET;
-use pass_domain::{ItemId, ShareId, ShareMember, ShareRole, TargetType};
+use pass_derive::sdk_export;
 
 #[derive(Debug, serde::Deserialize)]
 struct ShareMembersResponse {
@@ -70,7 +71,9 @@ impl TryFrom<ShareMemberResponse> for ShareMember {
     }
 }
 
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
+    #[sdk_export]
     pub async fn list_item_members(
         &self,
         share_id: &ShareId,

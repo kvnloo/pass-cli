@@ -18,8 +18,8 @@
  */
 
 use crate::crypto::constants::SIGNATURE_CONTEXT_EXISTING_USER;
+use crate::domain::{PgpCrypto, PlainText, PrivateKey, PublicKey, UnlockedAddressKeys, UserKey};
 use anyhow::{Context, Result};
-use pass_domain::{PgpCrypto, PlainText, PrivateKey, PublicKey, UnlockedAddressKeys, UserKey};
 use std::sync::Arc;
 use zeroize::ZeroizeOnDrop;
 

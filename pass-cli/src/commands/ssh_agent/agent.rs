@@ -743,7 +743,7 @@ hKEN721g/PpYfJsPyXshiefFhXEkcIfwYB0o9FfWmg5YzaLyddb9lf7ckdd6WCnvAC7O3F
         use crate::commands::ssh_agent::key_storage::{
             IdentityConstraints, IdentitySource, KeyStorage, SshIdentity,
         };
-        use pass_domain::password_hash::PasswordHasher;
+        use pass::domain::password_hash::PasswordHasher;
         use ssh_agent_lib::agent::Session;
         use std::time::{Duration, Instant};
 

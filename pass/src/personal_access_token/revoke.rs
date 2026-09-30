@@ -18,12 +18,15 @@
  */
 
 use crate::common::CodeResponse;
+use crate::domain::{PersonalAccessTokenId, ShareId};
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result};
 use muon::DELETE;
-use pass_domain::{PersonalAccessTokenId, ShareId};
+use pass_derive::sdk_export;
 
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
+    #[sdk_export]
     pub async fn revoke_personal_access_token_access(
         &self,
         personal_access_token_id: &PersonalAccessTokenId,

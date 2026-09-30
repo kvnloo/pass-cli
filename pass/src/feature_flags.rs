@@ -17,10 +17,11 @@
  *
  */
 
+use crate::domain::FeatureFlag;
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result};
 use muon::GET;
-use pass_domain::FeatureFlag;
+use pass_derive::sdk_export;
 use std::str::FromStr;
 
 struct FeatureFlagsCacheType;
@@ -43,7 +44,9 @@ struct FeatureFlagVariant {
     enabled: bool,
 }
 
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
+    #[sdk_export]
     pub async fn has_feature_flag(&self, feature_flag: FeatureFlag) -> Result<bool> {
         let feature_flags = self
             .get_feature_flags()

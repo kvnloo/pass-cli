@@ -19,10 +19,10 @@
 
 use crate::common::CodeResponse;
 use crate::constants::ITEM_CONTENT_CONTENT_FORMAT_VERSION;
+use crate::domain::{ItemData, ItemId, ItemType, ShareId, TelemetryEvent, crypto};
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result, anyhow};
 use muon::PUT;
-use pass_domain::{ItemData, ItemId, ItemType, ShareId, TelemetryEvent, crypto};
 use std::collections::HashMap;
 
 #[derive(Clone, Debug)]

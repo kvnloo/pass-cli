@@ -18,10 +18,12 @@
  */
 
 use super::ItemCreatedEvent;
+use crate::domain::{FolderId, ItemContent, ItemId, ItemType, LoginItem, ShareId};
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result};
-use pass_domain::{FolderId, ItemContent, ItemId, ItemType, LoginItem, ShareId};
+use pass_derive::sdk_export;
 
+#[sdk_export]
 #[derive(Clone, Debug)]
 pub struct LoginItemCreatePayload {
     pub title: String,
@@ -32,7 +34,10 @@ pub struct LoginItemCreatePayload {
     pub totp_uri: Option<String>,
 }
 
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
+    // Create a new login item
+    #[sdk_export]
     pub async fn create_login(
         &self,
         share_id: &ShareId,
@@ -51,6 +56,7 @@ impl<C: PassClientContext> PassClient<C> {
                     urls: payload.urls,
                     totp_uri: payload.totp_uri.unwrap_or_default(),
                     passkeys: vec![],
+                    autofill_urls: vec![],
                 }),
                 folder_id,
             )
@@ -73,10 +79,10 @@ mod tests {
     use super::*;
     use crate::test_tools::*;
 
+    use crate::domain::ItemData;
+    use crate::domain::crypto::EncryptionTag;
     use crate::item::create::common::{CreateItemRequest, CreateItemResponse};
     use crate::item::list::ItemRevision;
-    use pass_domain::ItemData;
-    use pass_domain::crypto::EncryptionTag;
 
     #[muon_test::test]
     async fn test_create_login(server: muon_test::Server) {
@@ -141,7 +147,7 @@ mod tests {
 
         // Check item is properly encrypted and contains the right contents
         let decoded_encrypted_item_key = crate::utils::b64_decode(&request.item_key).unwrap();
-        let decrypted_item_key = pass_domain::crypto::decrypt(
+        let decrypted_item_key = crate::domain::crypto::decrypt(
             &decoded_encrypted_item_key,
             &TEST_SHARE_KEY,
             EncryptionTag::ItemKey,
@@ -150,7 +156,7 @@ mod tests {
         assert_eq!(32, decrypted_item_key.len());
 
         let decoded_item_content = crate::utils::b64_decode(&request.content).unwrap();
-        let decrypted_item_content = pass_domain::crypto::decrypt(
+        let decrypted_item_content = crate::domain::crypto::decrypt(
             &decoded_item_content,
             &decrypted_item_key,
             EncryptionTag::ItemContent,

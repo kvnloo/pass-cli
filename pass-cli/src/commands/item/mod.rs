@@ -22,7 +22,7 @@ use crate::commands::{OutputFormat, Role, settings_helper};
 use crate::helpers::CliPassClient as PassClient;
 use anyhow::{Result, anyhow};
 use clap::Subcommand;
-use pass_domain::{ItemId, ShareId};
+use pass::domain::{ItemId, ShareId};
 
 pub mod agent_monitor;
 pub mod alias;

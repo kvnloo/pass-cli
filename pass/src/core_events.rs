@@ -17,10 +17,10 @@
  *
  */
 
+use crate::domain::AccountType;
 use crate::{PassClient, PassClientContext};
 use anyhow::Result;
 use muon::GET;
-use pass_domain::AccountType;
 
 const CORE_EVENTS_SYNC_INTERVAL_SECS: i64 = 30 * 60; // 30 mins
 const CORE_EVENTS_MAX_PAGES: u32 = 10;
