@@ -17,10 +17,10 @@
  *
  */
 
+use crate::domain::{Item, ItemId, ShareId};
 use crate::utils::is_id;
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result, anyhow};
-use pass_domain::{Item, ItemId, ShareId};
 
 #[derive(Debug)]
 pub enum FindItemQuery {

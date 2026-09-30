@@ -18,11 +18,11 @@
  */
 
 use crate::constants::ITEM_CONTENT_CONTENT_FORMAT_VERSION;
+use crate::domain::{FolderId, ItemContent, ItemData, ItemId, ShareId, crypto};
 use crate::item::list::ItemRevision;
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result, anyhow};
 use muon::POST;
-use pass_domain::{FolderId, ItemContent, ItemData, ItemId, ShareId, crypto};
 
 #[derive(serde::Deserialize, serde::Serialize)]
 pub(crate) struct CreateItemRequest {
@@ -60,6 +60,7 @@ impl<C: PassClientContext> PassClient<C> {
             content: item_content,
             extra_fields: vec![],
             platform_specific: None,
+            custom_icon: None,
         };
         self.create_item_request_from_data(share_id, content, folder_id)
             .await

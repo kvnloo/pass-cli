@@ -18,12 +18,15 @@
  */
 
 use crate::common::CodeResponse;
+use crate::domain::PersonalAccessTokenId;
 use crate::{PassClient, PassClientContext};
 use anyhow::Context;
 use muon::DELETE;
-use pass_domain::PersonalAccessTokenId;
+use pass_derive::sdk_export;
 
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
+    #[sdk_export]
     pub async fn delete_personal_access_token(
         &self,
         personal_access_token_id: &PersonalAccessTokenId,

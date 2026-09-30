@@ -18,10 +18,11 @@
  */
 
 use crate::common::CodeResponse;
+use crate::domain::{FolderData, FolderId, ShareId, crypto};
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result, anyhow};
 use muon::PUT;
-use pass_domain::{FolderData, FolderId, ShareId, crypto};
+use pass_derive::sdk_export;
 
 #[derive(serde::Serialize)]
 struct UpdateFolderContent {
@@ -39,7 +40,9 @@ struct UpdateFolderRequest {
     content: UpdateFolderContent,
 }
 
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
+    #[sdk_export]
     pub async fn update_folder(
         &self,
         share_id: &ShareId,
@@ -59,7 +62,7 @@ impl<C: PassClientContext> PassClient<C> {
             .context("Error opening folder key")?;
 
         // Create new folder data with new name
-        let folder_data = FolderData::new(new_name);
+        let folder_data = FolderData::new(new_name)?;
         let serialized_content = folder_data
             .serialize()
             .context("Error serializing folder content")?;

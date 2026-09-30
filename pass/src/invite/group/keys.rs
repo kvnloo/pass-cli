@@ -17,11 +17,11 @@
  *
  */
 
+use crate::domain::{Address, GroupId};
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result};
 use muon::GET;
 use muon::rest::core::v4::addresses;
-use pass_domain::{Address, GroupId};
 use serde::{Deserialize, Serialize};
 
 pub struct GroupAddress {

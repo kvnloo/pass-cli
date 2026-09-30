@@ -21,6 +21,7 @@ use crate::common::CodeResponse;
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result};
 use muon::{DELETE, POST};
+use pass_derive::sdk_export;
 
 #[derive(serde::Serialize)]
 struct LockSessionRequest {
@@ -36,7 +37,9 @@ struct UnlockSessionRequest {
     lock_code: String,
 }
 
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
+    #[sdk_export]
     pub async fn lock_session(&self, lock_code: &str, unlocked_secs: u32) -> Result<()> {
         let request = LockSessionRequest {
             lock_code: lock_code.to_string(),
@@ -58,6 +61,7 @@ impl<C: PassClientContext> PassClient<C> {
         Ok(())
     }
 
+    #[sdk_export]
     pub async fn force_lock_session(&self) -> Result<()> {
         let req = POST!("/pass/v1/user/session/lock/force_lock");
 
@@ -72,6 +76,7 @@ impl<C: PassClientContext> PassClient<C> {
         Ok(())
     }
 
+    #[sdk_export]
     pub async fn unlock_session(&self, lock_code: &str) -> Result<()> {
         let request = UnlockSessionRequest {
             lock_code: lock_code.to_string(),
@@ -92,6 +97,7 @@ impl<C: PassClientContext> PassClient<C> {
         Ok(())
     }
 
+    #[sdk_export]
     pub async fn remove_session_lock(&self, lock_code: &str) -> Result<()> {
         let request = UnlockSessionRequest {
             lock_code: lock_code.to_string(),

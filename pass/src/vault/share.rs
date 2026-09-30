@@ -17,12 +17,13 @@
  *
  */
 
+use crate::domain::{ShareId, ShareRole};
 use crate::invite::create::{CreateInvitesRequest, InviteRequest, NewUserInvitesRequest};
 use crate::permission::PermissionAction;
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result, anyhow};
 use muon::POST;
-use pass_domain::{ShareId, ShareRole};
+use pass_derive::sdk_export;
 
 const SUCCESS_CODE: u32 = 1000;
 
@@ -32,7 +33,9 @@ struct CreateInvitesResponse {
     code: u32,
 }
 
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
+    #[sdk_export]
     pub async fn share_vault(
         &self,
         share_id: &ShareId,

@@ -20,7 +20,7 @@
 use crate::commands::{OutputFormat, settings_helper};
 use crate::helpers::CliPassClient as PassClient;
 use anyhow::{Context, Result, anyhow};
-use pass_domain::{FolderId, Item, ItemContent, ItemFlag, ItemId, ItemState, ShareId, VaultId};
+use pass::domain::{FolderId, Item, ItemContent, ItemFlag, ItemId, ItemState, ShareId, VaultId};
 use std::str::FromStr;
 
 #[derive(serde::Serialize)]
@@ -372,7 +372,7 @@ pub async fn run(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pass_domain::{
+    use pass::domain::{
         ItemContent, ItemData, ItemId, ItemState, LoginItem, NoteItem, ShareId, VaultId,
     };
 
@@ -388,6 +388,7 @@ mod tests {
                 content,
                 extra_fields: vec![],
                 platform_specific: None,
+                custom_icon: None,
             },
             state: ItemState::Active,
             flags: vec![],
@@ -415,6 +416,7 @@ mod tests {
             urls: vec![],
             totp_uri: String::new(),
             passkeys: vec![],
+            autofill_urls: vec![],
         }));
         let summary = ItemSummary::from(&item);
         assert!(matches!(summary.item_type, ItemType::Login));
@@ -439,7 +441,7 @@ mod tests {
 #[cfg(feature = "internal")]
 mod internal {
     use super::*;
-    use pass_domain::Folder;
+    use pass::domain::Folder;
     use std::collections::HashMap;
 
     pub async fn display_folder_tree(client: &PassClient, share_id: &ShareId) {

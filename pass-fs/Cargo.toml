@@ -7,7 +7,7 @@ edition = "2024"
 doctest = false
 
 [dependencies]
-pass-domain = { path = "../pass-domain" }
+pass = { path = "../pass" }
 tokio.workspace = true
 
 anyhow.workspace = true

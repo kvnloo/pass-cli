@@ -18,13 +18,16 @@
  */
 
 use crate::common::CodeResponse;
+use crate::domain::InviteId;
 use crate::permission::PermissionAction;
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result};
 use muon::DELETE;
-use pass_domain::InviteId;
+use pass_derive::sdk_export;
 
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
+    #[sdk_export]
     pub async fn reject_invite(&self, invite_id: &InviteId) -> Result<()> {
         self.action_guard(PermissionAction::RejectInvite).await?;
 

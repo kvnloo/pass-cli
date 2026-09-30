@@ -22,8 +22,8 @@ use crate::commands::{item::common::ShareQuery, settings_helper};
 use crate::helpers::CliPassClient as PassClient;
 use anyhow::{Context, Result, bail};
 use clap::Args;
+use pass::domain::{EventAction, WifiSecurity};
 use pass::wifi::WifiItemCreatePayload;
-use pass_domain::{EventAction, WifiSecurity};
 use std::io::{self, Read};
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -149,7 +149,7 @@ pub async fn run(mut args: WifiArgs, client: PassClient) -> Result<()> {
         let folder_id = args
             .folder_id
             .as_ref()
-            .map(|id| pass_domain::FolderId::new(id.clone()));
+            .map(|id| pass::domain::FolderId::new(id.clone()));
         #[cfg(not(feature = "internal"))]
         let folder_id = None;
 
@@ -184,7 +184,7 @@ pub async fn run(mut args: WifiArgs, client: PassClient) -> Result<()> {
     let folder_id = args
         .folder_id
         .as_ref()
-        .map(|id| pass_domain::FolderId::new(id.clone()));
+        .map(|id| pass::domain::FolderId::new(id.clone()));
     #[cfg(not(feature = "internal"))]
     let folder_id = None;
 
@@ -194,7 +194,7 @@ pub async fn run(mut args: WifiArgs, client: PassClient) -> Result<()> {
 async fn create_wifi_from_template(
     template_path: &str,
     share_query: ShareQuery,
-    folder_id: Option<pass_domain::FolderId>,
+    folder_id: Option<pass::domain::FolderId>,
     client: PassClient,
 ) -> Result<()> {
     let template_json = if template_path == "-" {
@@ -221,7 +221,7 @@ async fn create_wifi_from_template(
 async fn create_wifi_from_payload(
     payload: WifiItemCreatePayload,
     share_query: ShareQuery,
-    folder_id: Option<pass_domain::FolderId>,
+    folder_id: Option<pass::domain::FolderId>,
     client: PassClient,
 ) -> Result<()> {
     ensure_reason_if_agent(&client)?;

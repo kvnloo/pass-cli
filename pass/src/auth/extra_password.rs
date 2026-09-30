@@ -1,0 +1,173 @@
+/*
+ *  Copyright (c) 2026 Proton AG
+ *  This file is part of Proton AG and Proton Pass.
+ *
+ *  Proton Pass is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Proton Pass is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Proton Pass.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
+use crate::PassClientContext;
+use crate::auth::callbacks::{AuthEventHandler, CredentialProvider};
+use crate::auth::error::AuthError;
+use anyhow::{Context as _, anyhow};
+use muon::common::sdk::Sdk;
+use muon::transport::http::Status;
+use muon::{GET, POST, Session};
+use proton_crypto::srp::SRPProvider;
+use std::sync::Arc;
+
+async fn perform_extra_password_auth<C: PassClientContext>(
+    session: &Session<C>,
+    password: String,
+    sdk: &Sdk,
+) -> Result<(), AuthError> {
+    let srp_info = get_srp_info(session, sdk).await?;
+
+    let provider = proton_crypto::new_srp_provider();
+    let proof = provider
+        .generate_client_proof(
+            "", // username: not used
+            &password,
+            srp_info.version,
+            &srp_info.srp_salt,
+            &srp_info.modulus,
+            &srp_info.server_ephemeral,
+        )
+        .context("Error generating client proof")?;
+
+    let proofs = ExtraPasswordProofs {
+        client_ephemeral: proof.ephemeral,
+        client_proof: proof.proof,
+        srp_session_id: srp_info.srp_session_id,
+    };
+    send_srp_proofs(session, proofs, sdk).await?;
+    session
+        .refresh_auth()
+        .await
+        .context("Error refreshing session")?;
+
+    Ok(())
+}
+
+#[derive(serde::Deserialize)]
+struct ExtraPasswordSrpResponse {
+    #[serde(rename = "SRPData")]
+    data: ExtraPasswordSrpInfo,
+}
+
+#[derive(serde::Deserialize)]
+struct ExtraPasswordSrpInfo {
+    #[serde(rename = "Modulus")]
+    modulus: String,
+    #[serde(rename = "ServerEphemeral")]
+    server_ephemeral: String,
+    #[serde(rename = "SrpSessionID")]
+    srp_session_id: String,
+    #[serde(rename = "Version")]
+    version: u8,
+    #[serde(rename = "SrpSalt")]
+    srp_salt: String,
+}
+
+async fn get_srp_info<C: PassClientContext>(
+    session: &Session<C>,
+    sdk: &Sdk,
+) -> anyhow::Result<ExtraPasswordSrpInfo> {
+    let res = session
+        .send_with_sdk(GET!("/pass/v1/user/srp/info"), sdk)
+        .await
+        .context("Error requesting SRP info for extra password")?;
+    if res.status() != Status::OK {
+        return Err(anyhow!("Invalid status code received: {:?}", res.status()));
+    }
+    let response: ExtraPasswordSrpResponse = res.body_json().context("Error decoding SRP info")?;
+
+    Ok(response.data)
+}
+
+#[derive(serde::Serialize)]
+struct ExtraPasswordProofs {
+    #[serde(rename = "ClientEphemeral")]
+    client_ephemeral: String,
+    #[serde(rename = "ClientProof")]
+    client_proof: String,
+    #[serde(rename = "SrpSessionID")]
+    srp_session_id: String,
+}
+
+async fn send_srp_proofs<C: PassClientContext>(
+    session: &Session<C>,
+    proofs: ExtraPasswordProofs,
+    sdk: &Sdk,
+) -> Result<(), AuthError> {
+    let req = POST!("/pass/v1/user/srp/auth")
+        .body_json(proofs)
+        .context("Error creating SRP request")?;
+    let res = session
+        .send_with_sdk(req, sdk)
+        .await
+        .context("Error sending SRP proofs")?;
+    match res.status() {
+        Status::OK => Ok(()),
+        Status::BAD_REQUEST => Err(AuthError::BadExtraPassword),
+        _ => Err(AuthError::Other(anyhow!(
+            "Invalid status code received: {:?}",
+            res.status()
+        ))),
+    }
+}
+
+pub async fn handle_extra_password<C: PassClientContext>(
+    session: &Session<C>,
+    credential_provider: Arc<dyn CredentialProvider>,
+    event_handler: Arc<dyn AuthEventHandler>,
+    sdk: &Sdk,
+) -> Result<(), anyhow::Error> {
+    event_handler.on_extra_password_required().await?;
+
+    let mut attempts = 3;
+    loop {
+        if attempts == 0 {
+            event_handler
+                .on_error("Too many incorrect extra password attempts")
+                .await?;
+            session.logout().await;
+            return Err(anyhow!("Error in extra password flow"));
+        }
+
+        let extra_password = credential_provider.get_extra_password().await?;
+        match perform_extra_password_auth(session, extra_password, sdk).await {
+            Ok(()) => {
+                // Initialize session to verify it works
+                session
+                    .send_with_sdk(GET!("/tests/ping"), sdk)
+                    .await
+                    .context("Error initializing session")?;
+                return Ok(());
+            }
+            Err(e) => match e {
+                AuthError::Other(e) => {
+                    return Err(anyhow!("Error in extra password flow: {e:#}"));
+                }
+                AuthError::BadExtraPassword => {
+                    event_handler.on_warning("Incorrect extra password").await?;
+                    attempts -= 1;
+                }
+                AuthError::CannotDecrypt(e) => {
+                    return Err(anyhow!("Cannot decrypt: {e:#}"));
+                }
+            },
+        }
+    }
+}

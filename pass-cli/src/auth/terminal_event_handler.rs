@@ -18,7 +18,7 @@
  */
 
 use anyhow::Result;
-use pass_auth::AuthEventHandler;
+use pass::auth::AuthEventHandler;
 
 pub struct TerminalEventHandler;
 

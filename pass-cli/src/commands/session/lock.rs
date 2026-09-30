@@ -20,7 +20,7 @@
 use crate::helpers::CliPassClient as PassClient;
 use anyhow::{Context, Result, bail};
 use parking_lot::RwLock;
-use pass_auth::store::PassSessionStore;
+use pass::auth::store::PassSessionStore;
 use std::sync::Arc;
 
 pub async fn run(client: PassClient, store: Arc<RwLock<PassSessionStore>>) -> Result<()> {

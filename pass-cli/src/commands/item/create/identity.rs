@@ -22,8 +22,8 @@ use crate::commands::{item::common::ShareQuery, settings_helper};
 use crate::helpers::CliPassClient as PassClient;
 use anyhow::{Context, Result};
 use clap::Args;
+use pass::domain::EventAction;
 use pass::identity::IdentityItemCreatePayload;
-use pass_domain::EventAction;
 use std::io::{self, Read};
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -231,7 +231,7 @@ pub async fn run(mut args: IdentityArgs, client: PassClient) -> Result<()> {
     let folder_id = args
         .folder_id
         .as_ref()
-        .map(|id| pass_domain::FolderId::new(id.clone()));
+        .map(|id| pass::domain::FolderId::new(id.clone()));
     #[cfg(not(feature = "internal"))]
     let folder_id = None;
 
@@ -241,7 +241,7 @@ pub async fn run(mut args: IdentityArgs, client: PassClient) -> Result<()> {
 async fn create_identity_from_template(
     template_path: &str,
     share_query: ShareQuery,
-    folder_id: Option<pass_domain::FolderId>,
+    folder_id: Option<pass::domain::FolderId>,
     client: PassClient,
 ) -> Result<()> {
     let template_json = if template_path == "-" {
@@ -266,7 +266,7 @@ async fn create_identity_from_template(
 async fn create_identity_from_payload(
     payload: IdentityItemCreatePayload,
     share_query: ShareQuery,
-    folder_id: Option<pass_domain::FolderId>,
+    folder_id: Option<pass::domain::FolderId>,
     client: PassClient,
 ) -> Result<()> {
     ensure_reason_if_agent(&client)?;

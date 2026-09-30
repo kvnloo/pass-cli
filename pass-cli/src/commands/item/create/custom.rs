@@ -25,7 +25,7 @@ use clap::Args;
 use pass::custom::{
     CustomFieldContentPayload, CustomFieldPayload, CustomItemCreatePayload, CustomSectionPayload,
 };
-use pass_domain::EventAction;
+use pass::domain::EventAction;
 use std::io::{self, Read};
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -184,7 +184,7 @@ pub async fn run(mut args: CustomArgs, client: PassClient) -> Result<()> {
     let folder_id = args
         .folder_id
         .as_ref()
-        .map(|id| pass_domain::FolderId::new(id.clone()));
+        .map(|id| pass::domain::FolderId::new(id.clone()));
     #[cfg(not(feature = "internal"))]
     let folder_id = None;
 
@@ -194,7 +194,7 @@ pub async fn run(mut args: CustomArgs, client: PassClient) -> Result<()> {
 async fn create_custom_from_template(
     template_path: &str,
     share_query: ShareQuery,
-    folder_id: Option<pass_domain::FolderId>,
+    folder_id: Option<pass::domain::FolderId>,
     client: PassClient,
 ) -> Result<()> {
     let template_json = if template_path == "-" {
@@ -221,7 +221,7 @@ async fn create_custom_from_template(
 async fn create_custom_from_payload(
     payload: CustomItemCreatePayload,
     share_query: ShareQuery,
-    folder_id: Option<pass_domain::FolderId>,
+    folder_id: Option<pass::domain::FolderId>,
     client: PassClient,
 ) -> Result<()> {
     ensure_reason_if_agent(&client)?;

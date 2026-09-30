@@ -18,11 +18,11 @@
  */
 
 use anyhow::{Result, anyhow};
-use pass_db::{DatabaseManager, OrganizationPolicyModel};
-use pass_domain::{
+use pass::domain::{
     OrganizationPolicyEntry, OrganizationPolicyStorage,
     models::organization_policy::OrganizationInfo,
 };
+use pass_db::{DatabaseManager, OrganizationPolicyModel};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 

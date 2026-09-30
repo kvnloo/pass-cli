@@ -20,7 +20,9 @@
 use crate::{PassClient, PassClientContext};
 use anyhow::Result;
 use muon::GET;
+use pass_derive::sdk_export;
 
+#[sdk_export]
 #[derive(Debug)]
 pub struct AccountUserSettings {
     pub telemetry_enabled: bool,
@@ -32,7 +34,9 @@ struct AccountUserSettingsResponse {
     pub telemetry: u8,
 }
 
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
+    #[sdk_export]
     pub async fn get_account_user_settings(&self) -> Result<AccountUserSettings> {
         let res = self.send(GET!("/core/v4/settings")).await?;
         let response: AccountUserSettingsResponse = assert_response!(res);

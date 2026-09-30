@@ -17,11 +17,11 @@
  *
  */
 
+use crate::domain::{Address, AddressId, AddressKey, AddressKeyId};
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result, anyhow};
 use muon::GET;
 use muon::rest::core::v4::addresses;
-use pass_domain::{Address, AddressId, AddressKey, AddressKeyId};
 
 struct AddressCacheType;
 

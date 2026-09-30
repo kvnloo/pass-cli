@@ -18,7 +18,7 @@
  */
 
 use anyhow::Result;
-use pass_domain::models::organization_policy::OrganizationInfo;
+use pass::domain::models::organization_policy::OrganizationInfo;
 use rusqlite::{Row, params};
 
 #[derive(Debug, Clone)]
@@ -86,14 +86,14 @@ mod tests {
     fn test_policy() -> OrganizationInfo {
         OrganizationInfo {
             can_update: true,
-            settings: pass_domain::models::organization_policy::OrganizationSettings {
-                share_mode: pass_domain::models::organization_policy::OrganizationShareMode::Unrestricted,
-                share_accept_mode: pass_domain::models::organization_policy::OrganizationShareMode::Unrestricted,
+            settings: pass::domain::models::organization_policy::OrganizationSettings {
+                share_mode: pass::domain::models::organization_policy::OrganizationShareMode::Unrestricted,
+                share_accept_mode: pass::domain::models::organization_policy::OrganizationShareMode::Unrestricted,
                 item_share_mode: 0,
                 public_link_mode: 0,
                 force_lock_seconds: 0,
-                export_mode: pass_domain::models::organization_policy::OrganizationExportMode::Unrestricted,
-                password_policy: pass_domain::models::organization_policy::OrganizationPasswordPolicy {
+                export_mode: pass::domain::models::organization_policy::OrganizationExportMode::Unrestricted,
+                password_policy: pass::domain::models::organization_policy::OrganizationPasswordPolicy {
                     random_password_allowed: true,
                     random_password_min_length: Some(4),
                     random_password_max_length: Some(64),
@@ -106,8 +106,8 @@ mod tests {
                     memorable_password_must_capitalize: Some(true),
                     memorable_password_must_include_numbers: Some(true),
                 },
-                vault_create_mode: pass_domain::models::organization_policy::OrganizationVaultCreateMode::OnlyOrgAdmins,
-                alias_create_mode: pass_domain::models::organization_policy::OrganizationAliasCreateMode::Nobody,
+                vault_create_mode: pass::domain::models::organization_policy::OrganizationVaultCreateMode::OnlyOrgAdmins,
+                alias_create_mode: pass::domain::models::organization_policy::OrganizationAliasCreateMode::Nobody,
             },
         }
     }

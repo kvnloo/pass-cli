@@ -19,7 +19,7 @@
 
 use crate::DbConnection;
 use anyhow::{Context, Result};
-use pass_domain::{TelemetryEvent, TelemetryEventData};
+use pass::domain::{TelemetryEvent, TelemetryEventData};
 use rusqlite::{OptionalExtension, Row, params};
 
 #[derive(Debug, Clone)]
@@ -63,13 +63,23 @@ impl TelemetryEventModel {
         event: &dyn TelemetryEvent,
         user_id: Option<String>,
     ) -> Result<i64> {
+        Self::insert_blocking(conn, event, user_id)
+    }
+
+    /// Synchronous version of [`Self::insert`], for `Send` futures (see
+    /// [`DbConnection::interact_blocking`]).
+    pub fn insert_blocking(
+        conn: &DbConnection,
+        event: &dyn TelemetryEvent,
+        user_id: Option<String>,
+    ) -> Result<i64> {
         let event_type = event.event_type();
         let dimensions = event.dimensions();
         let extra_data =
             serde_json::to_string(&dimensions).context("Failed to serialize dimensions")?;
         let timestamp = jiff::Timestamp::now().as_second();
 
-        conn.interact(move |conn| {
+        conn.interact_blocking(move |conn| {
             conn.execute(
                 "INSERT INTO telemetry_events (timestamp, event_type, extra_data, user_id)
                  VALUES (?1, ?2, ?3, ?4)",
@@ -77,7 +87,6 @@ impl TelemetryEventModel {
             )?;
             Ok(conn.last_insert_rowid())
         })
-        .await?
     }
 
     pub async fn get_all(conn: &DbConnection) -> Result<Vec<TelemetryEventData>> {
@@ -166,7 +175,7 @@ impl TelemetryEventModel {
 mod tests {
     use super::*;
     use crate::tests::create_test_db;
-    use pass_domain::ItemType;
+    use pass::domain::ItemType;
     use std::collections::HashMap;
 
     struct TestTelemetryEvent1 {

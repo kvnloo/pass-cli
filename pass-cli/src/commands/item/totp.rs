@@ -25,7 +25,7 @@ use crate::helpers::CliPassClient as PassClient;
 use anyhow::{Context, Result, anyhow, bail};
 use jiff::Timestamp;
 use pass::FindItemQuery;
-use pass_domain::{EventAction, Field, ShareId};
+use pass::domain::{EventAction, Field, ShareId};
 use proton_pass_common::totp::TOTP;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -64,7 +64,7 @@ impl ViewTotpQuery {
 
         // Otherwise, we need exactly one share identifier and one item identifier
         let share_query = match (share_id, vault_name) {
-            (Some(share_id), None) => ShareQuery::ShareId(pass_domain::ShareId::new(share_id)),
+            (Some(share_id), None) => ShareQuery::ShareId(pass::domain::ShareId::new(share_id)),
             (None, Some(vault_name)) => ShareQuery::VaultName(vault_name),
             (None, None) => {
                 return Err(anyhow!("Please provide either --share-id or --vault-name"));
@@ -77,7 +77,7 @@ impl ViewTotpQuery {
         };
 
         let item_query = match (item_id, item_title) {
-            (Some(item_id), None) => ItemQuery::ItemId(pass_domain::ItemId::new(item_id)),
+            (Some(item_id), None) => ItemQuery::ItemId(pass::domain::ItemId::new(item_id)),
             (None, Some(item_title)) => ItemQuery::ItemTitle(item_title),
             (None, None) => return Err(anyhow!("Please provide either --item-id or --item-title")),
             (Some(_), Some(_)) => {

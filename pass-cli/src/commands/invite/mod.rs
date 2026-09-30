@@ -22,7 +22,7 @@ use crate::helpers::CliPassClient as PassClient;
 use crate::utils::is_experimental_features_disabled;
 use anyhow::Result;
 use clap::Subcommand;
-use pass_domain::InviteId;
+use pass::domain::InviteId;
 
 pub mod accept;
 mod group;

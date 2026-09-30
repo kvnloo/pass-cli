@@ -24,7 +24,7 @@ use anyhow::{Context, Result, anyhow};
 use async_trait::async_trait;
 use fluent_uri::Uri;
 use pass::FindItemQuery;
-use pass_domain::{EventAction, Field};
+use pass::domain::{EventAction, Field};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;

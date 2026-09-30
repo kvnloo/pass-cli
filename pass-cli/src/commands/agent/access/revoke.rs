@@ -19,7 +19,7 @@
 
 use crate::helpers::CliPassClient as PassClient;
 use anyhow::{Context, Result};
-use pass_domain::ShareId;
+use pass::domain::ShareId;
 
 pub async fn run(client: PassClient, name: String, share_id: String) -> Result<()> {
     let agent = super::super::find_agent_by_name(&client, &name).await?;

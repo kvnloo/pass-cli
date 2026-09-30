@@ -18,11 +18,12 @@
  */
 
 use crate::common::CodeResponse;
+use crate::domain::{FolderId, ItemId, ShareId, crypto};
 use crate::item::item_keys::OpenedItemKey;
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result, anyhow};
 use muon::PUT;
-use pass_domain::{FolderId, ItemId, ShareId, crypto};
+use pass_derive::sdk_export;
 
 #[derive(serde::Serialize)]
 struct MoveItemKeyItem {
@@ -50,7 +51,9 @@ struct MoveItemToFolderRequest {
     items: Vec<MoveItemToFolderItem>,
 }
 
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
+    #[sdk_export]
     pub async fn move_item_to_folder(
         &self,
         share_id: &ShareId,

@@ -22,7 +22,7 @@ use crate::commands::item::agent_monitor::{ensure_reason_if_agent, send_reason_i
 use crate::helpers::CliPassClient as PassClient;
 use anyhow::{Context, Result};
 use pass::UpdateVaultArgs;
-use pass_domain::EventAction;
+use pass::domain::EventAction;
 
 pub async fn run(client: PassClient, query: VaultQuery, name: String) -> Result<()> {
     ensure_reason_if_agent(&client)?;

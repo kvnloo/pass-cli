@@ -17,7 +17,7 @@
  *
  */
 
-use pass_domain::PlainText;
+use crate::domain::PlainText;
 
 #[async_trait::async_trait(?Send)]
 pub trait ClientTestExt {

@@ -17,10 +17,10 @@
  *
  */
 
+use crate::domain::{AccountType, ItemContent, ItemId, PermissionFlag, ShareId, ShareType};
 use crate::organization::{OrganizationAliasCreateMode, OrganizationVaultCreateMode};
 use crate::{PassClient, PassClientContext, PassPlan, PlanType};
 use anyhow::{Context, Result, anyhow};
-use pass_domain::{AccountType, ItemContent, ItemId, PermissionFlag, ShareId, ShareType};
 
 #[allow(dead_code)]
 #[derive(Clone, Debug, PartialEq, Eq)]

@@ -17,21 +17,25 @@
  *
  */
 
+use crate::domain::crypto::EncryptionTag;
+use crate::domain::{Share, ShareContent, ShareId, ShareType, Vault, VaultData, VaultId};
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result, anyhow};
 use futures::stream::{self, StreamExt};
-use pass_domain::crypto::EncryptionTag;
-use pass_domain::{Share, ShareContent, ShareId, ShareType, Vault, VaultData, VaultId};
+use pass_derive::sdk_export;
 
 const MAX_CONCURRENCY: usize = 20;
 
 struct VaultListCacheType;
 
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
     pub(crate) async fn clear_vault_cache(&self) {
         self.cache.delete(VaultListCacheType).await;
     }
 
+    /// Lists the vaults the user has access to.
+    #[sdk_export]
     pub async fn list_vaults(&self) -> Result<Vec<Vault>> {
         {
             let cached: Option<Vec<Vault>> = self.cache.get(VaultListCacheType).await;
@@ -111,7 +115,7 @@ impl<C: PassClientContext> PassClient<C> {
             .await
             .context("Error getting opened share key")?;
 
-        let decrypted = pass_domain::crypto::decrypt(
+        let decrypted = crate::domain::crypto::decrypt(
             &content.content,
             share_key.as_ref(),
             EncryptionTag::VaultContent,
@@ -139,8 +143,10 @@ mod tests {
     use super::*;
     use crate::test_tools::*;
 
+    use crate::domain::{
+        PermissionFlag, TargetType, VaultColor, VaultDisplayPreferences, VaultIcon,
+    };
     use crate::share::list::{GetSharesResponse, ShareResponse};
-    use pass_domain::{PermissionFlag, TargetType, VaultColor, VaultDisplayPreferences, VaultIcon};
 
     #[muon_test::test]
     async fn test_list_vaults_empty(server: muon_test::Server) {

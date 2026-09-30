@@ -18,10 +18,10 @@
  */
 
 use super::PersonalAccessTokenFlags;
+use crate::domain::PersonalAccessTokenId;
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result};
 use muon::GET;
-use pass_domain::PersonalAccessTokenId;
 
 const PAGE_SIZE: usize = 100;
 
@@ -168,9 +168,9 @@ impl<C: PassClientContext> PassClient<C> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::domain::PlainText;
+    use crate::domain::crypto;
     use crate::test_tools::*;
-    use pass_domain::PlainText;
-    use pass_domain::crypto;
 
     #[muon_test::test]
     async fn test_list_personal_access_tokens_empty(server: muon_test::Server) {

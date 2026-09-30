@@ -24,8 +24,7 @@ use crate::helpers::{PassClientExt, SessionExt};
 use anyhow::{Context, Result};
 use parking_lot::RwLock;
 use pass::FirstTimeSetupKey;
-use pass_auth::PassSessionStore;
-use pass_auth::os::ProdClient;
+use pass::auth::{PassSessionStore, TokioClient};
 use std::sync::Arc;
 
 #[cfg(feature = "no-login-restriction")]
@@ -63,9 +62,9 @@ pub(crate) async fn after_login(
     client_features.set_user_id(Some(user_id)).await;
     pass::bootstrap_event_sync(client).await;
 
-    // Use pass-auth's post_login with CLI-specific post-processing
-    let config = pass_auth::PostLoginConfig::default();
-    pass_auth::post_login::perform_post_login_setup(client, key, &config)
+    // Use pass::auth post_login with CLI-specific post-processing
+    let config = pass::auth::PostLoginConfig::default();
+    pass::auth::post_login::perform_post_login_setup(client, key, &config)
         .await
         .context("Error in post-login setup")?;
 
@@ -75,7 +74,7 @@ pub(crate) async fn after_login(
 pub async fn run(
     username: Option<&str>,
     interactive: bool,
-    client: ProdClient,
+    client: TokioClient,
     client_features: Arc<CliClientFeatures>,
     store: Arc<RwLock<PassSessionStore>>,
 ) -> Result<()> {

@@ -19,6 +19,7 @@
 
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result};
+use pass_derive::sdk_export;
 use std::path::Path;
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
@@ -31,7 +32,9 @@ pub enum FirstTimeSetupKey {
     PersonalAccessToken(Zeroizing<Vec<u8>>),
 }
 
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
+    #[sdk_export]
     pub async fn perform_first_time_setup(&self, pass: &str) -> Result<()> {
         self.setup_key_passphrases(pass)
             .await
@@ -68,10 +71,10 @@ impl<C: PassClientContext> PassClient<C> {
         let local_key = local_key_provider.get_key().await?;
 
         // Encrypt the personal access token key with the local key
-        let encrypted_key = pass_domain::crypto::encrypt(
+        let encrypted_key = crate::domain::crypto::encrypt(
             personal_access_toekn_key,
             local_key.as_ref(),
-            pass_domain::crypto::EncryptionTag::PersonalAccessTokenKey,
+            crate::domain::crypto::EncryptionTag::PersonalAccessTokenKey,
         )
         .map_err(|e| {
             anyhow::anyhow!(
@@ -102,10 +105,10 @@ impl<C: PassClientContext> PassClient<C> {
         let local_key_provider = self.get_key_provider().await?;
         let local_key = local_key_provider.get_key().await?;
 
-        let decrypted_key = pass_domain::crypto::decrypt(
+        let decrypted_key = crate::domain::crypto::decrypt(
             &encrypted_key,
             local_key.as_ref(),
-            pass_domain::crypto::EncryptionTag::PersonalAccessTokenKey,
+            crate::domain::crypto::EncryptionTag::PersonalAccessTokenKey,
         )
         .map_err(|e| {
             anyhow::anyhow!(

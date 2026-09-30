@@ -20,7 +20,7 @@
 use crate::commands::OutputFormat;
 use crate::helpers::CliPassClient as PassClient;
 use anyhow::{Context, Result, anyhow};
-use pass_domain::{Share, ShareId, ShareRole, ShareType, TargetType};
+use pass::domain::{Share, ShareId, ShareRole, ShareType, TargetType};
 
 pub(crate) enum ShareListMode {
     OnlyItems,

@@ -18,10 +18,11 @@
  */
 
 use crate::common::CodeResponse;
+use crate::domain::{FolderId, ShareId};
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result};
 use muon::DELETE;
-use pass_domain::{FolderId, ShareId};
+use pass_derive::sdk_export;
 
 #[derive(Clone, Debug, serde::Serialize)]
 struct DeleteFolderPayload {
@@ -29,7 +30,9 @@ struct DeleteFolderPayload {
     folder_ids: Vec<String>,
 }
 
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
+    #[sdk_export]
     pub async fn delete_folder(&self, share_id: &ShareId, folder_id: &FolderId) -> Result<()> {
         let payload = DeleteFolderPayload {
             folder_ids: vec![folder_id.to_string()],

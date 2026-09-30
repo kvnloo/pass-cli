@@ -17,12 +17,12 @@
  *
  */
 
+use crate::domain::{ItemId, ShareId, ShareType, crypto};
 use crate::share::{EncryptedShareKey, ShareKey};
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result, anyhow};
 use bytes::Bytes;
 use muon::GET;
-use pass_domain::{ItemId, ShareId, ShareType, crypto};
 use std::collections::HashMap;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 

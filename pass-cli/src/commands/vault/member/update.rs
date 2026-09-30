@@ -21,7 +21,7 @@ use super::super::VaultQuery;
 use crate::commands::Role;
 use crate::helpers::CliPassClient as PassClient;
 use anyhow::{Context, Result};
-use pass_domain::{ShareId, ShareRole};
+use pass::domain::{ShareId, ShareRole};
 
 pub async fn run(
     client: PassClient,

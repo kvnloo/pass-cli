@@ -29,7 +29,7 @@ use anyhow::{Context, Result, anyhow};
 use clap::Subcommand;
 use jiff::tz::TimeZone;
 use jiff::{Span, Timestamp};
-use pass_domain::PersonalAccessTokenId;
+use pass::domain::PersonalAccessTokenId;
 
 pub enum PersonalAccessTokenQuery {
     PersonalAccessTokenId(String),

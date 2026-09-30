@@ -3,31 +3,84 @@ name = "pass"
 version = "2.4.1"
 edition = "2024"
 
+[features]
+default = []
+tokio-runtime = ["dep:tokio", "dep:async-compat", "muon/transport-hyper"]
+wasm = [
+    "dep:wasm-bindgen",
+    "dep:wasm-bindgen-futures",
+    "dep:js-sys",
+    "dep:gloo-timers",
+    "dep:tsify",
+    "muon/transport-reqwest-wasm",
+    "proton-pass-common/wasm",
+    "proton-pass-types/wasm",
+]
+uniffi = [
+    "tokio-runtime",
+    "dep:uniffi",
+    "proton-pass-types/uniffi",
+]
+
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib", "cdylib"]
 doctest = false
 
 [dependencies]
-pass-domain = { path = "../pass-domain" }
+# Proton deps
 muon.workspace = true
+proton-crypto.workspace = true
+proton-crypto-account.workspace = true
 proton-pass-common.workspace = true
+proton-pass-types.workspace = true
 
+pass-derive = { path = "../pass-derive" }
+
+# Workspace deps
+aes-gcm.workspace = true
 anyhow.workspace = true
 async-trait.workspace = true
 base64.workspace = true
 bytes.workspace = true
 jiff.workspace = true
 futures.workspace = true
+parking_lot.workspace = true
+protobuf.workspace = true
+rand.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tracing.workspace = true
 zeroize.workspace = true
 
+aes = "0.9"
 async-lock = "3.4.2"
+argon2 = { version = "0.6", default-features = false, features = ["alloc", "password-hash"] }
+hex = "0.4.3"
+rand_chacha = "0.10"
 serde_repr = "0.1.21"
+strum = { version = "0.28", features = ["derive"] }
+sysinfo = "0.39.6"
+urlencoding = "2.1"
+
+
+# Host runtimes: each is only built for its targets (see build.rs).
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+tokio = { workspace = true, optional = true }
+async-compat = { version = "0.2", optional = true }
+uniffi = { workspace = true, optional = true, features = ["tokio"] }
+
+[target.'cfg(target_family = "wasm")'.dependencies]
+gloo-timers = { version = "0.3", optional = true, features = ["futures"] }
+js-sys = { version = "0.3", optional = true }
+tsify = { version = "0.5.8", optional = true, default-features = false, features = ["js"] }
+wasm-bindgen = { version = "0.2", optional = true }
+wasm-bindgen-futures = { version = "0.4", optional = true }
+
+[build-dependencies]
+protobuf-codegen.workspace = true
+protoc-bin-vendored = "3.2.0"
 
 [dev-dependencies]
-pass-fs = {path = "../pass-fs"}
-pass-pgp = {path = "../pass-pgp"}
 muon-test = { workspace = true }
 axum = "0.8"
+tokio.workspace = true

@@ -20,10 +20,13 @@
 use super::cli_credential_provider::CliCredentialProvider;
 use super::terminal_event_handler::TerminalEventHandler;
 use crate::constants::SESSION_FILE_NAME;
+use crate::env_config::{
+    ENVIRONMENT_ENV_VAR, debug_config_from_env, detect_locale, proxy_config_from_env,
+};
 use crate::features::CliClientFeatures;
 use crate::storage::FileSystemSessionStorage;
 use anyhow::Result;
-use pass_auth::{Authenticator, ClientConfig};
+use pass::auth::{Authenticator, ClientConfig, TokioRuntime};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -35,20 +38,22 @@ pub fn create_client_config() -> Result<ClientConfig> {
 pub fn create_client_config_with_base_dir(base_dir: PathBuf) -> Result<ClientConfig> {
     let config = ClientConfig {
         base_dir,
-        environment: std::env::var(pass_auth::ENVIRONMENT_ENV_VAR).ok(),
-        proxy_config: pass_auth::ProxyConfig::from_env(),
-        debug_config: pass_auth::config::DebugConfig::from_env(),
-        app_header: None,
-        post_login_config: pass_auth::PostLoginConfig::default(),
-        product_name: Some("Pass".to_string()),
-        product_version: Some(env!("CARGO_PKG_VERSION").to_string()),
-        locale: Some(pass_domain::headers::detect_locale()),
+        environment: std::env::var(ENVIRONMENT_ENV_VAR).ok(),
+        proxy_config: proxy_config_from_env(),
+        debug_config: debug_config_from_env(),
+        app_header: crate::client::get_app_header(),
+        post_login_config: pass::auth::PostLoginConfig::default(),
+        product_name: "Pass".to_string(),
+        product_version: env!("CARGO_PKG_VERSION").to_string(),
+        locale: Some(detect_locale()),
     };
 
     Ok(config)
 }
 
-pub fn create_authenticator(client_features: Arc<CliClientFeatures>) -> Result<Authenticator> {
+pub fn create_authenticator(
+    client_features: Arc<CliClientFeatures>,
+) -> Result<Authenticator<TokioRuntime>> {
     let config = create_client_config()?;
     create_authenticator_with_config(client_features, config)
 }
@@ -57,7 +62,7 @@ pub fn create_authenticator(client_features: Arc<CliClientFeatures>) -> Result<A
 pub fn create_authenticator_with_base_dir(
     client_features: Arc<CliClientFeatures>,
     base_dir: PathBuf,
-) -> Result<Authenticator> {
+) -> Result<Authenticator<TokioRuntime>> {
     let config = create_client_config_with_base_dir(base_dir)?;
     create_authenticator_with_config(client_features, config)
 }
@@ -65,7 +70,7 @@ pub fn create_authenticator_with_base_dir(
 pub fn create_authenticator_with_config(
     client_features: Arc<CliClientFeatures>,
     config: ClientConfig,
-) -> Result<Authenticator> {
+) -> Result<Authenticator<TokioRuntime>> {
     let session_file_path = config.base_dir.join(SESSION_FILE_NAME);
     let storage = Arc::new(FileSystemSessionStorage::new(session_file_path));
     let sdk = crate::utils::create_sdk()?;
@@ -77,5 +82,6 @@ pub fn create_authenticator_with_config(
         Arc::new(CliCredentialProvider),
         config,
         sdk,
+        TokioRuntime::default(),
     ))
 }

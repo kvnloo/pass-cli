@@ -18,10 +18,11 @@
  */
 
 use crate::common::CodeResponse;
+use crate::domain::ShareId;
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result};
 use muon::PUT;
-use pass_domain::ShareId;
+use pass_derive::sdk_export;
 
 #[derive(serde::Deserialize, serde::Serialize)]
 struct TransferOwnershipRequest {
@@ -29,7 +30,9 @@ struct TransferOwnershipRequest {
     pub new_owner_share_id: String,
 }
 
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
+    #[sdk_export]
     pub async fn transfer_ownership(
         &self,
         share_id: &ShareId,
@@ -62,8 +65,8 @@ mod tests {
     use super::*;
     use crate::test_tools::*;
 
+    use crate::domain::{PermissionFlag, TargetType};
     use muon::http::Method;
-    use pass_domain::{PermissionFlag, TargetType};
 
     fn setup_vault_share_with_owner(server: &ProtonAPI, share_id: &str, is_owner: bool) {
         let share_response = crate::share::list::ShareResponse {

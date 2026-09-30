@@ -19,8 +19,11 @@
 
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result};
+use pass_derive::sdk_export;
 
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
+    #[sdk_export]
     pub async fn logout(&self) -> Result<()> {
         self.client
             .get_session(())

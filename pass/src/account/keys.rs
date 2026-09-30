@@ -18,10 +18,10 @@
  */
 
 use crate::common::CodeResponse;
+use crate::domain::PublicKey;
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result};
 use muon::GET;
-use pass_domain::PublicKey;
 
 const UNPROCESSABLE_ENTITY_CODE: u16 = 422;
 const ADDRESS_NOT_EXISTS_CODE: u32 = 33102;

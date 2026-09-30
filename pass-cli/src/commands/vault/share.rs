@@ -21,7 +21,7 @@ use super::VaultQuery;
 use crate::commands::Role;
 use crate::helpers::CliPassClient as PassClient;
 use anyhow::{Context, Result};
-use pass_domain::ShareRole;
+use pass::domain::ShareRole;
 
 pub async fn run(client: PassClient, query: VaultQuery, email: String, role: Role) -> Result<()> {
     let share_id = query.resolve(&client).await?;

@@ -18,11 +18,11 @@
  */
 
 use super::PersonalAccessTokenFlags;
+use crate::domain::{PersonalAccessTokenId, PlainText, crypto};
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result, anyhow};
 use base64::Engine;
 use muon::POST;
-use pass_domain::{PersonalAccessTokenId, PlainText, crypto};
 
 #[derive(Debug)]
 pub struct CreatePersonalAccessTokenArgs {

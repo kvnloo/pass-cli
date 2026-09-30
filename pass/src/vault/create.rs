@@ -17,13 +17,14 @@
  *
  */
 
+use crate::domain::crypto::EncryptionTag;
+use crate::domain::{PlainText, ShareId, VaultData, VaultDisplayPreferences, VaultId, crypto};
 use crate::permission::PermissionAction;
 use crate::utils::debug_response;
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result, anyhow};
 use muon::POST;
-use pass_domain::crypto::EncryptionTag;
-use pass_domain::{PlainText, ShareId, VaultData, VaultDisplayPreferences, VaultId, crypto};
+use pass_derive::sdk_export;
 
 pub struct CreateVaultArgs {
     name: String,
@@ -64,7 +65,24 @@ struct CreateVaultResponseContent {
     pub vault_id: String,
 }
 
+/// A newly created vault.
+#[sdk_export]
+#[derive(Clone, Debug)]
+pub struct CreatedVault {
+    pub share_id: ShareId,
+    pub vault_id: VaultId,
+}
+
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
+    /// Creates a vault named `name`.
+    #[sdk_export]
+    pub async fn create_vault_with_name(&self, name: &str) -> Result<CreatedVault> {
+        let args = CreateVaultArgs::new(name.to_string())?;
+        let (share_id, vault_id) = self.create_vault(args).await?;
+        Ok(CreatedVault { share_id, vault_id })
+    }
+
     pub async fn create_vault(&self, args: CreateVaultArgs) -> Result<(ShareId, VaultId)> {
         self.action_guard(PermissionAction::CreateVault).await?;
         let req = self

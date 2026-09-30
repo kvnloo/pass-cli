@@ -22,7 +22,7 @@ use crate::commands::{OutputFormat, settings_helper};
 use crate::helpers::CliPassClient as PassClient;
 use crate::utils::format_timestamp_with_time;
 use anyhow::{Context, Result, anyhow};
-use pass_domain::PersonalAccessTokenId;
+use pass::domain::PersonalAccessTokenId;
 
 pub async fn run(
     client: PassClient,

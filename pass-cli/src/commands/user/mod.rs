@@ -21,7 +21,7 @@ use crate::helpers::CliPassClient as PassClient;
 use anyhow::Result;
 use clap::Subcommand;
 use parking_lot::RwLock;
-use pass_auth::PassSessionStore;
+use pass::auth::PassSessionStore;
 use std::sync::Arc;
 
 pub mod generate_report;

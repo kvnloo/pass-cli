@@ -17,14 +17,16 @@
  *
  */
 
+use crate::domain::{AliasItem, ItemContent, ItemId, ItemType, ShareId};
 use crate::item::create::ItemCreatedEvent;
 use crate::item::create::common::{CreateItemRequest, CreateItemResponse};
 use crate::permission::PermissionAction;
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result, anyhow};
 use muon::POST;
-use pass_domain::{AliasItem, ItemContent, ItemId, ItemType, ShareId};
+use pass_derive::sdk_export;
 
+#[sdk_export]
 #[derive(Debug)]
 pub struct CreatedAliasItem {
     pub alias: String,
@@ -45,7 +47,9 @@ struct CreateAliasRequest {
     pub item: CreateItemRequest,
 }
 
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
+    #[sdk_export]
     pub async fn create_alias(&self, share_id: &ShareId, prefix: &str) -> Result<CreatedAliasItem> {
         self.action_guard(PermissionAction::CreateAlias {
             share_id: share_id.clone(),

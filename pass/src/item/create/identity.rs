@@ -18,11 +18,13 @@
  */
 
 use super::ItemCreatedEvent;
+use crate::domain::{FolderId, IdentityItem, ItemContent, ItemId, ItemType, ShareId};
 use crate::permission::PermissionAction;
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result};
-use pass_domain::{FolderId, IdentityItem, ItemContent, ItemId, ItemType, ShareId};
+use pass_derive::sdk_export;
 
+#[sdk_export]
 #[derive(Clone, Debug)]
 pub struct IdentityItemCreatePayload {
     pub title: String,
@@ -66,7 +68,9 @@ fn trim_value(value: &str) -> String {
     value.trim().to_string()
 }
 
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
+    #[sdk_export]
     pub async fn create_identity(
         &self,
         share_id: &ShareId,
@@ -152,10 +156,10 @@ mod tests {
     use super::*;
     use crate::test_tools::*;
 
+    use crate::domain::ItemData;
+    use crate::domain::crypto::EncryptionTag;
     use crate::item::create::common::{CreateItemRequest, CreateItemResponse};
     use crate::item::list::ItemRevision;
-    use pass_domain::ItemData;
-    use pass_domain::crypto::EncryptionTag;
 
     #[test]
     fn test_trim_value() {
@@ -266,7 +270,7 @@ mod tests {
 
         // Decrypt and verify the item content
         let decoded_encrypted_item_key = crate::utils::b64_decode(&request.item_key).unwrap();
-        let decrypted_item_key = pass_domain::crypto::decrypt(
+        let decrypted_item_key = crate::domain::crypto::decrypt(
             &decoded_encrypted_item_key,
             &TEST_SHARE_KEY,
             EncryptionTag::ItemKey,
@@ -274,7 +278,7 @@ mod tests {
         .expect("Should be able to decrypt item key");
 
         let decoded_item_content = crate::utils::b64_decode(&request.content).unwrap();
-        let decrypted_item_content = pass_domain::crypto::decrypt(
+        let decrypted_item_content = crate::domain::crypto::decrypt(
             &decoded_item_content,
             &decrypted_item_key,
             EncryptionTag::ItemContent,
@@ -393,7 +397,7 @@ mod tests {
 
         let request: CreateItemRequest = last_request!(recorder);
         let decoded_encrypted_item_key = crate::utils::b64_decode(&request.item_key).unwrap();
-        let decrypted_item_key = pass_domain::crypto::decrypt(
+        let decrypted_item_key = crate::domain::crypto::decrypt(
             &decoded_encrypted_item_key,
             &TEST_SHARE_KEY,
             EncryptionTag::ItemKey,
@@ -401,7 +405,7 @@ mod tests {
         .unwrap();
 
         let decoded_item_content = crate::utils::b64_decode(&request.content).unwrap();
-        let decrypted_item_content = pass_domain::crypto::decrypt(
+        let decrypted_item_content = crate::domain::crypto::decrypt(
             &decoded_item_content,
             &decrypted_item_key,
             EncryptionTag::ItemContent,
@@ -501,7 +505,7 @@ mod tests {
 
         let request: CreateItemRequest = last_request!(recorder);
         let decoded_encrypted_item_key = crate::utils::b64_decode(&request.item_key).unwrap();
-        let decrypted_item_key = pass_domain::crypto::decrypt(
+        let decrypted_item_key = crate::domain::crypto::decrypt(
             &decoded_encrypted_item_key,
             &TEST_SHARE_KEY,
             EncryptionTag::ItemKey,
@@ -509,7 +513,7 @@ mod tests {
         .unwrap();
 
         let decoded_item_content = crate::utils::b64_decode(&request.content).unwrap();
-        let decrypted_item_content = pass_domain::crypto::decrypt(
+        let decrypted_item_content = crate::domain::crypto::decrypt(
             &decoded_item_content,
             &decrypted_item_key,
             EncryptionTag::ItemContent,

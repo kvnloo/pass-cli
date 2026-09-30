@@ -17,13 +17,13 @@
  *
  */
 
-use crate::{PassClient, PassClientContext};
-use anyhow::{Context, Result};
-use async_lock::RwLock;
-use pass_domain::{
+use crate::domain::{
     Folder, FolderId, Invite, Item, ItemId, Share, ShareId, SyncEventChangedWithToken,
     SyncEventShare, SyncEventShareFolder, SyncEventShareItem, UserEvents,
 };
+use crate::{PassClient, PassClientContext};
+use anyhow::{Context, Result};
+use async_lock::RwLock;
 use std::sync::Arc;
 
 #[allow(dead_code)]

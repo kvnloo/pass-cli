@@ -17,12 +17,13 @@
  *
  */
 
+use crate::domain::{FolderId, Item, ShareId};
 use crate::item::open::ItemWithItemKey;
 use crate::pagination::SincePagination;
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result};
 use muon::GET;
-use pass_domain::{Item, ShareId};
+use pass_derive::sdk_export;
 use std::collections::HashMap;
 
 struct ItemsForShareCacheType;
@@ -95,7 +96,10 @@ pub(crate) struct ItemRevision {
     pub folder_id: Option<String>,
 }
 
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
+    /// Lists the items available for a given ShareId
+    #[sdk_export]
     pub async fn list_items(&self, share_id: &ShareId) -> Result<Vec<Item>> {
         {
             let share_id = share_id.clone();
@@ -149,6 +153,24 @@ impl<C: PassClientContext> PassClient<C> {
         Ok(items)
     }
 
+    /// Lists the items directly inside `folder_id` (not in its subfolders)
+    /// of the vault behind `share_id`.
+    #[sdk_export]
+    pub async fn list_items_in_folder(
+        &self,
+        share_id: &ShareId,
+        folder_id: &FolderId,
+    ) -> Result<Vec<Item>> {
+        let items = self
+            .list_items(share_id)
+            .await
+            .context("Error listing items")?;
+        Ok(items
+            .into_iter()
+            .filter(|item| item.folder_id.as_ref() == Some(folder_id))
+            .collect())
+    }
+
     async fn fetch_items(&self, share_id: &ShareId) -> Result<Vec<ItemRevision>> {
         let mut items = Vec::new();
         let mut pagination = SincePagination::default();
@@ -191,6 +213,7 @@ impl<C: PassClientContext> PassClient<C> {
         Ok(items)
     }
 
+    #[sdk_export]
     pub async fn clear_items_cache(&self, share_id: &ShareId) {
         self.cache
             .update(ItemsForShareCacheType, |cache: &mut ItemsForShareCache| {
@@ -203,8 +226,8 @@ impl<C: PassClientContext> PassClient<C> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::domain::{Item, ItemState};
     use crate::test_tools::*;
-    use pass_domain::{Item, ItemState};
     use std::sync::{Arc, atomic::AtomicBool};
 
     fn setup_list_items_endpoint(

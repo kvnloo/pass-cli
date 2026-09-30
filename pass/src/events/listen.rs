@@ -17,13 +17,13 @@
  *
  */
 
-use crate::{PassClient, PassClientContext};
-use anyhow::{Context, Result};
-use muon::GET;
-use pass_domain::{
+use crate::domain::{
     ContinuationStrategy, EventId, FolderId, ItemId, ShareId, SyncEventChangedWithToken,
     SyncEventShare, SyncEventShareFolder, SyncEventShareItem, UserEvents, UserEventsHandler,
 };
+use crate::{PassClient, PassClientContext};
+use anyhow::{Context, Result};
+use muon::GET;
 use std::sync::Arc;
 
 #[derive(Debug, serde::Deserialize)]

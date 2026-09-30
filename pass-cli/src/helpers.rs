@@ -19,12 +19,12 @@
 
 use anyhow::{Result, anyhow};
 use parking_lot::RwLock;
+use pass::auth::TokioContext;
 use pass::{PassClient, PassClientContext};
-use pass_auth::os::ProdContext;
 use std::sync::Arc;
 
 use crate::features::CliClientFeatures;
-use pass_auth::PassSessionStore;
+use pass::auth::PassSessionStore;
 
 #[async_trait::async_trait]
 pub trait SessionExt {
@@ -65,4 +65,4 @@ impl<C: PassClientContext> PassClientExt for PassClient<C> {
 }
 
 /// Type alias for the concrete PassClient used in the CLI
-pub type CliPassClient = PassClient<ProdContext>;
+pub type CliPassClient = PassClient<TokioContext>;

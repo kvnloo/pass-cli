@@ -18,12 +18,12 @@
  */
 
 use crate::cache::Cache;
+use crate::domain::{AccountType, ClientFeatures};
 use crate::error::SessionInvalidatedError;
 use crate::muon_ext::MuonErrorExt;
 use anyhow::{Context, Result};
 use muon::Session;
 use muon::common::{self, sdk::Sdk};
-use pass_domain::{AccountType, ClientFeatures};
 use std::sync::Arc;
 use tracing::warn;
 
@@ -67,7 +67,7 @@ impl<C: PassClientContext> PassClient<C> {
             account_type,
             sdk,
             cache: Cache::new(),
-            memory_xor_key: pass_domain::crypto::generate_random_byte(),
+            memory_xor_key: crate::domain::crypto::generate_random_byte(),
         }
     }
 
@@ -91,7 +91,7 @@ impl<C: PassClientContext> PassClient<C> {
         self.account_type == AccountType::AgentSession
     }
 
-    pub async fn get_key_provider(&self) -> Result<Arc<dyn pass_domain::LocalKeyProvider>> {
+    pub async fn get_key_provider(&self) -> Result<Arc<dyn crate::domain::LocalKeyProvider>> {
         self.client_features.get_local_key_provider().await
     }
 

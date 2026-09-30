@@ -21,8 +21,8 @@ pub mod event;
 
 use crate::helpers::CliPassClient as PassClient;
 use anyhow::{Context, Result};
+use pass::domain::{TelemetryEvent, TelemetryEventData, TelemetryHandler};
 use pass_db::{ActivityTimeModel, DatabaseManager, TelemetryEventModel};
-use pass_domain::{TelemetryEvent, TelemetryEventData, TelemetryHandler};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
@@ -184,18 +184,18 @@ impl SqliteTelemetryHandler {
     }
 }
 
-#[async_trait::async_trait(?Send)]
+#[async_trait::async_trait]
 impl TelemetryHandler for SqliteTelemetryHandler {
     async fn emit_telemetry(&self, event: &dyn TelemetryEvent) -> Result<()> {
         if !self.telemetry_enabled {
             debug!("TelemetryEvent not stored as telemetry is disabled");
             return Ok(());
         }
-        let conn = self.db.get_connection().await?;
         let user_id = self.get_user_id().await;
+        let conn = self.db.get_connection().await?;
 
-        TelemetryEventModel::insert(&conn, event, user_id)
-            .await
+        // Nothing is awaited while the connection is borrowed, so this future stays `Send`.
+        TelemetryEventModel::insert_blocking(&conn, event, user_id)
             .context("Failed to insert event")?;
         Ok(())
     }

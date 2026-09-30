@@ -17,12 +17,13 @@
  *
  */
 
+use crate::domain::{ShareId, VaultData, crypto};
 use crate::permission::PermissionAction;
 use crate::utils::debug_response;
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result, anyhow};
 use muon::PUT;
-use pass_domain::{ShareId, VaultData, crypto};
+use pass_derive::sdk_export;
 
 pub struct UpdateVaultArgs {
     name: String,
@@ -47,7 +48,15 @@ struct UpdateVaultRequest {
     pub key_rotation: u8,
 }
 
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
+    /// Renames the vault behind `share_id`.
+    #[sdk_export]
+    pub async fn update_vault_name(&self, share_id: &ShareId, name: &str) -> Result<()> {
+        let args = UpdateVaultArgs::new(name.to_string())?;
+        self.update_vault(share_id, args).await
+    }
+
     pub async fn update_vault(&self, share_id: &ShareId, args: UpdateVaultArgs) -> Result<()> {
         self.action_guard(PermissionAction::UpdateVault {
             share_id: share_id.clone(),

@@ -19,8 +19,11 @@
 
 use crate::{PassClient, PassClientContext};
 use muon::GET;
+use pass_derive::sdk_export;
 
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
+    #[sdk_export]
     pub async fn ping(&self) -> anyhow::Result<()> {
         info!(">>> Sending ping");
         let res = self.send(GET!("/tests/ping")).await?.ok()?;

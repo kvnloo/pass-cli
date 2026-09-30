@@ -20,12 +20,15 @@
 use crate::organization::OrganizationPasswordPolicy;
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result, anyhow};
+use pass_derive::sdk_export;
 
+#[sdk_export]
 pub enum PasswordGenerationArgs {
     Random(RandomPasswordConfig),
     Passphrase(PassphraseConfig),
 }
 
+#[sdk_export]
 pub struct RandomPasswordConfig {
     pub length: u32,
     pub numbers: bool,
@@ -44,6 +47,7 @@ impl From<RandomPasswordConfig> for proton_pass_common::password::RandomPassword
     }
 }
 
+#[sdk_export]
 pub struct PassphraseConfig {
     pub separator: WordSeparator,
     pub capitalise: bool,
@@ -62,6 +66,7 @@ impl From<&PassphraseConfig> for proton_pass_common::password::PassphraseConfig 
     }
 }
 
+#[sdk_export]
 pub enum WordSeparator {
     Hyphens,
     Spaces,
@@ -201,7 +206,9 @@ fn validate_against_policy(
     }
 }
 
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
+    #[sdk_export]
     pub async fn generate_password(&self, args: PasswordGenerationArgs) -> Result<String> {
         if let Some(org_policy) = self
             .get_organization_policy()
@@ -291,4 +298,46 @@ impl From<proton_pass_common::password::PasswordScoreResult> for PasswordScoreRe
 
 pub fn score(password: &str) -> PasswordScoreResult {
     proton_pass_common::password::check_score(password).into()
+}
+
+/// Scores a password's strength, listing what weakens it.
+///
+/// SDK counterpart of [`score`]: returns `proton-pass-common`'s result type,
+/// which is already exported to the SDKs, instead of this module's mirror.
+#[sdk_export]
+pub fn score_password(password: &str) -> proton_pass_common::password::PasswordScoreResult {
+    proton_pass_common::password::check_score(password)
+}
+
+// `proton-pass-common` only exports its scoring types to wasm, so they are
+// declared to uniffi here.
+#[cfg(uniffi_runtime)]
+mod uniffi_score {
+    use proton_pass_common::password::{PasswordPenalty, PasswordScore, PasswordScoreResult};
+
+    #[uniffi::remote(Record)]
+    pub struct PasswordScoreResult {
+        pub numeric_score: f64,
+        pub password_score: PasswordScore,
+        pub penalties: Vec<PasswordPenalty>,
+    }
+
+    #[uniffi::remote(Enum)]
+    pub enum PasswordScore {
+        Vulnerable,
+        Weak,
+        Strong,
+    }
+
+    #[uniffi::remote(Enum)]
+    pub enum PasswordPenalty {
+        NoLowercase,
+        NoUppercase,
+        NoNumbers,
+        NoSymbols,
+        Short,
+        Consecutive,
+        Progressive,
+        ContainsCommonPassword,
+    }
 }

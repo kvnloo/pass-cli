@@ -18,10 +18,10 @@
  */
 
 use crate::common::CodeResponse;
+use crate::domain::{TelemetryEvent, TelemetryEventData};
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result};
 use muon::POST;
-use pass_domain::{TelemetryEvent, TelemetryEventData};
 use std::collections::HashMap;
 
 const EVENT_CHUNK_SIZE: usize = 500;

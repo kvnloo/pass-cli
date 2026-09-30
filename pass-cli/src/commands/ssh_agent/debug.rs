@@ -22,7 +22,7 @@ use crate::commands::OutputFormat;
 use crate::commands::item::ItemQuery;
 use crate::helpers::CliPassClient as PassClient;
 use anyhow::{Context, Result};
-use pass_domain::{Item, ItemContent, ItemState, ShareId};
+use pass::domain::{Item, ItemContent, ItemState, ShareId};
 use serde::Serialize;
 use ssh_key::HashAlg;
 use ssh_key::private::KeypairData;
@@ -226,11 +226,23 @@ fn extract_key_details(private_key: &ssh_key::PrivateKey, title: &str) -> Result
 
     let (algorithm, key_size) = match private_key.key_data() {
         KeypairData::Rsa(rsa) => {
-            let size = rsa.public.n.as_positive_bytes().unwrap().len() * 8;
+            let size = rsa
+                .public
+                .n
+                .as_positive_bytes()
+                .context("RSA modulus is not a positive integer")?
+                .len()
+                * 8;
             ("RSA".to_string(), Some(size as u32))
         }
         KeypairData::Dsa(dsa) => {
-            let size = dsa.public.p.as_positive_bytes().unwrap().len() * 8;
+            let size = dsa
+                .public
+                .p
+                .as_positive_bytes()
+                .context("DSA prime is not a positive integer")?
+                .len()
+                * 8;
             ("DSA".to_string(), Some(size as u32))
         }
         KeypairData::Ecdsa(ecdsa) => {
@@ -322,7 +334,7 @@ fn print_json_output(report: &DebugReport) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pass_domain::{ItemData, ItemId, ItemState, ShareId, SshKeyItem, VaultId};
+    use pass::domain::{ItemData, ItemId, ItemState, ShareId, SshKeyItem, VaultId};
     use rsa::pkcs8::EncodePrivateKey;
 
     fn build_ssh_item(title: &str, private_key: String) -> Item {
@@ -341,6 +353,7 @@ mod tests {
                 }),
                 extra_fields: vec![],
                 platform_specific: None,
+                custom_icon: None,
             },
             state: ItemState::Active,
             flags: vec![],

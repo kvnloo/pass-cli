@@ -17,12 +17,14 @@
  *
  */
 
+use crate::domain::{FolderId, ItemId, PersonalAccessTokenId, ShareId, ShareRole, TargetType};
 use crate::pagination::SincePagination;
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result, anyhow};
 use muon::GET;
-use pass_domain::{FolderId, ItemId, PersonalAccessTokenId, ShareId, ShareRole, TargetType};
+use pass_derive::sdk_export;
 
+#[sdk_export]
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum PersonalAccessTokenAccess {
@@ -75,7 +77,9 @@ pub(crate) struct PersonalAccessTokenShare {
     pub expire_time: Option<i64>,
 }
 
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
+    #[sdk_export]
     pub async fn list_personal_access_token_access(
         &self,
         personal_access_token_id: &PersonalAccessTokenId,
@@ -220,9 +224,9 @@ mod tests {
     #[muon_test::test]
     async fn test_list_personal_access_token_access_vault(server: muon_test::Server) {
         let (raw_client, api) = server.client::<()>();
+        use crate::domain::{VaultData, VaultDisplayPreferences, crypto};
         use crate::share::keys::{GetShareKeysResponse, ShareKeyList, ShareKeyResponse};
         use crate::share::list::{GetSharesResponse, ShareResponse};
-        use pass_domain::{VaultData, VaultDisplayPreferences, crypto};
 
         const PERSONAL_ACCESS_TOKEN_ID: &str = "test_sa_id";
         const SHARE_ID: &str = "share_1";
@@ -248,7 +252,7 @@ mod tests {
         let encrypted_vault_content = crypto::encrypt(
             &vault_content_bytes,
             &share_key_raw,
-            pass_domain::crypto::EncryptionTag::VaultContent,
+            crate::domain::crypto::EncryptionTag::VaultContent,
         )
         .expect("Failed to encrypt vault content");
         let encrypted_vault_content_b64 = crate::utils::b64_encode(encrypted_vault_content);

@@ -18,8 +18,8 @@
  */
 
 use anyhow::anyhow;
-use pass_domain::password_hash::PasswordHasher as PasswordHasherKdf;
-use pass_domain::{ItemId, ShareId};
+use pass::domain::password_hash::PasswordHasher as PasswordHasherKdf;
+use pass::domain::{ItemId, ShareId};
 use ssh_agent_lib::error::AgentError;
 use ssh_key::public::KeyData;
 use ssh_key::{
@@ -98,7 +98,7 @@ impl SshIdentity {
         constraints: Option<IdentityConstraints>,
     ) -> anyhow::Result<Self> {
         let public_key = SshPublicKey::from(&private_key);
-        let xor_key = pass_domain::crypto::generate_random_byte();
+        let xor_key = pass::domain::crypto::generate_random_byte();
 
         let private_key_bytes = private_key
             .to_bytes()

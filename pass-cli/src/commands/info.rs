@@ -23,8 +23,8 @@ use crate::helpers::CliPassClient as PassClient;
 use crate::telemetry::event::CommandEvent;
 use anyhow::{Context, Result};
 use parking_lot::RwLock;
-use pass_auth::store::{PassSessionStore, SerializedEnv};
-use pass_domain::AccountType;
+use pass::auth::store::{PassSessionStore, SerializedEnv};
+use pass::domain::AccountType;
 use std::path::PathBuf;
 use std::sync::Arc;
 

@@ -18,7 +18,7 @@
  */
 
 use anyhow::Context;
-use pass_domain::FsStorage;
+use pass::domain::FsStorage;
 use std::path::{Path, PathBuf};
 
 #[derive(Clone)]

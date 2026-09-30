@@ -18,8 +18,8 @@
  */
 
 use anyhow::Result;
+use pass::domain::{CoreEventStorage, CursorEntry};
 use pass_db::{CoreEventCursorModel, DatabaseManager};
-use pass_domain::{CoreEventStorage, CursorEntry};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 

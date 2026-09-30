@@ -17,11 +17,11 @@
  *
  */
 
+use crate::domain::{AccountType, LockedUserKey, UserKey};
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result, anyhow};
 use muon::GET;
 use muon::rest::core::v4::keys::Key;
-use pass_domain::{AccountType, LockedUserKey, UserKey};
 use std::path::Path;
 
 pub(crate) const USER_KEYS_FILE_NAME: &str = "user_keys.enc";

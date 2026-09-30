@@ -20,7 +20,7 @@
 use crate::commands::OutputFormat;
 use crate::helpers::CliPassClient as PassClient;
 use anyhow::{Context, Result};
-use pass_domain::{ItemId, ShareId};
+use pass::domain::{ItemId, ShareId};
 
 pub async fn run(
     client: PassClient,

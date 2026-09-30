@@ -19,6 +19,7 @@
 
 use crate::{PassClient, PassClientContext};
 use anyhow::{Result, anyhow};
+use pass_derive::sdk_export;
 
 mod create;
 mod delete;
@@ -57,11 +58,84 @@ pub use list::PersonalAccessToken;
 pub use list_access::PersonalAccessTokenAccess;
 pub use renew::RenewPersonalAccessTokenResponse;
 
+/// A newly created personal access token.
+#[sdk_export]
+#[derive(Clone, Debug)]
+pub struct CreatedPersonalAccessToken {
+    pub id: String,
+    pub name: String,
+    pub expire_time: Option<i64>,
+    pub create_time: i64,
+    pub modify_time: i64,
+    pub token: String,
+    /// Value to set in `PROTON_PASS_PERSONAL_ACCESS_TOKEN` to log in with the token.
+    pub env_var: String,
+}
+
+/// A personal access token of the user.
+#[sdk_export]
+#[derive(Clone, Debug)]
+pub struct PersonalAccessTokenSummary {
+    pub id: String,
+    pub name: String,
+    pub expire_time: Option<i64>,
+    pub pass_agent: bool,
+}
+
+/// SDK-friendly wrappers for the operations whose originals expose key
+/// material (`create_personal_access_token`, `list_personal_access_tokens`).
+#[sdk_export]
+impl<C: PassClientContext> PassClient<C> {
+    /// Creates a personal access token named `name`, expiring at the unix
+    /// timestamp `expiration_time`. If `pass_agent` is set the token is flagged
+    /// as an agent session token.
+    #[sdk_export]
+    pub async fn create_personal_access_token_with_name(
+        &self,
+        name: &str,
+        expiration_time: i64,
+        pass_agent: bool,
+    ) -> Result<CreatedPersonalAccessToken> {
+        let mut args = CreatePersonalAccessTokenArgs::new(name.to_string(), expiration_time)?;
+        if pass_agent {
+            args = args.with_pass_agent_flag();
+        }
+        let res = self.create_personal_access_token(args).await?;
+        Ok(CreatedPersonalAccessToken {
+            id: res.personal_access_token_id.value().to_string(),
+            name: res.name,
+            expire_time: res.expire_time,
+            create_time: res.create_time,
+            modify_time: res.modify_time,
+            token: res.token,
+            env_var: res.env_var,
+        })
+    }
+
+    /// Lists the personal access tokens of the user.
+    #[sdk_export]
+    pub async fn list_personal_access_token_summaries(
+        &self,
+    ) -> Result<Vec<PersonalAccessTokenSummary>> {
+        Ok(self
+            .list_personal_access_tokens()
+            .await?
+            .into_iter()
+            .map(|pat| PersonalAccessTokenSummary {
+                id: pat.pat_id.value().to_string(),
+                name: pat.name,
+                expire_time: pat.expire_time,
+                pass_agent: pat.pass_agent,
+            })
+            .collect())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::PERSONAL_ACCESS_TOKEN_OPERATION_ERROR;
+    use crate::domain::{PersonalAccessTokenId, ShareId, ShareRole};
     use crate::test_tools::*;
-    use pass_domain::{PersonalAccessTokenId, ShareId, ShareRole};
 
     #[muon_test::test]
     async fn test_create_personal_access_token_blocked_for_pat_session(server: muon_test::Server) {
@@ -131,8 +205,7 @@ mod tests {
                 1735689600,
             )
             .await
-            .err()
-            .expect("PAT sessions should not be able to renew personal access tokens");
+            .expect_err("PAT sessions should not be able to renew personal access tokens");
 
         assert_eq!(PERSONAL_ACCESS_TOKEN_OPERATION_ERROR, error.to_string());
         assert_not_hit!(handled);

@@ -21,8 +21,8 @@ use crate::commands::OutputFormat;
 use crate::helpers::CliPassClient as PassClient;
 use crate::helpers::PassClientExt;
 use anyhow::{Context, Result};
+use pass::domain::ShareId;
 use pass_db::{Setting, UserSettingModel};
-use pass_domain::ShareId;
 
 pub async fn get_default_share_id(client: &PassClient) -> Result<Option<ShareId>> {
     let setting = get_setting(client, Setting::DefaultShareId).await?;

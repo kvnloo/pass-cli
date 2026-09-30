@@ -24,8 +24,8 @@ use crate::commands::{
 use crate::helpers::CliPassClient as PassClient;
 use anyhow::{Context, Result, anyhow};
 use clap::{Args, Subcommand};
+use pass::domain::EventAction;
 use pass::ssh_key::SshKeyItemCreatePayload;
-use pass_domain::EventAction;
 use std::io::Read;
 use std::path::PathBuf;
 
@@ -137,7 +137,7 @@ pub async fn run(args: SshKeyArgs, client: PassClient) -> Result<()> {
             #[cfg(feature = "internal")]
             let folder_id = folder_id
                 .as_ref()
-                .map(|id| pass_domain::FolderId::new(id.clone()));
+                .map(|id| pass::domain::FolderId::new(id.clone()));
             #[cfg(not(feature = "internal"))]
             let folder_id = None;
 
@@ -171,7 +171,7 @@ pub async fn run(args: SshKeyArgs, client: PassClient) -> Result<()> {
             #[cfg(feature = "internal")]
             let folder_id = folder_id
                 .as_ref()
-                .map(|id| pass_domain::FolderId::new(id.clone()));
+                .map(|id| pass::domain::FolderId::new(id.clone()));
             #[cfg(not(feature = "internal"))]
             let folder_id = None;
 
@@ -189,7 +189,7 @@ async fn run_import(
     share_id: Option<String>,
     vault_name: Option<String>,
     title: String,
-    folder_id: Option<pass_domain::FolderId>,
+    folder_id: Option<pass::domain::FolderId>,
     client: PassClient,
 ) -> Result<()> {
     ensure_reason_if_agent(&client)?;
@@ -239,7 +239,7 @@ async fn run_generate(
     share_id: Option<String>,
     vault_name: Option<String>,
     title: String,
-    folder_id: Option<pass_domain::FolderId>,
+    folder_id: Option<pass::domain::FolderId>,
     client: PassClient,
 ) -> Result<()> {
     ensure_reason_if_agent(&client)?;

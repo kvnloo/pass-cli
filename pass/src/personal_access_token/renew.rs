@@ -17,11 +17,12 @@
  *
  */
 
+use crate::domain::PersonalAccessTokenId;
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result};
 use base64::Engine;
 use muon::POST;
-use pass_domain::PersonalAccessTokenId;
+use pass_derive::sdk_export;
 
 #[derive(Clone, Debug, serde::Serialize)]
 struct RenewPersonalAccessTokenRequest {
@@ -41,12 +42,16 @@ struct RenewedPersonalAccessTokenData {
     token: String,
 }
 
+#[sdk_export]
+#[derive(Clone, Debug)]
 pub struct RenewPersonalAccessTokenResponse {
     pub token: String,
     pub env_var: String,
 }
 
+#[sdk_export]
 impl<C: PassClientContext> PassClient<C> {
+    #[sdk_export]
     pub async fn renew_personal_access_token(
         &self,
         personal_access_token_id: &PersonalAccessTokenId,

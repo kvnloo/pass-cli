@@ -17,9 +17,9 @@
  *
  */
 
+use crate::domain::{PgpCrypto, PublicKey, UnlockedAddressKeys, UserKey};
 use crate::share::ShareKey;
 use anyhow::Result;
-use pass_domain::{PgpCrypto, PublicKey, UnlockedAddressKeys, UserKey};
 use std::sync::Arc;
 
 pub(crate) struct OpenShareKeyFlow {

@@ -18,14 +18,17 @@
  */
 
 use crate::constants::SESSION_FILE_NAME;
+use crate::env_config::{
+    ENVIRONMENT_ENV_VAR, debug_config_from_env, detect_locale, proxy_config_from_env,
+};
 use crate::features::CliClientFeatures;
 use crate::storage::FileSystemSessionStorage;
 use crate::utils::ask_for_input;
 use anyhow::Context;
 use muon::env::Environment;
 use parking_lot::RwLock;
-use pass_auth::os::ProdClient;
-use pass_auth::store::{CustomEnv, PassSessionStore, SerializedEnv};
+use pass::auth::store::{CustomEnv, PassSessionStore, SerializedEnv};
+use pass::auth::{TokioClient, TokioExecutor, TokioOs};
 use std::io::Read;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -46,7 +49,7 @@ const SECOND_PASSWORD_FILE_ENV_VAR: &str = "PROTON_PASS_SECOND_PASSWORD_FILE";
 const APP_HEADER_ENV_VAR: &str = "PROTON_PASS_APP_HEADER";
 
 fn get_env() -> SerializedEnv {
-    match std::env::var(pass_auth::ENVIRONMENT_ENV_VAR) {
+    match std::env::var(ENVIRONMENT_ENV_VAR) {
         Ok(v) => {
             if v == "atlas" {
                 SerializedEnv::Atlas(None)
@@ -126,7 +129,7 @@ fn default_app_header() -> String {
     format!("{}@{}", APP_NAME, env!("CARGO_PKG_VERSION"))
 }
 
-fn get_app_header() -> String {
+pub fn get_app_header() -> String {
     std::env::var(APP_HEADER_ENV_VAR).unwrap_or_else(|_| default_app_header())
 }
 
@@ -152,26 +155,28 @@ fn store_using_current_env(env: &Environment) -> bool {
 pub async fn get_client(
     base_dir: PathBuf,
     client_features: Arc<CliClientFeatures>,
-) -> anyhow::Result<(ProdClient, Arc<RwLock<PassSessionStore>>)> {
+) -> anyhow::Result<(TokioClient, Arc<RwLock<PassSessionStore>>)> {
     let session_file_path = base_dir.join(SESSION_FILE_NAME);
     let storage = Arc::new(FileSystemSessionStorage::new(session_file_path));
 
-    let config = pass_auth::ClientConfig {
+    let config = pass::auth::ClientConfig {
         base_dir: base_dir.clone(),
-        environment: std::env::var(pass_auth::ENVIRONMENT_ENV_VAR).ok(),
-        proxy_config: pass_auth::ProxyConfig::from_env(),
-        debug_config: pass_auth::config::DebugConfig::from_env(),
-        app_header: Some(get_app_header()),
-        post_login_config: pass_auth::PostLoginConfig::default(),
-        product_name: Some("Pass".to_string()),
-        product_version: Some(env!("CARGO_PKG_VERSION").to_string()),
-        locale: Some(pass_domain::headers::detect_locale()),
+        environment: std::env::var(ENVIRONMENT_ENV_VAR).ok(),
+        proxy_config: proxy_config_from_env(),
+        debug_config: debug_config_from_env(),
+        app_header: get_app_header(),
+        post_login_config: pass::auth::PostLoginConfig::default(),
+        product_name: "Pass".to_string(),
+        product_version: env!("CARGO_PKG_VERSION").to_string(),
+        locale: Some(detect_locale()),
     };
 
-    let result = pass_auth::client_builder::create_client(
+    let result = pass::auth::client_builder::create_client(
         client_features.key_provider.clone(),
         storage,
         &config,
+        TokioOs::default(),
+        TokioExecutor,
     )
     .await;
 

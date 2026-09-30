@@ -19,6 +19,7 @@
 
 mod client_ext;
 mod client_features;
+mod in_memory_fs;
 
 #[macro_use]
 mod helpers;

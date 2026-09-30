@@ -18,11 +18,11 @@
  */
 
 use super::common::CreateItemRequest;
+use crate::domain::{ItemData, ItemId, ShareId};
 use crate::item::list::ItemRevision;
 use crate::{PassClient, PassClientContext};
 use anyhow::{Context, Result};
 use muon::POST;
-use pass_domain::{ItemData, ItemId, ShareId};
 
 const MAX_ITEMS_PER_BATCH: usize = 100;
 

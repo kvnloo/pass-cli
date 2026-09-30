@@ -18,7 +18,7 @@
  */
 
 use clap::ValueEnum;
-use pass_domain::ShareRole;
+use pass::domain::ShareRole;
 
 pub mod agent;
 pub mod info;

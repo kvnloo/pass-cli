@@ -1,22 +1,22 @@
 [workspace]
-members = [
-    "pass-auth",
+members = ["pass", "pass-*"]
+default-members = [
     "pass-cli",
     "pass-db",
-    "pass-domain",
     "pass-fs",
-    "pass-pgp",
-    "pass"
+    "pass",
+    "pass-derive"
 ]
 resolver = "2"
 
 [workspace.dependencies]
-muon = { version = "3.0.0", registry = "proton", features = ["transport-hyper", "full-base", "unsealed", "other-platform"] }
+muon = { version = "3.0.0", registry = "proton", features = ["full-base", "unsealed", "other-platform"] }
 muon-test = { version = "3.0.0", registry = "proton" }
 proton-crypto = { version = "0.14.0", registry = "proton", default-features = false, features = ["rustpgp"] }
 proton-crypto-account = { version = "0.20.0", registry = "proton", default-features = false, features = ["rustpgp"] }
 
-proton-pass-common = {  git = "https://github.com/protonpass/proton-pass-common.git", tag = "2.1.0" }
+proton-pass-common = {  git = "https://github.com/protonpass/proton-pass-common.git", tag = "2.1.1" }
+proton-pass-types = { git = "https://github.com/protonpass/proton-pass-common.git", tag = "2.1.1", features = ["serde"] }
 
 aes-gcm = "0.11"
 anyhow = "1.0"
@@ -33,6 +33,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tempfile = "3.27"
 tracing = "0.1"
+uniffi = "0.32"
 tokio = { version = "1.52.3", features = ["full"] }
 uuid = { version = "1.26", features = ["v4", "js"] }
 zeroize = { version = "1.9", features = ["derive"] }

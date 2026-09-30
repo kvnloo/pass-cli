@@ -17,13 +17,13 @@
  *
  */
 
-use crate::{PassClient, PassClientContext};
-use anyhow::{Context, Result};
-use muon::GET;
-use pass_domain::{
+use crate::domain::{
     AddressId, FolderId, GroupId, ItemId, Permission, Share, ShareContent, ShareId, ShareRole,
     ShareType, VaultId,
 };
+use crate::{PassClient, PassClientContext};
+use anyhow::{Context, Result};
+use muon::GET;
 
 const TARGET_TYPE_VAULT: u8 = 1;
 const TARGET_TYPE_ITEM: u8 = 2;
@@ -182,7 +182,7 @@ mod tests {
     use super::*;
     use crate::test_tools::*;
 
-    use pass_domain::TargetType;
+    use crate::domain::TargetType;
 
     #[muon_test::test]
     async fn test_fetch_shares_empty_list(server: muon_test::Server) {

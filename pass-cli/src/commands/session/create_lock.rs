@@ -21,7 +21,7 @@ use crate::helpers::CliPassClient as PassClient;
 use crate::utils::ask_for_input;
 use anyhow::{Context, Result, bail, ensure};
 use parking_lot::RwLock;
-use pass_auth::store::PassSessionStore;
+use pass::auth::store::PassSessionStore;
 use std::sync::Arc;
 
 const MIN_LOCK_TIME: u32 = 30;

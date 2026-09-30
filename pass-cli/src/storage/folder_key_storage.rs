@@ -18,8 +18,8 @@
  */
 
 use anyhow::Result;
+use pass::domain::{DecryptedFolderKey, FolderId, FolderKeyStorage, ShareId};
 use pass_db::{DatabaseManager, FolderKeyModel};
-use pass_domain::{DecryptedFolderKey, FolderId, FolderKeyStorage, ShareId};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 

@@ -21,7 +21,7 @@ use crate::helpers::CliPassClient as PassClient;
 use anyhow::{Context, Result};
 use jiff::Timestamp;
 use parking_lot::RwLock;
-use pass_auth::PassSessionStore;
+use pass::auth::PassSessionStore;
 use std::sync::Arc;
 
 #[derive(serde::Serialize)]
