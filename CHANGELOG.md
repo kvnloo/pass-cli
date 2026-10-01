@@ -5,6 +5,16 @@
 ### Other
 -->
 
+## 2.4.2 (2026-10-01)
+
+### Fixes
+
+- Improved support for `HTTP_PROXY` and `HTTPS_PROXY`.
+
+### Other
+
+- Upgraded network dependency to `muon 3`.
+
 ## 2.4.1 (2026-09-21)
 
 ### Other
